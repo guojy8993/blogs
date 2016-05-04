@@ -1,0 +1,220 @@
+==== ISCSI服务端 ====
+10.160.0.119  www.iscsi-server.com
+
+Step1:安装软件:
+[root@www home]# rpm -ivh scsi-target-utils-1.0.55-4.el7.x86_64.rpm 
+warning: scsi-target-utils-1.0.55-4.el7.x86_64.rpm: Header V3 RSA/SHA256 Signature, key ID 352c64e5: NOKEY
+error: Failed dependencies:
+	/usr/bin/perl is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	libibverbs is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	libibverbs.so.1()(64bit) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	libibverbs.so.1(IBVERBS_1.0)(64bit) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	libibverbs.so.1(IBVERBS_1.1)(64bit) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	librdmacm is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	librdmacm.so.1()(64bit) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	librdmacm.so.1(RDMACM_1.0)(64bit) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	lsof is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	perl(Config::General) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	perl(Getopt::Long) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	perl(strict) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+	sg3_utils is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+
+是本地rpm包但是依赖:
+(1) lsof
+(2) perl
+(3) sg3_utils
+(4) libibverbs
+(5) librdmacm
+
+因此先安装依赖包:
+[root@www home]# yum install perl -y
+[root@www home]# yum install lsof -y
+[root@www home]# yum install sg3_utils -y
+[root@www home]# yum install libibverbs -y
+[root@www home]# yum install librdmacm -y
+[root@www home]# rpm -ivh scsi-target-utils-1.0.55-4.el7.x86_64.rpm
+warning: scsi-target-utils-1.0.55-4.el7.x86_64.rpm: Header V3 RSA/SHA256 Signature, key ID 352c64e5: NOKEY
+error: Failed dependencies:
+	perl(Config::General) is needed by scsi-target-utils-1.0.55-4.el7.x86_64
+
+发现还缺少依赖 perl(Config::General),因此下载它,使用本地安装:
+[root@www home]# rpm -ivh perl-Config-General-2.60-1.el7.noarch.rpm
+
+最后本地安装scsi-target-utils:
+[root@www home]# rpm -ivh scsi-target-utils-1.0.55-4.el7.x86_64.rpm
+
+Step2:管理磁盘,并作iscsi的 backing-strore规划;
+[root@www ~]# fdisk -l | grep "/dev/sd" | grep Disk
+Disk /dev/sdc: 107.4 GB, 107374182400 bytes, 209715200 sectors
+Disk /dev/sda: 53.7 GB, 53687091200 bytes, 104857600 sectors
+Disk /dev/sdb: 107.4 GB, 107374182400 bytes, 209715200 sectors
+
+/dev/sda 作为宿主系统盘不予考虑;
+那么我要做出如下规划:
+/dev/sdb 整盘予以对外提供块设备;
+/dev/sdc 分成sdca,sdc2,sdc33个逻辑分区对外提供块设备;
+[root@www ~]# fdisk /dev/sdc
+...
+创建新分区 -> 设置分区编号(默认) -> 选择"主/扩展"分区 -> 选择起始大小(默认) 
+-> 输入分区大小:+$Capacity;如是再三;
+连续创建 sdc1/sdc2/sdc3后选择 w:保存分区表并退出;
+...
+[root@www ~]# fdisk -l | grep "/dev/sdc"
+Disk /dev/sdc: 107.4 GB, 107374182400 bytes, 209715200 sectors
+/dev/sdc1            2048    62916607    31457280   83  Linux
+/dev/sdc2        62916608   125831167    31457280   83  Linux
+/dev/sdc3       125831168   207620095    40894464   83  Linux
+
+Step3:按预设的backing-strore规划,修改tgt配置文件启动服务,开放块设备访问;
+编辑 /etc/tgt/targets.conf 配置 backing-store:
+
+[root@www ~]# cat >> /etc/tgt/targets.conf << EOF
+# default-driver iscsi
+<target  iqn.2016-05.com.server:disk1>
+	backing-store /dev/sdb
+	backing-store /dev/sdc1
+</target>
+<target  iqn.2016-05.com.server:disk2>
+	backing-store /dev/sdc2
+	lun 10
+	initiator-address 10.160.0.130
+	incominguser guojingyu guojingyu
+</target>
+<target  iqn.2016-05.com.server:disk3>
+	backing-store /dev/sdc3
+	lun 20
+	initiator-address 10.160.0.144
+	incominguser tom tom
+</target>
+EOF
+
+
+""" 注: default-driver 已经是默认配置,故此处注释 """
+"""
+又注:
+1.如果target不指定lun值,那么系统自动从1往后分配,lun0是SCSI控制器专用的Logic-Uint-Number;
+2.backing-store 选项指定对外开放访问的块设备(如果是多个,??在客户端看来应当是一块??);
+3.initiator-address 指定开放访问的访客ip,e.g 如果计算节点的虚拟机使用iscsi磁盘,那么计算机节点
+  的ip就是此时的 initiator-address;
+4.出于安全考虑,访客访问块设备需要提供必须的认证信息,incominguser选项配置 iscsi server登录的
+  用户名/密码
+5.如果无incominguser限制,则向任何客户端开放
+
+!!特别注意!! 配置文件格式:
+(1) incominguser<1个空格>$user<1个空格>
+(2) initiator-address<1个空格>$client_ip
+(3) lun<1个空格>$lun
+(4) backing-store<1个空格>$dev
+(5) target的IQN一般格式 iqn.yyyy-mm.<reversed_domain_name>:identifier
+    e.g:iqn.2016-05.com.server:disk3
+    
+"""
+启动 tgtd，开始对外提供服务:
+[root@www ~]# systemctl enable tgtd
+Created symlink from /etc/systemd/system/multi-user.target.wants/tgtd.service to /usr/lib/systemd/system/tgtd.service.
+[root@www ~]# systemctl start  tgtd.service
+[root@www ~]# systemctl status  tgtd.service
+
+因为iscsi daemon使用3260端口对外提供服务,因此有必要添加防火墙例外:
+[root@www ~]# iptables -I INPUT -p tcp --source 10.160.0.130 --dport 3260 -j ACCEPT
+[root@www ~]# iptables -I INPUT -p tcp --source 10.160.0.144 --dport 3260 -j ACCEPT
+
+因此此时:
+10.160.0.130可访问:disk1,disk2
+10.160.0.140可访问:disk1,disk3
+其他机器访问不到任何iscsi设备
+
+
+Step4:测试对外提供的ISCSI块设备是否可访问:
+[root@www ~]# tgtadm --lld iscsi --op show --mode target > targets
+结果显示在targets文件,此处略.
+
+通过 tgtadm --help 略有发现:使用命令行可以完成iscsi热操作的,不用修改配置文件
+
+
+
+==== ISCSI客户端:www.comp130.com ====
+10.160.0.130  www.comp130.com
+[root@www ~]# yum install -y iscsi-initiator-utils.x86_64
+[root@www ~]# iscsiadm --mode discoverydb --type sendtargets --portal 10.160.0.119 --discover
+10.160.0.119:3260,1 iqn.2016-05.com.server:disk1
+10.160.0.119:3260,1 iqn.2016-05.com.server:disk2
+
+如前文所说: 果然发现两块磁盘:
+disk1 是无密码共享盘
+disk2 是www.comp130.com专享盘;
+
+测试登录:
+[root@www ~]# iscsiadm --mode node  --targetname iqn.2016-05.com.server:disk1  --portal 10.160.0.119:3260 --login
+Logging in to [iface: default, target: iqn.2016-05.com.server:disk1, portal: 10.160.0.119,3260] (multiple)
+Login to [iface: default, target: iqn.2016-05.com.server:disk1, portal: 10.160.0.119,3260] successful.
+
+
+==== ISCSI客户端:www.comp144.com ====
+10.160.0.144  www.comp144.com
+[root@www ~]# yum install -y iscsi-initiator-utils.x86_64
+[root@www ~]# iscsiadm --mode discoverydb --type sendtargets --portal 10.160.0.119 --discover
+10.160.0.119:3260,1 iqn.2016-05.com.server:disk1
+10.160.0.119:3260,1 iqn.2016-05.com.server:disk3
+
+如前文所说: 果然发现两块磁盘:
+disk1 是无密码共享盘
+disk3 是www.comp144.com专享盘;
+
+测试登录:
+[root@www ~]# iscsiadm --mode node  --targetname iqn.2016-05.com.server:disk1  --portal 10.160.0.119:3260 --login
+Logging in to [iface: default, target: iqn.2016-05.com.server:disk1, portal: 10.160.0.119,3260] (multiple)
+Login to [iface: default, target: iqn.2016-05.com.server:disk1, portal: 10.160.0.119,3260] successful.
+
+
+
+www.comp130.com在原来只有系统盘(/dev/sda)情况下又多出2块磁盘:
+[root@www ~]# ll /dev/disk/by-path/
+total 0
+lrwxrwxrwx. 1 root root  9 Apr 30 12:54 ip-10.160.0.119:3260-iscsi-iqn.2016-05.com.server:disk1-lun-1 -> ../../sdb
+lrwxrwxrwx. 1 root root  9 Apr 30 12:54 ip-10.160.0.119:3260-iscsi-iqn.2016-05.com.server:disk1-lun-2 -> ../../sdc
+lrwxrwxrwx. 1 root root  9 Apr 20 08:47 pci-0000:00:10.0-scsi-0:0:0:0 -> ../../sda
+lrwxrwxrwx. 1 root root 10 Apr 20 08:47 pci-0000:00:10.0-scsi-0:0:0:0-part1 -> ../../sda1
+lrwxrwxrwx. 1 root root 10 Apr 20 08:47 pci-0000:00:10.0-scsi-0:0:0:0-part2 -> ../../sda2
+
+经过 discovery后,自动出现在 /dev/disks/by-path/下,那么它们是可以直接被当前宿主下的客户机挂
+载使用的,参考openstack客户机的磁盘挂载情景:
+[root@compute ~]# virsh dumpxml instance-00000345
+...
+<disk type='block' device='disk'>
+  <driver name='qemu' type='raw' cache='none'/>
+  <source dev='/dev/disk/by-path/ip-10.160.0.120:3260-iscsi-iqn.2010-10.org.openstack:volume-55abfdd1-2c88-4ba1-bab7-8e0fea5413c4-lun-0'/>
+  <backingStore/>
+  <target dev='vda' bus='virtio'/>
+  <serial>55abfdd1-2c88-4ba1-bab7-8e0fea5413c4</serial>
+  <alias name='virtio-disk0'/>
+  <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+</disk>
+...
+
+#  注意:根据其他测试需求(puppet推送),机器改名字，特知会读者.
+#  www.iscsi-server.com  -> master.pp.com
+#  www.comp130.com  -> agent130.pp.com
+#  www.comp144.com  -> agent144.pp.com
+
+# 使用 virsh attach-disk 命令,将在宿主下发现的iscsi磁盘挂载到客户机上
+[root@agent130 KY002]# virsh attach-disk --domain KY002 --source /dev/disk/by-path/ip-10.160.0.119\:3260-iscsi-iqn.2016-05.com.server\:disk1-lun-1 --target vdb --live --config
+Disk attached successfully
+# 使用vnc-viewer进入KY002视图,进入系统,使用 fdisk -l 查看系统可以看到多出一块磁盘(见截图)
+
+[root@agent130 KY002]# virsh attach-disk --domain KY002 --source /dev/disk/by-path/ip-10.160.0.119\:3260-iscsi-iqn.2016-05.com.server\:disk1-lun-2 --target vdc --live --config
+Disk attached successfully
+
+[root@agent130 KY002]# virsh domblklist KY002
+Target     Source
+------------------------------------------------
+vda        /var/lib/instances/KY002/system
+vdb        /dev/disk/by-path/ip-10.160.0.119:3260-iscsi-iqn.2016-05.com.server:disk1-lun-1
+vdc        /dev/disk/by-path/ip-10.160.0.119:3260-iscsi-iqn.2016-05.com.server:disk1-lun-2
+
+参考链接:
+http://www.server-world.info/en/note?os=CentOS_7&p=iscsi                    
+http://czmmiao.iteye.com/blog/2055805                                      
+https://github.com/agrover/rtslib-fb/blob/master/doc/getting_started.md
+http://www.cnblogs.com/mchina/p/centos-iscsi-network-storage.html
+http://www.centoscn.com/CentOS/config/2014/1209/4275.html
