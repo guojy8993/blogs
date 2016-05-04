@@ -1,0 +1,219 @@
+Keepalived高可用实践
+
+1.安装两台服务器,信息如下:
+
+HOSTNAME     IP与网卡以及网卡标签
+server129    [ {
+                  "ip":"10.160.0.129/8",
+                  "gateway":"10.160.0.1",
+                  "device":"ens160.610",
+                  "adapter":"vm_net_internal"
+               },
+               {
+                  "ip":"192.168.192.129/24",
+                  "device":"ens192",
+                  "adapter":"vm_net_datanet_01"
+               }
+             ]
+
+
+server128    [ {
+                  "ip":"10.160.0.128/8",
+                  "gateway":"10.160.0.1",
+                  "device":"ens160.610",
+                  "adapter":"vm_net_internal"
+               },
+               {
+                  "ip":"192.168.192.129/24",
+                  "device":"ens192",
+                  "adapter":"vm_net_datanet_01"
+               }
+             ]
+
+2.配置yum代理(在server128,server129上操作)
+
+echo "proxy=http://10.154.88.88:3128" >> /etc/yum.conf
+
+3.安装httpd,keepalived(在server128,server129上操作)
+
+yum install httpd -y
+yum install keepalived -y
+
+echo "KaSlave-129" > /var/www/html/index.html  (在server129上操作)
+echo "KaSlave-128" > /var/www/html/index.html  (在server128上操作)
+
+4.设置 httpd(在server128,server129上操作)
+systemctl enable httpd && iptables -I INPUT -p tcp --dport 80 -j ACCEPT && systemctl start httpd
+
+5.设置keepalived 以server128为MASTER 以及 server129为BACKUP配置如下:
+## 主(此行不要复制)
+global_defs {
+   notification_email {
+     acassen@firewall.loc
+     failover@firewall.loc
+     sysadmin@firewall.loc
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   router_id LVS_DEVEL
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface ens192
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.192.131
+    }
+}
+
+## 备(此行不要复制)
+global_defs {
+   notification_email {
+     acassen@firewall.loc
+     failover@firewall.loc
+     sysadmin@firewall.loc
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   router_id LVS_DEVEL
+}
+
+vrrp_instance VI_1 {
+    state BACKUP
+    interface ens192
+    virtual_router_id 51
+    priority 50
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.192.131
+    }
+}
+
+说明: 重点修改 virtual_ipaddress与 interface 两项
+
+6.启动 keepalived
+keepalived -D  -f  /etc/keepalived/keepalived.conf
+并观察 /var/log/messages 的日志输出.
+
+主服务器
+Mar 24 21:16:16 server128 Keepalived[3810]: Starting Healthcheck child process, pid=3811
+Mar 24 21:16:16 server128 Keepalived[3810]: Starting VRRP child process, pid=3812
+Mar 24 21:16:16 server128 Keepalived_vrrp[3812]: Registering Kernel netlink reflector
+Mar 24 21:16:16 server128 Keepalived_vrrp[3812]: Registering Kernel netlink command channel
+Mar 24 21:16:16 server128 Keepalived_vrrp[3812]: Registering gratuitous ARP shared channel
+Mar 24 21:16:16 server128 Keepalived_vrrp[3812]: Opening file '/etc/keepalived/keepalived.conf'.
+Mar 24 21:16:16 server128 Keepalived_vrrp[3812]: Configuration is using : 63381 Bytes
+Mar 24 21:16:16 server128 Keepalived_vrrp[3812]: Using LinkWatch kernel netlink reflector...
+Mar 24 21:16:16 server128 Keepalived_healthcheckers[3811]: Registering Kernel netlink reflector
+Mar 24 21:16:16 server128 Keepalived_healthcheckers[3811]: Registering Kernel netlink command channel
+Mar 24 21:16:16 server128 Keepalived_healthcheckers[3811]: Opening file '/etc/keepalived/keepalived.conf'.
+Mar 24 21:16:16 server128 Keepalived_healthcheckers[3811]: Configuration is using : 7924 Bytes
+Mar 24 21:16:16 server128 Keepalived_healthcheckers[3811]: Using LinkWatch kernel netlink reflector...
+Mar 24 21:16:17 server128 Keepalived_vrrp[3812]: VRRP_Instance(VI_1) Transition to MASTER STATE
+Mar 24 21:16:18 server128 Keepalived_vrrp[3812]: VRRP_Instance(VI_1) Entering MASTER STATE
+
+备服务器
+Mar 24 21:17:23 server129 Keepalived[2515]: Starting Keepalived v1.2.13 (11/20,2015)
+Mar 24 21:17:23 server129 Keepalived[2516]: Starting Healthcheck child process, pid=2517
+Mar 24 21:17:23 server129 Keepalived[2516]: Starting VRRP child process, pid=2518
+Mar 24 21:17:23 server129 Keepalived_vrrp[2518]: Registering Kernel netlink reflector
+Mar 24 21:17:23 server129 Keepalived_vrrp[2518]: Registering Kernel netlink command channel
+Mar 24 21:17:23 server129 Keepalived_vrrp[2518]: Registering gratuitous ARP shared channel
+Mar 24 21:17:23 server129 Keepalived_vrrp[2518]: Opening file '/etc/keepalived/keepalived.conf'.
+Mar 24 21:17:23 server129 Keepalived_vrrp[2518]: Configuration is using : 63377 Bytes
+Mar 24 21:17:24 server129 Keepalived_vrrp[2518]: Using LinkWatch kernel netlink reflector...
+Mar 24 21:17:25 server129 Keepalived_vrrp[2518]: VRRP_Instance(VI_1) Entering BACKUP STATE
+
+
+如果需要结束keepalived，使用如下命令:
+for i in `ps aux | grep keep | grep -v "auto" | awk '{print $2}'`;do kill -9 $i;done
+
+7.使用 ip addr 命令观察主备服务器下 `interface` 设备是否绑定了 `virtual_ipaddress`
+
+[root@server128 ~]# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 00:50:56:be:43:d0 brd ff:ff:ff:ff:ff:ff
+3: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 00:50:56:be:ac:c3 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.192.128/24 brd 192.168.192.255 scope global ens192
+       valid_lft forever preferred_lft forever
+    inet 192.168.192.131/32 scope global ens192
+       valid_lft forever preferred_lft forever
+    inet6 fe80::250:56ff:febe:acc3/64 scope link 
+       valid_lft forever preferred_lft forever
+9: ens160.610@ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP 
+    link/ether 00:50:56:be:43:d0 brd ff:ff:ff:ff:ff:ff
+    inet 10.160.0.128/8 brd 10.255.255.255 scope global ens160.610
+       valid_lft forever preferred_lft forever
+    inet6 fe80::250:56ff:febe:43d0/64 scope link 
+       valid_lft forever preferred_lft forever
+
+[root@server129 ~]# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 00:50:56:be:18:75 brd ff:ff:ff:ff:ff:ff
+3: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 00:50:56:be:64:fd brd ff:ff:ff:ff:ff:ff
+    inet 192.168.192.129/24 brd 192.168.192.255 scope global ens192
+       valid_lft forever preferred_lft forever
+    inet 192.168.192.131/32 scope global ens192
+       valid_lft forever preferred_lft forever
+    inet6 fe80::250:56ff:febe:64fd/64 scope link 
+       valid_lft forever preferred_lft forever
+6: ens160.610@ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP 
+    link/ether 00:50:56:be:18:75 brd ff:ff:ff:ff:ff:ff
+    inet 10.160.0.129/8 brd 10.255.255.255 scope global ens160.610
+       valid_lft forever preferred_lft forever
+    inet6 fe80::250:56ff:febe:1875/64 scope link 
+       valid_lft forever preferred_lft forever
+
+8.在 server130 下使用 curl 命令测试
+server130 网络配置:
+server130    [ {
+                  "ip":"10.160.0.130/8",
+                  "gateway":"10.160.0.1",
+                  "device":"ens160.610",
+                  "adapter":"vm_net_internal"
+               },
+               {
+                  "ip":"192.168.192.130/24",
+                  "device":"ens192",
+                  "adapter":"vm_net_datanet_01"
+               }
+             ]
+
+(1) 使用 curl 192.168.192.131 观察响应结果
+(2) 在 server128上使用 ip link set ens192 down，然后执行(1)
+(3) 在 server128上使用 ip link set ens192 up，然后执行(1)
+
+测试结果如下:
+[root@server130 ~]# curl 192.168.192.131
+KaSlave-128
+[root@server130 ~]# curl 192.168.192.131
+KaSlave-129
+[root@server130 ~]# curl 192.168.192.131
+KaSlave-128
