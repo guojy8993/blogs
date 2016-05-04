@@ -1,0 +1,98 @@
+
+1. 在宿主机上编写 cdrom 设备的配置文件
+[root@KVM_test image]# cat cdrom.xml
+<disk type='file' device='cdrom'>
+	<driver name='qemu' type='raw' cache='none'/>
+	<target dev='hda' bus='ide'/>
+</disk>
+
+2. 在宿主机上使用KVM管理工具virsh 按设备的XML描述文件挂载磁盘设备的到客户机:
+# 视虚拟化环境对"cdrom","floppy"设备对hotplug的支持决定是否使用 --live 选项;
+virsh attach-device  --domain KY20160303170514Y1B  --file cdrom.xml --config
+# 如果支持 hotplug 则 --live,不需要重启客户机;否则显式重启客户机:
+# virsh destroy KY20160303170514Y1B
+# virsh start   KY20160303170514Y1B
+
+3.在宿主机上使用 change-media 添加ISO文件到光驱或者弹出ISO文件
+[root@KVM_test ~]# virsh domblklist huper
+Target     Source
+------------------------------------------------
+vda        /data/instance/huper/huper_sys.img
+vdc        /data/instance/huper/huper-data.raw
+vdd        /data/instance/huper/huper-data.qcow2
+hda        -
+
+# hda即空cdrom设备
+# (1)热挂载iso
+# virsh change-media --domain $domain  # 客户机名称
+#                    --path $device    # hdX
+#                    --source $AbsPathToISO 
+#					           --insert  # 如果光驱可能之前已经存在并可能挂载了文件,使用 --update 替换 
+#					           --live    # 硬重启(destroy&&start)客户机后挂载ISO自动卸载
+#                              # 下次不需要挂载,故而不用 --config 选项;
+# (2)热卸载iso
+# virsh change-media --domain $domain  # 客户机名称 
+#					           --path $device    # hdX 
+#				             --eject   # 弹出设备
+#					           --live    # 热操作
+#
+# (3)在宿主上将脚本写入文件,再将脚本文件生成iso,然后挂载(结合cloudinit或自定义客户机服务实现
+#    config drive式的metadata injection)
+# [root@KVM_test ~]# cat > /root/metadata << EOF
+# >#! /bin/bash
+# > ...
+# > ...scripts here...
+# > ...
+# >EOF
+# 制作iso: mkisofs -o $AbsPathToOutputISO $AbsPathToInputFile
+
+[root@KVM_test ~]# cat > /root/metadata <<EOF
+> #! /bin/bash
+> echo 122222
+> EOF
+[root@KVM_test ~]# mkisofs -o /root/meta.iso /root/metadata
+virsh change-media --domain huper 
+				   --path hda 
+				   --source /data/image/source.iso
+				   --insert  # 插入iso
+				   --live
+
+virsh change-media --domain huper
+                   --path hda
+                   --eject  # 弹出iso 
+                   --live
+                   
+virsh change-media --domain huper 
+				   --path hda 
+				   --source /root/meta.iso
+				   --update   # 更新 iso
+				   --live
+
+4. 在客户机创建挂载目录,挂载新加设备
+(1) linux系统客户机使用cdrom以及ISO
+mkdir -p /home/huper/cdrom
+mount -t iso9660 -r /dev/cdrom  /home/huper/cdrom
+ll /home/huper/cdrom
+(2) windows系统(略)
+
+扩展:
+5. 使用config_drive挂载cdrom的方式实现metadata注入
+   (1) windows系统(模版)后台程序监听"cdrom设备添加","ISO文件挂载","ISO文件卸载"的事件,
+       读取matadata/userdata文件;
+   (2) linux系统的notification机制获取"cdrom设备添加","ISO文件挂载","ISO文件卸载"的事件,
+       读取matadata/userdata文件;
+参考:
+http://www.cnblogs.com/summergarden/archive/2013/03/04/2942983.html
+http://www.cnblogs.com/chengmo/archive/2010/10/13/1850515.html
+http://www.ibm.com/developerworks/cn/cloud/library/1509_liukg_openstackmeta/    # 大神文章
+   
+# windows程序监听cdrom相关事件(bing关键字 linux c cdrom  notification)
+# This article explains how to handle the WM_DEVICECHANGE message to detect 
+# CD-ROM or DVDmedia changes
+# 或参考图片网页: "How to receive notification of CD-ROM insertion or.png"
+# https://support.microsoft.com/en-us/kb/163503
+
+# linux 系统
+http://blog.csdn.net/gaoxingnengjisuan/article/details/10165963  # 特别注意(openstack的config_drive机制)
+http://bbs.chinaunix.net/thread-2018858-1-1.html
+https://docs.python.org/2/library/cd.html#cd.open
