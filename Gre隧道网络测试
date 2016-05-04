@@ -1,0 +1,267 @@
+1.宿主机配置网络:
+  internel/data01 分别是管理网络/传输网络交换机;
+  eth1 此处对应管理网络网卡ens192的vlan为610的打过vlan的NIC设备;
+  eth0 此处对应传输网络网卡ens160的NIC设备;
+  
+  硬件配置:
+  server eth1-10.160.0.118  C8M(8*1024)  nics: eth1:internal/eth0:data01
+  client eth1-10.160.0.119  C8M(8*1024)  nics: eth1:internal/eth0:data01
+
+  网络配置:
+  server: ens192.610   internel    10.160.0.118  (管理网络)
+          ens160       data        192.168.100.4 (gre传输网络) 
+
+  client: ens192.610   internel    10.160.0.119  (管理网络)  
+          ens160       data        192.168.100.5 (gre传输网络)              
+   
+2.配置计算节点虚拟化环境 与 管理工具.
+  安装:
+  (1)qemu
+  (2)kvm
+     [root@server ~]# yum install -y qemu-kvm-tools.x86_64 qemu-kvm-common.x86_64 \ 
+            qemu-kvm.x86_64 qemu-img.x86_64 qemu-common.x86_64 qemu.x86_64 \ 
+            libvirt-daemon-driver-qemu.x86_64 libvirt-daemon-kvm.x86_64
+  
+  (3)virsh
+     [root@server ~]# yum install -y fence-agents-virsh.x86_64
+     
+  (4)virt-manager
+     [root@server ~]# yum install -y virt-manager
+
+  (5)open-vswitch
+     [root@server ~]# yum install -y python-openvswitch.noarch openvswitch-test.noarch \
+            openvswitch-devel.x86_64 openvswitch-controller.x86_64 openvswitch.x86_64 \ 
+            && systemctl enable openvswitch && systemctl start openvswitch &&  \ 
+            systemctl status openvswitch
+  (6)libvirt
+     [root@server ~]# yum install -y libvirt-daemon-kvm.x86_64 libvirt.x86_64  \ 
+           libvirt-python.x86_64 libvirt-devel.x86_64 libvirt-daemon.x86_64  \
+           && systemctl enable libvirtd &&systemctl start libvirtd && \ 
+           systemctl status libvirtd
+  (7)virt-install
+     [root@server ~]# yum install -y virt-install
+  (8)virt-viwer
+     [root@server ~]# yum install -y virt-viewer
+
+3.为两个计算节点添加ovs网桥,创建 gre隧道并互联
+     [root@server ~]# ovs-vsctl add-br br118
+     [root@server ~]# ovs-vsctl add-port br118 gre118 -- set interface  gre118 type=gre \
+                      options:remote_ip=192.168.100.5
+
+     [root@client ~]# ovs-vsctl add-br br119
+     [root@client ~]# ovs-vsctl add-port br119 gre119 -- set interface  gre119 type=gre \ 
+                      options:remote_ip=192.168.100.4
+
+4.为两台宿主机拷贝客户机模板,启动虚拟机,配置ip
+  #拷贝模板
+     [root@server ~]# mkdir -p /var/lib/guests
+     [root@client ~]# mkdir -p /var/lib/guests
+     [root@controller images]# scp centos7.qcow2 root@10.160.0.118:/var/lib/guests/guest-118-01.qcow2
+     [root@controller images]# scp centos7.qcow2 root@10.160.0.119:/var/lib/guests/guest-119-01.qcow2
+     [root@server guests]# cp guest-118-01.qcow2 guest-118-02.qcow2
+     [root@client guests]# cp guest-119-01.qcow2 guest-119-02.qcow2
+
+  #创建虚拟机
+     [root@server guests]# virt-install --name guest118-01 --ram 2048  --memory 2048 \ 
+                      --vcpus 2  --boot hd --disk path=/var/lib/guests/guest-118-01.qcow2 \ 
+                      --network network=default --graphics vnc,listen=0.0.0.0,port=5906 \
+                      --os-variant rhel6
+
+     [root@server guests]# virt-install --name guest118-02 --ram 2048 --memory 2048 \ 
+                      --vcpus 2  --boot hd --disk path=/var/lib/guests/guest-118-02.qcow2 \
+                      --network network=default --graphics vnc,listen=0.0.0.0,port=5907 \ 
+                      --os-variant rhel6
+
+     [root@client guests]# virt-install --name guest119-01 --ram 2048 --memory 2048  \ 
+                       --vcpus 2  --boot hd --disk path=/var/lib/guests/guest-119-01.qcow2 \ 
+                       --network network=default --graphics vnc,listen=0.0.0.0,port=5906 \ 
+                       --os-variant rhel6
+
+     [root@client guests]# virt-install --name guest119-02 --ram 2048 --memory 2048 \ 
+                       --vcpus 2  --boot hd --disk path=/var/lib/guests/guest-119-02.qcow2 \
+                       --network network=default  --graphics vnc,listen=0.0.0.0,port=5907  \
+                       --os-variant rhel6
+                       
+  #防火墙开启必要的端口 5906,5907
+     [root@server ~] iptables -I INPUT -p tcp --dport 5906:5907 -j ACCEPT
+     [root@client ~] iptables -I INPUT -p tcp --dport 5906:5907 -j ACCEPT
+
+  #将vm连接到ovs118,ovs119上(虚拟机原来是连接到宿主机默认网络 default 上的).
+  #另一种方法是:
+  # a.virsh 添加网卡到虚拟机,
+  # b.ovs-vsctl 添加端口以连接虚拟机到ovs(br118,br119)
+  # c.删除原 连接到default网络的网卡. 
+
+    [root@server guests]# virsh dumpxml guest118-01 > guest-118-01.xml
+    编辑 guest-118-01.xml 的 <interface>标签,按如下规范将vm连接到ovs上:  
+    
+    <interface type='bridge'>
+      <mac address='52:54:00:ef:b3:80'/>
+      <source bridge='br118'/>
+      <virtualport type='openvswitch'/>
+      <target dev='vnet0'/>
+      <model type='virtio'/>
+      <driver name='qemu'/>
+      <alias name='net0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+    </interface>
+
+    [root@server guests]# virsh destroy guest118-01 && virsh undefine guest118-01 && \ 
+                          virsh define guest-118-01.xml && virsh start guest118-01
+     其他3guest如上操作
+     
+     然后再次导出配置文件:
+    <interface type='bridge'>
+        <mac address='52:54:00:ef:b3:80'/>
+        <source bridge='br118'/>
+        <virtualport type='openvswitch'>
+          <parameters interfaceid='974da66f-bfd2-4396-bb15-01ef12a2b994'/>
+        </virtualport>
+        <target dev='vnet0'/>
+        <model type='virtio'/>
+        <driver name='qemu'/>
+        <alias name='net0'/>
+        <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+     </interface>
+  #给两台宿主机内的虚拟机配置同网络的ip(略)
+  10.160.0.135/16   guest118-01
+  10.160.0.136/16   guest119-01
+  10.160.0.137/16   guest118-02
+  10.160.0.138/16   guest119-02
+  如后图所示
+
+5.查看两台宿主的内ovs端口信息
+ [root@server ~]# ovs-vsctl show
+ cbd85a9e-3660-40a7-93d5-ff59df681e9e
+    Bridge "br118"
+        Port "br118"
+            Interface "br118"
+                type: internal
+        Port "vnet0"
+            tag: 610
+            Interface "vnet0"
+        Port "vnet1"
+            tag: 610
+            Interface "vnet1"
+        Port gre
+            Interface gre
+                type: gre
+                options: {remote_ip="192.168.100.5"}
+    ovs_version: "2.3.1"  
+  
+  [root@client ~]# ovs-vsctl show
+  a30829a9-6054-4876-a77f-7b2f6cd89e60
+    Bridge "br119"
+        Port "vnet1"
+            tag: 610
+            Interface "vnet1"
+        Port "vnet0"
+            tag: 610
+            Interface "vnet0"
+        Port "br119"
+            Interface "br119"
+                type: internal
+        Port gre
+            Interface gre
+                type: gre
+                options: {remote_ip="192.168.100.4"}
+    ovs_version: "2.3.1"
+  看到 guest 已经连接到ovs,且gre隧道已经建立
+
+6.在客户机中使用ping测试
+  
+了解更多 openvswitch: http://openvswitch.org/support/config-cookbooks/port-tunneling/
+博客地址 http://my.oschina.net/u/2280272/blog/514523
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
