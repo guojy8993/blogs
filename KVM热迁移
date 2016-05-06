@@ -41,8 +41,6 @@ virt-install -n KY001  \
 # 客户机对ISCSI磁盘的使用参考前文
 [root@agent130 ~]# sh /data/instance/KY001/start
 
-
-
 [迁移虚拟机]
 [root@agent130 ~]# cat /data/instance/KY001/migrate
 #! /bin/bash
@@ -62,7 +60,7 @@ virsh migrate 	--domain KY001 \
 [root@agent130 ~]# sh /data/instance/KY001/migrate
 
 [回收磁盘资源:销毁虚拟机]
-[root@agent130 ~]# virsh destroy KY001 && virsh undefine KY001 [迁移之后一流的老机器并未删除,而是被关机]
+[root@agent130 ~]# virsh destroy KY001 && virsh undefine KY001 [迁移之后老机器并未删除,而是被关机]
 [root@agent144 ~]# virsh destroy KY001 && virsh undefine KY001 [迁移产生的新机器处于running状态]
 
 [回收磁盘资源:登出iscsi server,释放target]
