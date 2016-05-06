@@ -1,0 +1,27 @@
+1.修改 /etc/libvirt/libvirtd.conf
+  [root@agent144 KY001]# cat /etc/libvirt/libvirtd.conf | egrep -v "^#|^$"
+  listen_tls = 0
+  listen_tcp = 1
+  tcp_port = "16509"
+  listen_addr = "0.0.0.0"
+  auth_tcp = "none"
+
+2.修改 /etc/sysconfig/libvirtd
+  [root@agent144 KY001]# cat /etc/sysconfig/libvirtd | egrep -v "^#|^$"
+  LIBVIRTD_CONFIG=/etc/libvirt/libvirtd.conf
+  LIBVIRTD_ARGS="--listen"
+
+3.修改 /etc/libvirt/qemu.conf
+  [root@agent144 KY001]# cat /etc/libvirt/qemu.conf | egrep -v "^#|^$"
+  vnc_listen = "0.0.0.0"
+  user = "root"
+  group = "root"
+  migration_address = "0.0.0.0"
+
+
+4.防火墙放开访问
+  iptables -I INPUT -p tcp --dport 16509 -j ACCEPT
+
+5.重启 libvirtd
+  systemctl stop libvirtd
+  systemctl start libvirtd
