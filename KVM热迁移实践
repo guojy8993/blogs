@@ -56,6 +56,32 @@ virsh migrate 	--domain KY001 \
 # agent130与agent144 共享存储才能顺利实现 live migration
 # 至于本地存储热迁移总出问题,参考 libvirt 官方文档,链接如下:
 # http://wiki.libvirt.org/page/Migration_fails_because_disk_image_cannot_be_found
+# virsh migrate 热迁移选项与说明:
+# --domain: 当前虚拟机名称[必选]
+# --desturl: 
+# --live:  热迁移[必选]
+# --offline: 冷迁移
+# --{p2p|direct|tunnelled}: 迁移方式
+# --persistent: 虚拟机在目标主机持久化
+# --undefinesource: 在原宿主上对虚拟机取消注册
+# --suspend: 虚拟机在目标宿主上不要重启
+# --copy-storage-all: 对虚拟机非共享磁盘全盘拷贝
+# --copy-storage-inc: 对虚拟机非共享磁盘增量拷贝,要求:base必须是在宿主间共享的
+# --change-protection: 迁移期间虚拟机不接受配置调整
+# --unsafe:即使不安全,也要迁移,任性不解释
+# --verbose: 输出调试
+# --compressed: 压缩重复页(内存分页)
+# --auto-converge: 在迁移中自动聚集(??)
+# --rdma-pin-all:在RDMA(百度百科RDMA,不解释)迁移中memory绑定,看样子是热迁移选项
+# --abort-on-error:一旦发生软件错误则放弃迁移;
+# --migrateuri:迁移的URI,一般可以无视
+# --graphicsuri:视图界面URL
+# --listen-address: 目标宿主监听的ip,决定迁移数据走哪个网段或走哪个网卡
+# --dname: 迁移成功后重命名的新名字
+# --timeout: 超时,单位s
+# --xml:猜测是客户机迁移到目标后的配置文件(此处是预定义,所以需要确保vnetX, vnc不与
+#       目标宿主上的其他虚拟机冲突,cpu绑定有效)
+# --migrate-disks 那些磁盘需要迁移,以逗号分割的列表
 
 [root@agent130 ~]# sh /data/instance/KY001/migrate
 
