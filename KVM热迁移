@@ -2,7 +2,8 @@
 [ISCSI创建共享存储]
 [root@master ~]# tgtadm --lld iscsi --mode target --op new --tid  1 --targetname iqn.2016-05.com.server:disk
 [root@master ~]# qemu-img create -f raw /data/sdb/system 2G   # 姑且创建一个空盘做系统盘
-[root@master ~]# tgtadm --lld iscsi --mode logicalunit --op new  --lun 10 --tid  1 --backing-store=/data/sdb/system --bsoflags="sync"
+[root@master ~]# tgtadm --lld iscsi --mode logicalunit --op new  --lun 10  \ 
+                        --tid  1 --backing-store=/data/sdb/system --bsoflags="sync"
 [root@master ~]# tgtadm --lld iscsi --mode target --op bind --tid 1 --initiator-address 10.160.0.130
 [root@master ~]# tgtadm --lld iscsi --mode target --op bind --tid 1 --initiator-address 10.160.0.144
 
@@ -23,7 +24,8 @@ virt-install -n KY001  \
              --hvm \
              --network bridge:br-wan,virtualport_type=openvswitch,model=virtio \
              --network  bridge:br-lan,virtualport_type=openvswitch,model=virtio   \
-             --disk /dev/disk/by-path/ip-10.160.0.119:3260-iscsi-iqn.2016-05.com.server:disk-lun-10,bus=virtio,cache=none,driver_type=raw \
+             --disk /dev/disk/by-path/ip-10.160.0.119:3260-iscsi-iqn.2016-05.com.server:disk-lun-10,
+                    bus=virtio,cache=none,driver_type=raw \
              --boot hd \
              --graphics vnc,listen=0.0.0.0  \
              --noautoconsole \
@@ -39,12 +41,12 @@ virt-install -n KY001  \
 [root@agent130 ~]# cat /data/instance/KY001/migrate
 #! /bin/bash
 virsh migrate 	--domain KY001 \
-				--live  \
-				--timeout  1000 \
-				--listen-address 10.160.0.144 \
-				--abort-on-error  \
-				--verbose \
-				--desturi qemu+tcp://10.160.0.144/system
+		--live  \
+		--timeout  1000 \
+		--listen-address 10.160.0.144 \
+		--abort-on-error  \
+		--verbose \
+		--desturi qemu+tcp://10.160.0.144/system
 
 # 千万注意:
 # agent130与agent144 共享存储才能顺利实现 live migration
