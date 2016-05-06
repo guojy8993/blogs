@@ -132,7 +132,6 @@ Step4:测试对外提供的ISCSI块设备是否可访问:
 通过 tgtadm --help 略有发现:使用命令行可以完成iscsi热操作的,不用修改配置文件
 
 
-
 ==== ISCSI客户端:www.comp130.com ====
 10.160.0.130  www.comp130.com
 [root@www ~]# yum install -y iscsi-initiator-utils.x86_64
@@ -183,7 +182,8 @@ lrwxrwxrwx. 1 root root 10 Apr 20 08:47 pci-0000:00:10.0-scsi-0:0:0:0-part2 -> .
 ...
 <disk type='block' device='disk'>
   <driver name='qemu' type='raw' cache='none'/>
-  <source dev='/dev/disk/by-path/ip-10.160.0.120:3260-iscsi-iqn.2010-10.org.openstack:volume-55abfdd1-2c88-4ba1-bab7-8e0fea5413c4-lun-0'/>
+  <source dev='/dev/disk/by-path/ip-10.160.0.120:3260-iscsi-iqn.2010-10.org.openstack:volume-55abfdd1-2c88-4ba1-bab7-8e
+              0fea5413c4-lun-0'/>
   <backingStore/>
   <target dev='vda' bus='virtio'/>
   <serial>55abfdd1-2c88-4ba1-bab7-8e0fea5413c4</serial>
@@ -198,11 +198,15 @@ lrwxrwxrwx. 1 root root 10 Apr 20 08:47 pci-0000:00:10.0-scsi-0:0:0:0-part2 -> .
 #  www.comp144.com  -> agent144.pp.com
 
 # 使用 virsh attach-disk 命令,将在宿主下发现的iscsi磁盘挂载到客户机上
-[root@agent130 KY002]# virsh attach-disk --domain KY002 --source /dev/disk/by-path/ip-10.160.0.119\:3260-iscsi-iqn.2016-05.com.server\:disk1-lun-1 --target vdb --live --config
+[root@agent130 KY002]# virsh attach-disk --domain KY002 \
+                            --source /dev/disk/by-path/ip-10.160.0.119\:3260-iscsi-iqn.2016-05.com.server\:disk1-lun-1 \
+                            --target vdb --live --config
 Disk attached successfully
 # 使用vnc-viewer进入KY002视图,进入系统,使用 fdisk -l 查看系统可以看到多出一块磁盘(见截图)
 
-[root@agent130 KY002]# virsh attach-disk --domain KY002 --source /dev/disk/by-path/ip-10.160.0.119\:3260-iscsi-iqn.2016-05.com.server\:disk1-lun-2 --target vdc --live --config
+[root@agent130 KY002]# virsh attach-disk --domain KY002 \
+                             --source /dev/disk/by-path/ip-10.160.0.119\:3260-iscsi-iqn.2016-05.com.server\:disk1-lun-2 
+                             --target vdc --live --config
 Disk attached successfully
 
 [root@agent130 KY002]# virsh domblklist KY002
