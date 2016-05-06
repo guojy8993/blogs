@@ -27,14 +27,14 @@ hda        -
 # virsh change-media --domain $domain  # 客户机名称
 #                    --path $device    # hdX
 #                    --source $AbsPathToISO 
-#					           --insert  # 如果光驱可能之前已经存在并可能挂载了文件,使用 --update 替换 
-#					           --live    # 硬重启(destroy&&start)客户机后挂载ISO自动卸载
+#                    --insert  # 如果光驱可能之前已经存在并可能挂载了文件,使用 --update 替换 
+#		     --live    # 硬重启(destroy&&start)客户机后挂载ISO自动卸载
 #                              # 下次不需要挂载,故而不用 --config 选项;
 # (2)热卸载iso
 # virsh change-media --domain $domain  # 客户机名称 
-#					           --path $device    # hdX 
-#				             --eject   # 弹出设备
-#					           --live    # 热操作
+#		     --path $device    # hdX 
+#		     --eject   # 弹出设备
+#		     --live    # 热操作
 #
 # (3)在宿主上将脚本写入文件,再将脚本文件生成iso,然后挂载(结合cloudinit或自定义客户机服务实现
 #    config drive式的metadata injection)
@@ -52,10 +52,10 @@ hda        -
 > EOF
 [root@KVM_test ~]# mkisofs -o /root/meta.iso /root/metadata
 virsh change-media --domain huper 
-				   --path hda 
-				   --source /data/image/source.iso
-				   --insert  # 插入iso
-				   --live
+		   --path hda 
+		   --source /data/image/source.iso
+		   --insert  # 插入iso
+		   --live
 
 virsh change-media --domain huper
                    --path hda
@@ -63,10 +63,10 @@ virsh change-media --domain huper
                    --live
                    
 virsh change-media --domain huper 
-				   --path hda 
-				   --source /root/meta.iso
-				   --update   # 更新 iso
-				   --live
+		   --path hda 
+		   --source /root/meta.iso
+		   --update   # 更新 iso
+		   --live
 
 4. 在客户机创建挂载目录,挂载新加设备
 (1) linux系统客户机使用cdrom以及ISO
