@@ -7,6 +7,12 @@
 [root@master ~]# tgtadm --lld iscsi --mode target --op bind --tid 1 --initiator-address 10.160.0.130
 [root@master ~]# tgtadm --lld iscsi --mode target --op bind --tid 1 --initiator-address 10.160.0.144
 
+[客户端探索 ISCSI Targets]
+[root@agent130 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 10.160.0.119 --discover
+10.160.0.119:3260,1 iqn.2016-05.com.server:disk
+[root@agent144 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 10.160.0.119 --discover
+10.160.0.119:3260,1 iqn.2016-05.com.server:disk
+
 [ISCSI登陆]
 [root@agent130 ~]# iscsiadm --mode node --targetname iqn.2016-05.com.server:disk --portal 10.160.0.119:3260 --login
 [root@agent144 ~]# iscsiadm --mode node --targetname iqn.2016-05.com.server:disk --portal 10.160.0.119:3260 --login
