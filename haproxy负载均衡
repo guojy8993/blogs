@@ -1,0 +1,119 @@
+负载均衡节点:
+agent144.pp.com      ens224:10.160.0.144
+					           ens192:192.168.100.144
+后端web站点:
+agent115.pp.com      ens224:10.160.0.115
+					           ens192:192.168.100.115
+agent128.pp.com      ens224:10.160.0.128
+					           ens192:agent128.pp.com
+客户端机器:          eth0:10.100.0.192
+
+
+## Step1: 部署负载均衡节点(以 agent144.pp.com 为例)
+# 内核调优选项
+# nofile: 打开的最多文件数
+# hard/soft: 允许有资源使用波动(soft限制),但是绝对不允许超过某规定值(hard限制)
+[root@agent144 ~]# echo "* soft nofile 65535" >> /etc/security/limits.conf
+[root@agent144 ~]# echo "* hard nofile 65535" >> /etc/security/limits.conf
+# yum search & yum install
+[root@agent144 ~]# yum install -y haproxy.x86_64
+[root@agent144 ~]# mv /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.original
+# 修改haproxy配置
+[root@agent144 ~]# cat > /etc/haproxy.cfg << EOF
+global
+maxconn 4096
+log 127.0.0.1 local3 info
+# mkdir -p /var/haproxy
+# 切换根目录,把 /var/haproxy 作为 / 使用
+chroot /var/haproxy
+uid 99
+gid 99
+daemon
+# 单haproxy进程
+nbproc 1
+pidfile /var/run/haproxy.pid
+# 打开最多文件数
+ulimit-n  65535
+stats socket /var/tmp/stats
+
+defaults
+log global
+mode http
+maxconn 20480
+option httplog
+option httpclose
+option dontlognull
+option forwardfor
+option redispatch
+option abortonclose
+stats refresh 30
+retries 3
+balance roundrobin
+cookie SRV
+timeout check 2000ms
+timeout connect 5000ms
+timeout server 5000ms
+timeout client 5000ms
+
+# Haproxy Monitor Web GUI
+listen admin_status
+bind 0.0.0.0:6553
+mode http
+log 127.0.0.1 local3 info
+stats enable
+stats refresh 5s
+stats realm Haproxy \ Statistics
+stats uri /admin?stats
+stats auth admin1:AdMiN123
+stats hide-version
+
+frontend web_service
+bind 0.0.0.0:80
+mode http
+log global
+option httplog
+option httpclose
+option forwardfor
+acl inside_src src 192.168.100.0/24
+use_backend inside_servers if inside_src
+
+default_backend external_servers
+backend external_servers
+mode http
+balance roundrobin
+option httpchk GET /index.html
+server web1 192.168.100.115:80 cookie web1 check inter 2000 rise 2 fall 3 weight 1
+server web2 192.168.100.128:80 cookie web2 check inter 2000 rise 2 fall 3 weight 1
+
+backend inside_servers
+mode http
+balance roundrobin
+option httpchk GET /index.html
+server web2 192.168.100.128:80 cookie web2 check inter 2000 rise 2 fall 3 weight 1
+EOF
+
+## Step2&3: 部署后端web节点(以 agent115.pp.com 为例)
+[root@agent115 ~]# yum install -y httpd
+[root@agent115 ~]# echo "Response from Backend:agent115.pp.com" > /var/www/html/index.html
+[root@agent115 ~]# iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+[root@agent115 ~]# systemctl enable httpd && systemctl start httpd
+
+## Step4 在haproxy服务器上启动服务
+[root@agent144 ~]# haproxy -f /etc/haproxy/haproxy.cfg
+
+## Step5 在客户端机器上测试负载均衡效果
+1.访问 http://10.160.0.144:6553/admin?stats,并用配置的stat atuth <user>:{passwd}信息登录,查看监控页
+2.大量调用 http://10.160.0.144 查看返回结果;
+  作为对比修改 /etc/haproxy/haproxy.cfg 的 acl inside_src 为 10.100.0.0/16 重启服务,再次测试查看返
+  回结果有什么不同;
+  acl规则: 
+  如果源ip是inside_src的,则使用inside_servers组web服务器响应
+  缺省使用extrenal_servers组web服务器响应;
+  前一种情况由web1,web2轮流(roundrobin)提供服务
+  后一种情况只由web2来提供服务
+
+参考:
+内核调优:http://blog.csdn.net/taijianyu/article/details/5976319
+chroot详解:http://www.ibm.com/developerworks/cn/linux/l-cn-chroot/
+nbproc与haproxy多进程与性能:http://1234567aaa.blog.51cto.com/373182/316496/
+ulimit-n与最大打开文件数:http://www.cnblogs.com/dkblog/archive/2012/03/13/2393321.html
