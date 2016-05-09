@@ -384,7 +384,8 @@ db.metadata.insert({"file_md5":"733461b9eb90d17e324bb1be2d184e89","filename":"Be
 
 #/yuebuqun/pic/BeiJing_Badaling.png
 db.metadata.insert({"file_md5":"733462c9eb90d17e324bb1be2d184e89","filename":"BeiJing_Badaling.png","created_at":"2016-03-16 00:00:00",\
-"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00","filemode":1,"isdir":0})
+"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":0})
 
 #/yuebuqun/pic/BeiJing_Yangshi_大裤衩.png
 db.metadata.insert({"file_md5":"733462c9eb90d17e324bb1be2d184e89","filename":"BeiJing_Yangshi_大裤衩.png","created_at":"2016-03-16 \
@@ -438,7 +439,9 @@ db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e72","filename":"�
 00:00:00","filemode":1,"isdir":0})
 
 #/yuebuqun/share/古龙全集.zip
-db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e73","filename":"古龙全集.zip","created_at":"2016-03-16 00:00:00","full_path":"/yuebuqun/share/","sizeInByte":890045,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 00:00:00","filemode":1,"isdir":0})
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e73","filename":"古龙全集.zip","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/share/","sizeInByte":890045,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 00:\
+00:00","filemode":1,"isdir":0})
 
 #/yuebuqun/share/梁羽生全集.zip
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e74","filename":"梁羽生全集.zip","created_at":"2016-03-16 00:00:00",\
