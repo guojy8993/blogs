@@ -503,7 +503,8 @@ MYSQL:
 select * from `guozh9999`.`test`  where filename = 'readme' or filename like '%mp3' 
 """
 
-
+# 文件元数据管理服务程序:
+# https://github.com/guojy8993/FileMetadata/blob/master/metadata_server.py
 
 
 
