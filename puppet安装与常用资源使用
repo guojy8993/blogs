@@ -205,11 +205,11 @@ Part 1:应用
 [root@master puppet]# cat > manifests/site.pp << EOF
 >node agent130.pp.com {
 >	file {"puppet":
->			path=>"/tmp/puppet.txt",
->			content=>"Hello puppet !!\n",
->     mode=>"777",
->		  group=>"puppet",
->     owner=>"puppet",
+>		path=>"/tmp/puppet.txt",
+>		content=>"Hello puppet !!\n",
+>               mode=>"777",
+>		group=>"puppet",
+>     		owner=>"puppet",
 >	}
 >}
 >EOF
@@ -256,11 +256,11 @@ Hello puppet !!
 [root@master puppetlabs]# cat >> code/environments/production/manifests/site.pp << EOF
 >node default {
 >	file { "welcome":
->				path=>"/tmp/welcome.txt"
->				content=>"default nodes!! \n";
->       mode=>"777",
->		    group=>"puppet",
->       owner=>"puppet",
+>		path=>"/tmp/welcome.txt"
+>		content=>"default nodes!! \n";
+>       	mode=>"777",
+>		group=>"puppet",
+>       	owner=>"puppet",
 >	}
 >}
 >EOF
@@ -312,9 +312,9 @@ default nodes!!
 node agent130.pp.com {
 		...
         file { "clearNovaLog":
-                        path=>"/opt/clearlog",
-                        mode=>"644",
-                        source=>"puppet:///modules/scripts/clearlog",
+                path=>"/opt/clearlog",
+                mode=>"644",
+                source=>"puppet:///modules/scripts/clearlog",
         }
         ...
 }
@@ -356,11 +356,11 @@ date >> /var/log/puppet.log
 node agent130.pp.com {
 		...
         cron { "clearLogTask":
-                        name=>"clearLogTask",
-                        ensure=>"present",
-                        command=>"/bin/bash /opt/clearlog",
-                        user=>"root",
-                        minute=>"*/1",
+                name=>"clearLogTask",
+                ensure=>"present",
+                command=>"/bin/bash /opt/clearlog",
+                user=>"root",
+                minute=>"*/1",
         }
         ...
 }
@@ -399,8 +399,8 @@ Mon May  2 06:35:01 EDT 2016
 node agent130.pp.com {
         ...
         group { "test":
-                        gid=>1001,
-                        ensure=>present,
+                gid=>1001,
+                ensure=>present,
         }
 }
 ...
