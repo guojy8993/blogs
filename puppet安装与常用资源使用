@@ -26,7 +26,8 @@ Part 1:部署
 Loaded plugins: fastestmirror
 Loading mirror speeds from cached hostfile
 ...
-puppet-agent.x86_64 : The Puppet Agent package contains all of the elements needed to run puppet, including ruby, facter, hiera and mcollective.
+puppet-agent.x86_64 : The Puppet Agent package contains all of the elements needed to run puppet, including \
+		ruby, facter,hiera and mcollective.
 puppet-client-tools.x86_64 : PuppetDB CLI for querying Puppet data
 puppetdb.noarch : Puppet Labs - puppetdb
 puppetdb-termini.noarch : Termini for puppetdb
