@@ -1,0 +1,888 @@
+准备三台机器(CentOS7):
+10.160.0.119 master.pp.com
+10.160.0.130 agent130.pp.com
+10.160.0.144 agent144.pp.com
+
+软件:
+下载puppetlab noarch到本地:
+https://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm
+
+注意: 
+## master与agent共同配置
+** master独有配置
+$$ agent独有配置
+#  注释
+
+Part 1:部署
+
+## 配置环境安装软件:
+[root@master ~]# mkdir -p /home/guojingyu/rpms
+[root@master ~]# cd /home/guojingyu/rpms
+[root@master rpms]# yum install lrzsz
+[root@master rpms]# rz
+ ... 选择puppetlabs-release-pc1-el-7.noarch.rpm上传 ...
+[root@master rpms]# rpm -ivh puppetlabs-release-pc1-el-7.noarch.rpm
+[root@master rpms]# yum search puppet
+Loaded plugins: fastestmirror
+Loading mirror speeds from cached hostfile
+...
+puppet-agent.x86_64 : The Puppet Agent package contains all of the elements needed to run puppet, including ruby, facter, hiera and mcollective.
+puppet-client-tools.x86_64 : PuppetDB CLI for querying Puppet data
+puppetdb.noarch : Puppet Labs - puppetdb
+puppetdb-termini.noarch : Termini for puppetdb
+puppetdb-terminus.noarch : Metapackage to allow easy upgrades from PuppetDB 2
+puppetlabs-release-pc1.noarch : Release packages for the Puppet Labs PC1 repository
+puppetserver.noarch : Puppet Labs - puppetserver
+...
+
+** master安装ntp,作为ntp server
+[root@master ~]# yum install -y ntp
+[root@master ~]# vi /etc/ntp.conf
+# restrict添加:
+restrict 10.160.0.0 mask 255.255.0.0 nomodify
+
+[root@master ~]# systemctl enable ntpd
+[root@master ~]# systemctl restart  ntpd
+[root@master ~]# systemctl status  ntpd
+[root@master ~]# iptables -I INPUT -p udp --dport 123 -j ACCEPT
+如果出现下述错误信息:
+host name not found: 0.centos.pool.ntp.org
+请确保当前机器可以访问到0.centos.pool.ntp.org诸如之类的时间服务器
+# tips: 搭建ntp server步骤
+# 参考 http://blog.csdn.net/mmz_xiaokong/article/details/8700979
+
+## 安装ntpdate进行时间同步
+[root@master ~]# yum install -y ntpdate.x86_64
+[root@master ~]# ntpdate 10.160.0.119
+
+** 配置 hosts
+[root@master ~]# cat >> /etc/hosts << EOF
+>10.160.0.119 master.pp.com
+>10.160.0.130 agent130.pp.com
+>10.160.0.144 agent144.pp.com
+>EOF
+[root@master ~]# scp /etc/hosts root@agent130.pp.com:/etc/hosts
+[root@master ~]# scp /etc/hosts root@agent144.pp.com:/etc/hosts
+
+## 创建组与用户
+[root@master ~]# groupadd puppet
+[root@master ~]# useradd -g puppet -s /bin/false -M puppet
+# tips: 
+#(1) /bin/false 何解? 参考http://www.2cto.com/os/201306/222671.html
+#(2) -M 选项: 不创建home用户目录
+#(3) -g 选项: puppet用户归属 puppet组
+
+** 安装puppet master
+[root@master ~]# yum install -y puppetserver.noarch
+[root@master ~]# ln -s /opt/puppetlabs/puppet/bin/puppet /usr/bin/puppet
+[root@master ~]# ln -s /opt/puppetlabs/puppet/bin/ruby /usr/bin/ruby
+[root@master ~]# ruby /opt/puppetlabs/puppet/bin/puppet master  10.160.0.119:8140
+[root@master puppet]# netstat -antulp | grep ":8140"
+tcp    0   0 0.0.0.0:8140    0.0.0.0:*    LISTEN      17685/ruby
+
+$$ 安装puppet agent
+[root@agen130 ~]# yum install -y puppet-agent.x86_64
+[root@agen130 ~]# ln -s /opt/puppetlabs/puppet/bin/puppet /usr/bin/puppet
+[root@agen130 ~]# ln -s /opt/puppetlabs/puppet/bin/ruby /usr/bin/ruby
+[root@agen130 ~]# ruby /opt/puppetlabs/puppet/bin/puppet agent
+
+#  puppet 命令格式
+#  puppet <server|agent> [opts]
+#  puppet <resources> [opts]
+#  resources: ca|cert
+#  查看帮助 puppet help ca
+
+$$ 客户端申请证书
+[root@agent130 ~]# puppet agent --test --server master.pp.com
+
+** 服务器端查看申请列表,并签发证书,并查看证书
+[root@master puppet]# puppet help ca
+[root@master puppet]# puppet ca  list
+[root@master puppet]# puppet ca  sign agent130.pp.com
+# sign是为(客户端的)申请签发证书
+# 此时重新在 agent130 执行 测试:
+# [root@agent130 ~]# puppet agent --test --server master.pp.com
+
+[root@master puppet]# pwd
+/etc/puppetlabs/puppet
+[root@master puppet]# ll ssl/ca/signed/
+total 12
+-rw-r--r--. 1 puppet puppet 1952 May  2 02:36 agent130.pp.com.pem
+-rw-r--r--. 1 puppet puppet 1952 May  2 02:51 agent144.pp.com.pem
+-rw-r--r--. 1 puppet puppet 2017 May  2 01:33 master.pp.com.pem
+# 服务端回收证书:
+# [root@master puppet]# puppet cert clean agent144.pp.com
+[root@master manifests]# puppet cert  list --all
++ "agent130.pp.com" (SHA256) 61:DD:4F:28:DD:70:3F:1A:4D:C3:B3:EB:BA:82:C2:95:8F:BD:FB:54:2E:92:29:45:87:8F:80:68:17:00:54:9D
++ "agent144.pp.com" (SHA256) E1:90:DD:DB:32:A6:6B:CA:14:F4:15:0B:6D:8B:02:E5:D6:3F:95:CE:D1:A1:69:E7:EA:80:D4:A8:52:47:7D:CC
++ "master.pp.com"   (SHA256) E0:BC:67:6F:EA:06:58:76:00:03:DA:DC:EF:5C:6A:CA:61:82:D8:96:83:26:7D:B6:BF:24:03:D0:B0:41:0F:B3 
+  (alt names: "DNS:master.pp.com", "DNS:puppet", "DNS:puppet.pp.com")
+
+
+# 百度经验: puppet命令
+# http://jingyan.baidu.com/article/17bd8e523a0d9085ab2bb808.html
+# Puppet官方文档
+# [root@agent144 puppet]# puppet --version
+# 4.4.2
+# https://docs.puppet.com/puppet/4.4/reference/lang_relationships.html
+
+
+Part 1:应用
+
+++++++++++++++++
++ 推送普通文本 +
+++++++++++++++++
+
+# node语法
+# https://docs.puppet.com/puppet/4.4/reference/lang_node_definitions.html
+** 查看目录结构,找到manifests目录
+[root@master puppetlabs]# pwd
+/etc/puppetlabs
+[root@master puppetlabs]# tree
+.
+├── code
+│   ├── environments
+│   │   └── production
+│   │       ├── environment.conf
+│   │       ├── hieradata
+│   │       ├── manifests
+│   │       └── modules
+│   ├── hiera.yaml
+│   └── modules
+├── mcollective
+│   ├── client.cfg
+│   ├── data-help.erb
+│   ├── discovery-help.erb
+│   ├── facts.yaml
+│   ├── metadata-help.erb
+│   ├── rpc-help.erb
+│   └── server.cfg
+├── puppet
+│   ├── auth.conf
+│   ├── manifests
+│   ├── puppet.conf
+│   ├── puppet.conf.rpmsave
+│   └── ssl
+│       ├── ca
+│       │   ├── ca_crl.pem
+│       │   ├── ca_crt.pem
+│       │   ├── ca_key.pem
+│       │   ├── ca_pub.pem
+│       │   ├── inventory.txt
+│       │   ├── private
+│       │   │   └── ca.pass
+│       │   ├── requests
+│       │   ├── serial
+│       │   └── signed
+│       │       ├── agent130.pp.com.pem
+│       │       ├── agent144.pp.com.pem
+│       │       └── master.pp.com.pem
+│       ├── certificate_requests
+│       ├── certs
+│       │   ├── ca.pem
+│       │   └── master.pp.com.pem
+│       ├── crl.pem
+│       ├── private
+│       ├── private_keys
+│       │   ├── agent130.pp.com.pem
+│       │   └── master.pp.com.pem
+│       └── public_keys
+│           └── master.pp.com.pem
+├── puppetserver
+│   ├── bootstrap.cfg
+│   ├── conf.d
+│   │   ├── auth.conf
+│   │   ├── global.conf
+│   │   ├── puppetserver.conf
+│   │   ├── web-routes.conf
+│   │   └── webserver.conf
+│   ├── logback.xml
+│   └── request-logging.xml
+└── pxp-agent
+    └── modules
+
+[root@master puppetlabs]# touch code/environments/production/manifests/site.pp
+[root@master puppet]# cat > manifests/site.pp << EOF
+>node agent130.pp.com {
+>	file {"puppet":
+>			path=>"/tmp/puppet.txt",
+>			content=>"Hello puppet !!\n",
+>     mode=>"777",
+>		  group=>"puppet",
+>     owner=>"puppet",
+>	}
+>}
+>EOF
+
+# 然后重启 puppet master服务(加载site.pp,因为默认该文件是无的)
+# 以后再次修改则不需要重启
+[root@master puppetlabs]# ps aux | grep puppet | grep -v "auto"
+puppet   18505  0.1  0.8 500236 70840 ?        Ssl  03:45   0:01 /opt/puppetlabs/puppet/bin/ruby \
+       /opt/puppetlabs/puppet/bin/puppet master 10.160.0.119:8140
+[root@master puppetlabs]# kill -9 18505 && /opt/puppetlabs/puppet/bin/ruby /opt/puppetlabs/puppet/bin/puppet \
+      master 10.160.0.119:8140
+
+$$ agent端主动触发更新
+[root@agent130 ~]# puppet agent --test --server master.pp.com  
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462176005'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/File[/tmp/puppet.txt]/ensure: defined content as \
+        '{md5}95a1d8f4eb73dcb219c4275b0444da59'
+Notice: Applied catalog in 0.03 seconds
+
+[root@agent144 puppet]# puppet agent --test --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Error: Could not retrieve catalog from remote server: Error 400 on SERVER: Could not find node statement with name \
+      'default' or 'agent144.pp.com, agent144.pp, agent144' on node agent144.pp.com
+Warning: Not using cache on failed catalog
+Error: Could not retrieve catalog; skipping run
+# 因为 site.pp 为agent130.pp.com配置的有推送资源
+# 而 agent144.pp.com 没有配置推送资源,且没有配置
+# 默认, 故而 后者执行会出错
+# mode 必须是 string
+
+[root@agent130 ~]# ll /tmp/puppet.txt
+-rwxrwxrwx. 1 puppet puppet 16 May  2 04:00 /tmp/puppet.txt
+[root@agent130 ~]# cat /tmp/puppet.txt
+Hello puppet !!
+# 验证推送结果: 成功
+
+** 为 site.pp 添加 default
+[root@master puppetlabs]# cat >> code/environments/production/manifests/site.pp << EOF
+>node default {
+>	file { "welcome":
+>				path=>"/tmp/welcome.txt"
+>				content=>"default nodes!! \n";
+>       mode=>"777",
+>		    group=>"puppet",
+>       owner=>"puppet",
+>	}
+>}
+>EOF
+
+$$ 在agent端更新文件
+[root@agent130 ~]# puppet agent -t --server master.pp.com  
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462177552'
+Notice: Applied catalog in 0.02 seconds
+
+[root@agent144 puppet]# puppet agent -t --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent144.pp.com
+Info: Applying configuration version '1462177536'
+Notice: /Stage[main]/Main/Node[default]/File[/tmp/welcome.txt]/ensure: defined content as \
+        '{md5}44295751050af90a06981d74d0928214'
+Notice: Applied catalog in 0.03 seconds
+# 在有显式配置的情况下不会再使用默认节点配置(如agent130所示)
+# 在没有显式配置的情况下将会使用默认节点配置(如agent144所示)
+
+[root@agent144 puppet]# ll /tmp/welcome.txt 
+-rwxrwxrwx. 1 puppet puppet 17 May  2 04:25 /tmp/welcome.txt
+[root@agent144 puppet]# cat /tmp/welcome.txt 
+default nodes!!
+
+# 如果文本内容是可执行代码呢?
+# 如果代码内容很多呢?
+# 注意: /etc/puppetlabs/code/modules/ 是本地文件的根目录,是安装软件后自动创建的路径 
+# 下级目录则是某具体模块的目录,e.g: scripts
+# 在 scripts 下必须有 files 目录,推送的本地文件放入 files下即可
+# !!!! 但是书写source 路径的时候,files文件层级是"必须省略的" !!!!
+
+** 修改agent130,添加资源:推送本地 /etc/puppetlabs/code/modules/scripts/log/clearlog
+[root@master puppet]# mkdir -p /etc/puppetlabs/code/modules/scripts/files
+[root@master puppetlabs]# cat > /etc/puppetlabs/code/modules/scripts/log/clearlog <<EOF
+>#! /bin/bash
+> echo "Begining to clear logs" >> /var/log/puppet.log
+> date >> /var/log/puppet.log
+>EOF
+
+# 编辑site.pp文件,添加"clearNovaLog"资源:
+[root@master files]# vi /etc/puppetlabs/code/environments/production/manifests/site.pp
+...
+node agent130.pp.com {
+		...
+        file { "clearNovaLog":
+                        path=>"/opt/clearlog",
+                        mode=>"644",
+                        source=>"puppet:///modules/scripts/clearlog",
+        }
+        ...
+}
+...
+
+$$ agent130 主动触发推送
+[root@agent130 ~]# puppet agent -t --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462182654'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/File[clearNovaLog]/ensure: defined content as \
+     '{md5}f61684a05121fafb567e4c4f57d1fa55'
+Notice: Applied catalog in 0.12 seconds
+
+[root@agent130 ~]# ll /opt/clearlog
+-rw-r--r--. 1 root root 47 May  2 06:02 /opt/clearlog
+[root@master files]# cat clearlog 
+#! /bin/bash
+echo "Begining to clear logs" >> /var/log/puppet.log
+date >> /var/log/puppet.log
+
+# file->source 配置出错参考:
+# http://www.kisspuppet.com/2013/11/30/puppet_error/ 以及如下官方文档
+# 官方文档 file 资源的所有可用属性:
+# https://docs.puppet.com/puppet/4.4/reference/types/file.html
+# https://docs.puppet.com/puppet/4.4/reference/modules_fundamentals.html
+
+
+
+++++++++++++++++++++
++    推送定时任务  +
+++++++++++++++++++++
+
+** 在site.pp文件中的为agent130添加定时任务资源
+[root@master puppetlabs]# vi /etc/puppetlabs/code/environments/production/manifests/site.pp
+...
+node agent130.pp.com {
+		...
+        cron { "clearLogTask":
+                        name=>"clearLogTask",
+                        ensure=>"present",
+                        command=>"/bin/bash /opt/clearlog",
+                        user=>"root",
+                        minute=>"*/1",
+        }
+        ...
+}
+...
+# command: 执行的具体任务("<解释器> <脚本>",e.g: /bin/bash /opt/clearlog )
+# minute/hour/month...: 综合运用以设置任务执行频率
+# 更多参数参考下述文档:
+# https://docs.puppet.com/puppet/4.4/reference/types/cron.html
+
+$$ 在agent130上查看并验证定时任务
+[root@agent130 ~]# puppet agent -t --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462184811'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/Cron[clearLogTask]/ensure: created
+crontab:  user `/etc/crontab' unknown
+Notice: Applied catalog in 0.11 seconds
+
+[root@agent130 ~]# crontab -l | grep -v "^#|^$"
+*/1 * * * * /bin/bash /opt/clearlog
+
+[root@agent130 ~]# tail -f /var/log/puppet.log
+Begining to clear logs
+Mon May  2 06:34:01 EDT 2016
+Begining to clear logs
+Mon May  2 06:35:01 EDT 2016
+
+++++++++++++++++++++
++     推送用户组   +
+++++++++++++++++++++
+** 修改agent130推送资源: 添加用户组,组id1001
+[root@master puppetlabs]# vi code/environments/production/manifests/site.pp
+...
+node agent130.pp.com {
+        ...
+        group { "test":
+                        gid=>1001,
+                        ensure=>present,
+        }
+}
+...
+
+$$ 在agent130 上主动触发推送
+[root@agent130 ~]# puppet agent -t --server master.pp.com  
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462178603'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/Group[test]/ensure: created
+Notice: Applied catalog in 0.06 seconds
+# 更多参数请参考:
+# https://docs.puppet.com/puppet/4.4/reference/types/group.html
+
+
+
+++++++++++++++++++++
++     推送用户     +
+++++++++++++++++++++
+
+** 在master上修改site.pp,添加"创建test用户"资源到 agent130 node:
+[root@master manifests]# vi site.pp
+...
+group { "test":
+                gid=>1001,
+                ensure=>present,
+}
+user { "test":
+                uid=>1001,
+                ensure=>present,
+                name=>"test",
+                comment=>"user created by puppet",
+                gid=>1001,
+                home=>"/home/test",
+                managehome=>true,
+                password=>"test",
+                password_max_age=>365,
+                password_min_age=>10,
+}
+...
+
+$$ 在agent130上主动触发推送,并验证新加的用户
+[root@agent130 ~]# puppet agent -t --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462186396'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/Group[test]/ensure: created
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/User[test]/ensure: created
+Notice: Applied catalog in 0.27 seconds
+[root@agent130 ~]# id 1001
+uid=1001(test) gid=1001(test) groups=1001(test)
+[root@agent130 ~]# ll /home/
+total 10487616
+...
+drwx------. 2 test test          59 May  2 06:53 test
+[root@agent130 ~]# su test
+[test@agent130 root]$
+
+
+# 更多参数请参考:
+# https://docs.puppet.com/puppet/4.4/reference/types/user.html
+
+++++++++++++++++++++++++++++
++ 推送ssh_authorized_keys  +
+++++++++++++++++++++++++++++
+
+** 在某主机e.g:master.pp.com上生成sshkey,然后配置site.pp的default node进行默认推送
+# 如果需要A主机管理{B..Z}服务器集群,那么在A上生成sshkey,并将key内容复制出来,推送到B-Z去;
+# 此处以 master 举例子.
+[root@master manifests]# ssh-keygen -t rsa
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /root/.ssh/id_rsa.
+Your public key has been saved in /root/.ssh/id_rsa.pub.
+The key fingerprint is:
+2e:52:69:23:57:4c:57:a5:fd:62:16:32:03:74:26:e3 root@master.pp.com
+The key's randomart image is:
++--[ RSA 2048]----+
+|        ..*.+..  |
+|       o o * o   |
+|        o E = o  |
+|       o     + o |
+|    . * S     + .|
+|     = o     o . |
+|    . . .        |
+|     . .         |
+|                 |
++-----------------+
+
+# 查看sshkey字符串
+[root@master manifests]# cat /root/.ssh/id_rsa.pub 
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCbWmj1guO8sBQUYFvlJ0/EIn1Wmv/5pS1ZZBDy1rfhtv0YLGFELWWI4g/wJ3583t\
+41pFvIZs4l31+xKNQBbxhmuaMchGlZSrz2RCufdaDxD/pdHaYRhitja1WJEPnEzMpx1b2JsIjFbmA8XOwKuxXrNuIQyTtMbk7NI8rzy\
+IM+W4JuX/YQe/BM25C/Z3dK9jtrwqHycNAKnYCBFJ8tiuG3rN5k4uvX4QQewVA2/GN9Pt7055hnbIywwRoIdW/7FHzJIIYzunCHStZzP\
+GiY5ZDNlAbngSa1fpKM/Oerx1JCeRyYw5weHbtih5xQwho0WJMAI7vOrtBPbCFuirTgC+X9 root@master.pp.com root@master.pp.com
+# 编辑 site.pp,添加sshkey资源推送
+[root@master .ssh]# vi /etc/puppetlabs/code/environments/production/manifests/site.pp
+node default {
+        ssh_authorized_key { "sshkey":
+                        key=>"AAAAB3NzaC1yc2EAAAADAQABAAABAQCbWmj1guO8sBQUYFvlJ0/EIn1Wmv/5pS1ZZBDy1rfhtv0YLGF\
+                              ELWWI4g/wJ3583t41pFvIZs4l31+xKNQBbxhmuaMchGlZSrz2RCufdaDxD/pdHaYRhitja1WJEPnEzMp\
+                              x1b2JsIjFbmA8XOwKuxXrNuIQyTtMbk7NI8rzyIM+W4JuX/YQe/BM25C/Z3dK9jtrwqHycNAKnYCBFJ8t\
+                              iuG3rN5k4uvX4QQewVA2/GN9Pt7055hnbIywwRoIdW/7FHzJIIYzunCHStZzPGiY5ZDNlAbngSa1fpKM/O\
+                              erx1JCeRyYw5weHbtih5xQwho0WJMAI7vOrtBPbCFuirTgC+X9",
+                        type=>"ssh-rsa",
+                        user=>"root",
+                        target=>"/root/.ssh/authorized_keys",
+        }
+}
+
+# 重点注意选项:
+# type[必填项]:如果使用"ssh-keygen -t rsa"生成的key,那么type为"ssh-key"
+#              其他key类型请参考官方文档;
+# user[必填项]:不多说!! ssh $USER@agent144.pp.com 免验证登陆;
+# target[必填项]:因为 ssh-copy-id 拷贝的key是保存在目标主机 authorized_keys中的;
+# key[必填项]:将id_rsa.pub的字符串"掐头去尾,不留空白字符"的处理结果填入key选项;
+# 更多选项参考官方文档:
+# https://docs.puppet.com/puppet/4.4/reference/types/ssh_authorized_key.html
+
+$$ agent144主动触发推送并验证结果
+[root@agent144 .ssh]# puppet agent -t --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent144.pp.com
+Info: Applying configuration version '1462192697'
+Notice: /Stage[main]/Main/Node[default]/Ssh_authorized_key[sshkey]/ensure: created
+Notice: Applied catalog in 0.03 seconds
+
+[root@agent144 .ssh]# cat authorized_keys
+# HEADER: This file was autogenerated at 2016-05-02 08:38:18 -0400
+# HEADER: by puppet.  While it can still be managed manually, it
+# HEADER: is definitely not recommended.
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCbWmj1guO8sBQUYFvlJ0/EIn1Wmv/5pS1ZZBDy1rfhtv0YLGFELWWI4g/wJ35\
+83t41pFvIZs4l31+xKNQBbxhmuaMchGlZSrz2RCufdaDxD/pdHaYRhitja1WJEPnEzMpx1b2JsIjFbmA8XOwKuxXrNuIQyTtMbk7\
+NI8rzyIM+W4JuX/YQe/BM25C/Z3dK9jtrwqHycNAKnYCBFJ8tiuG3rN5k4uvX4QQewVA2/GN9Pt7055hnbIywwRoIdW/7FHzJIIYz\
+unCHStZzPGiY5ZDNlAbngSa1fpKM/Oerx1JCeRyYw5weHbtih5xQwho0WJMAI7vOrtBPbCFuirTgC+X9 sshkey
+
+# 注意:
+# puppet 将$type + $key +$title组装为新的key值保存在authorized_keys中;
+
+** 在master端验证是否可以免验证登录 agent144
+[root@master ~]# ssh agent144.pp.com 'echo login'
+login
+# 验证结果: 成功!!
+
+
+++++++++++++++++++++
++   推送 mount     +
+++++++++++++++++++++
+待续 ....
+
+
+++++++++++++++++++++
++   推送 yumrepo   +
+++++++++++++++++++++
+
+# 我们想使用rdo的repo
+[root@controller yum.repos.d]# cat rdo-release.repo 
+[openstack-icehouse]
+name=OpenStack Icehouse Repository
+baseurl=https://repos.fedorapeople.org/openstack/EOL/openstack-icehouse/epel-7/
+enabled=1
+skip_if_unavailable=0
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-RDO-Icehouse
+priority=98
+
+** 配置site.pp 为 agent130,agent144添加推送的repo
+node agent130.pp.com,agent144.pp.com {
+        yumrepo { "icehouse-rdo":
+                        name=>"rdo-release",
+                        ensure=>present,
+                        baseurl=>"https://repos.fedorapeople.org/openstack/EOL/openstack-icehouse/epel-7/",
+                        priority=>98,
+                        enabled=>1,
+                        proxy=>"http://10.154.88.88:3128",
+                        skip_if_unavailable=>0,
+                        gpgcheck=>0,
+        }
+}
+
+
+$$ 在agent*.pp.com上触发推送
+[root@agent144 yum.repos.d]# puppet agent --test --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent144.pp.com
+Info: Applying configuration version '1462241492'
+Notice: /Stage[main]/Main/Node[agent144.pp.com]/Yumrepo[icehouse-rdo]/ensure: created
+Info: changing mode of /etc/yum.repos.d/rdo-release.repo from 600 to 644
+Notice: Applied catalog in 0.04 seconds
+
+[root@agent144 yum.repos.d]# ls
+CentOS-Base.repo  CentOS-Debuginfo.repo  CentOS-Sources.repo  puppetlabs-pc1.repo
+CentOS-CR.repo    CentOS-fasttrack.repo  CentOS-Vault.repo    rdo-release.repo
+[root@agent144 yum.repos.d]# cat rdo-release.repo
+[rdo-release]
+baseurl=https://repos.fedorapeople.org/openstack/EOL/openstack-icehouse/epel-7/
+enabled=1
+gpgcheck=0
+priority=98
+proxy=http://10.154.88.88:3128
+skip_if_unavailable=0
+# agent130 相同,此处略
+# repo默认保存在/etc/yum.repo.d/下的$name.repo文件中;
+
+# 刷新 yum cache,即可使用;
+[root@agent144 yum.repos.d]# yum clean all && yum makecache
+
+
+
+++++++++++++++++++++
++  推送 命令执行   +
+++++++++++++++++++++
+
+# 此处以笔者批量部署部署虚拟化环境举例 
+** 在master上编写site.pp,为agent*.pp.com推送脚本,以及执行脚本的命令;
+[root@master manifests]# vi site.pp
+node agent130.pp.com,agent144.pp.com {
+    file { "deployVE":
+            mode=>"777",
+            path=>"/opt/deployVE",
+            source=>"puppet:///modules/scripts/deployVE",           
+    }
+    exec { "bash /opt/deployVE":
+            cwd=>"/root",
+            path=>["/usr/bin","/usr/sbin"],
+    }
+}
+** 在/etc/puppetlabs/code/modules/scripts/files/下创建部署虚拟化脚本 deployVE:
+[root@master manifests]# cat > /etc/puppetlabs/code/modules/scripts/files/deployVE << EOF
+>#! /bin/bash
+># script: Deploy Virtulization Environment
+># ***** qemu *****
+>yum install -y qemu-img.x86_64 qemu-guest-agent.x86_64
+># ***** kvm  ****
+>yum install -y qemu-kvm-tools.x86_64 qemu-kvm-common.x86_64 qemu-kvm.x86_64
+># **** libvirt **
+>yum install -y libvirt-daemon-kvm.x86_64 libvirt-python.x86_64 libvirt-devel.x86_64 \
+>               libvirt-daemon.x86_64 libvirt-daemon-driver-qemu.x86_64
+>systemctl enable libvirtd && systemctl start libvirtd
+># *** openvswitch ***
+>yum install -y python-openvswitch.noarch openvswitch-test.noarch openvswitch-devel.x86_64 \
+>               openvswitch-controller.x86_64 openvswitch.x86_64
+>systemctl enable openvswitch && systemctl start openvswitch
+># *** virsh ***
+>yum install -y fence-agents-virsh.x86_64
+># *** virt* ***
+>yum install -y virt-viewer.x86_64 virt-install.noarch virt-manager*
+>EOF
+
+# 更详细设置参考官方:
+# https://docs.puppet.com/puppet/4.4/reference/types/exec.html
+
+$$ 在 agent130 上主动触发推送,验证执行效果
+[root@agent130 ~]# puppet agent --test --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent130.pp.com
+Info: Applying configuration version '1462246198'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/File[deployVE]/ensure: defined content as \
+        '{md5}67800bfa33de32649df5bdbd6720b9b4'
+Notice: /Stage[main]/Main/Node[agent130.pp.com]/Exec[bash /opt/deployVE]/returns: executed successfully
+Notice: Applied catalog in 240.44 seconds
+# pupet推送成功
+
+[root@agent130 ~]# systemctl status openvswitch
+● openvswitch.service - Open vSwitch
+   Loaded: loaded (/usr/lib/systemd/system/openvswitch.service; enabled; vendor preset: disabled)
+   Active: active (exited) since Mon 2016-05-02 23:33:04 EDT; 1min 31s ago
+ Main PID: 15110 (code=exited, status=0/SUCCESS)
+
+May 02 23:33:04 agent130.pp.com systemd[1]: Starting Open vSwitch...
+May 02 23:33:04 agent130.pp.com systemd[1]: Started Open vSwitch.
+# openvswitch 安装成功并成功启动
+
+
+
+++++++++++++++++++++
++  推送 hosts      +
+++++++++++++++++++++
+
+# 需求:给agent*.pp.com的/etc/hosts添加"10.160.0.108 controller.com"条目 
+# 使用正则表达式: /agent[0-9]+.pp.com/ 匹配该组服务器
+** 在master上编辑site.pp:
+[root@master manifests]# cat > site.pp << EOF
+>node /agent[0-9]+.pp.com/ {
+>        host { "add-controller":
+>                target=>"/etc/hosts",
+>                name=>"controller.com",
+>                ip=>"10.160.0.108",
+>        }
+>}
+>EOF
+
+$$ 在客户端主动触发推送,验证结果:
+[root@agent144 guojingyu]# puppet agent --test --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent144.pp.com
+Info: Applying configuration version '1462258295'
+Notice: /Stage[main]/Main/Node[__node_regexp__agent0-9.pp.com]/Host[add-controller]/ensure: created
+Info: Computing checksum on file /etc/hosts
+Notice: Applied catalog in 0.07 seconds
+
+[root@agent144 guojingyu]# cat /etc/hosts
+# HEADER: This file was autogenerated at 2016-05-03 02:51:36 -0400
+# HEADER: by puppet.  While it can still be managed manually, it
+# HEADER: is definitely not recommended.
+127.0.0.1   localhost   localhost.localdomain localhost4 localhost4.localdomain4
+::1 localhost   localhost.localdomain localhost6 localhost6.localdomain6
+10.160.0.119    master.pp.com
+10.160.0.130    agent130.pp.com
+10.160.0.144    agent144.pp.com
+10.160.0.108    controller.com
+
+******************************类,模块,包****************************************
+
+** 创建模块相关目录
+[root@master code]# pwd
+/etc/puppetlabs/code
+[root@master code]# mkdir -p modules/apache
+[root@master code]# mkdir -p modules/apache/{files,manifests,templates}
+# init.pp放在 /etc/puppetlabs/code/modules/{module}/manifests/下
+# 模块相关的配置文件,脚本放在files下
+# 主机模板放在templates下
+
+** 创建节点相关目录[这个版本的 import 有问题 !!!,创建 nodes 略去]
+# [root@master manifests]# pwd
+# /etc/puppetlabs/code/environments/production/manifests
+# [root@master manifests]# mkdir -p nodes
+# nodes 下面放节点描述文件
+# manifests 下面直接放 site.pp 文件
+
+# 以下是agent端在触发推送时报错,但是在master上直接在site.pp定义node则没问题!!
+# Error: Could not retrieve catalog from remote server: Error 400 on SERVER: Evaluation Error: \
+        Use # of 'import' has been discontinued in favor of a manifest directory. See http://links.puppetlabs.
+# com/puppet-import-deprecation at /etc/puppetlabs/code/environments/production/manifests/site.
+# pp:5:1 on node agent144.pp.com
+#Warning: Not using cache on failed catalog
+# Error: Could not retrieve catalog; skipping run
+
+
+#下面举个例子来说明文件间的依赖
+** 在 site.pp中 创建节点描述文件
+[root@master manifests]# cat > site.pp << EOF
+>node agent144.pp.com {
+>    include apache       # 加载apache类
+>}
+>EOF
+
+** 现在去定义 apache 类
+[root@master apache]# pwd
+/etc/puppetlabs/code/modules/apache
+[root@master apache]# cat > manifests/init.pp << EOF
+>class apache {
+>    file { '/tmp/apache.conf':
+>              mode=>"640",
+>              source=>"puppet:///modules/apache/apache.conf",
+>              owner=>root,
+>              group=>root,
+>    }
+>}
+>EOF
+
+** 在 apache模块下的files中放入配置文件apache.conf
+[root@master apache]# cat > files/apache.conf << EOF
+>  ... This's apache conf ..
+> EOF
+
+$$ 在agent144 上触发推送
+[root@agent144 ~]# puppet agent --test --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent144.pp.com
+Info: Applying configuration version '1462326111'
+Notice: /Stage[main]/Apache/File[/tmp/apache.conf]/ensure: defined content as '{md5}c67ed4e07f7cf8d904c51073b8dc1ee7'
+Notice: Applied catalog in 0.13 seconds
+[root@agent144 ~]# cat /tmp/apache.conf 
+ ... This's apache conf ..
+
+
++++++++++++++++++++++++++++
++  推送 package与service  +
++++++++++++++++++++++++++++
+
+** 在master上编辑init.pp,定义apache类:
+[root@master manifests]# cat > /etc/puppetlabs/code/modules/apache/manifests/init.pp << EOF
+>class apache {
+>    file { "/tmp/apache.conf":
+>                source=>"puppet:///modules/apache/apache.conf",
+>                mode=>"640",
+>                owner=>root,
+>                group=>root,
+>    }
+>    package { "httpd":
+>                ensure=>installed,
+>    }
+>    service { "httpd":
+>                ensure=>running,
+>                binary=>"/usr/sbin/httpd",
+>                enable=>true,
+>                hasrestart=>true,
+>                hasstatus=>true,
+>                provider=>"systemd",
+>                require=>[Package["httpd"],File["/tmp/apache.conf"]]
+>    }
+>    notify { "notify-apache-deploy-done":
+>                message=>"Apache service deployed !!",
+>    }
+>}
+>EOF
+# package 更所属性参考官方:
+# https://docs.puppet.com/puppet/4.4/reference/types/service.html
+# require用法:
+# require 指定推送该资源的必要条件,e.g:推送httpd服务的前提是必须安装了httpd,配置文件已配置
+# require=>Cap($resource)["$title"]
+# 1.资源名称首字母大写,e.g package -> Package
+# 2.资源名称/title,e.g: httpd
+# service:provider=>"systemd",即使用systemctl {start|enable|stop|restart} $service 管理服务
+# notify资源:输出调试信息
+
+$$ 在agent端触发推送:
+[root@agent144 ~]# puppet agent --test --server master.pp.com
+Info: Using configured environment 'production'
+Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Caching catalog for agent144.pp.com
+Info: Applying configuration version '1462339080'
+Notice: /Stage[main]/Apache/File[/tmp/apache.conf]/ensure: defined content as '{md5}c67ed4e07f7cf8d904c51073b8dc1ee7'
+Notice: /Stage[main]/Apache/Package[httpd]/ensure: created
+Notice: /Stage[main]/Apache/Service[httpd]/ensure: ensure changed 'stopped' to 'running'
+Info: /Stage[main]/Apache/Service[httpd]: Unscheduling refresh on Service[httpd]
+Notice: Apache service deployed !!
+Notice: /Stage[main]/Apache/Notify[notify-apache-deploy-done]/message: defined 'message' as 'Apache service deployed !!'
+Notice: Applied catalog in 4.18 seconds
+[root@agent144 ~]#
+[root@agent144 ~]# systemctl status httpd
+● httpd.service - The Apache HTTP Server
+   Loaded: loaded (/usr/lib/systemd/system/httpd.service; enabled; vendor preset: disabled)
+   Active: active (running) since Wed 2016-05-04 01:18:05 EDT; 17s ago
+     Docs: man:httpd(8)
+           man:apachectl(8)
+ Main PID: 26003 (httpd)
+   Status: "Total requests: 0; Current requests/sec: 0; Current traffic:   0 B/sec"
+   CGroup: /system.slice/httpd.service
+           ├─26003 /usr/sbin/httpd -DFOREGROUND
+           ├─26004 /usr/sbin/httpd -DFOREGROUND
+           ├─26005 /usr/sbin/httpd -DFOREGROUND
+           ├─26006 /usr/sbin/httpd -DFOREGROUND
+           ├─26007 /usr/sbin/httpd -DFOREGROUND
+           └─26008 /usr/sbin/httpd -DFOREGROUND
+
+May 04 01:18:05 agent144.pp.com systemd[1]: Starting The Apache HTTP Server...
+May 04 01:18:05 agent144.pp.com systemd[1]: Started The Apache HTTP Server.
+[root@agent144 ~]# cat /tmp/apache.conf 
+ ... This's apache conf ..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
