@@ -1,0 +1,505 @@
+1.安装mongodb
+方法1: yum install -y mongodb-server.x86_64 && systemctl enable mongod && systemctl start mongod
+方法2: http://www.runoob.com/mongodb/mongodb-linux-install.html
+
+[root@dev Metadata]# mongod --version
+db version v2.6.11
+2016-03-15T10:07:36.441+0800 git version: nogitversion
+2016-03-15T10:07:36.441+0800 OpenSSL version: OpenSSL 1.0.1e-fips 11 Feb 2013
+
+2.安装 pymongo
+https://pypi.python.org/pypi/pymongo/3.0.3#downloads
+tar -xf pymongo-3.0.3.tar.gz
+cd pymongo-3.0.3 && python setup.py install 
+
+3.熟悉 mongod 的使用以及 pymongod
+http://www.runoob.com/mongodb/mongodb-databases-documents-collections.html
+https://pypi.python.org/pypi/pymongo/3.0.3#downloads
+http://api.mongodb.org/python/current/api/pymongo/collection.html
+https://github.com/jeffjenkins/MongoAlchemy/blob/master/examples/hash_field.py
+http://www.cnblogs.com/yuechaotian/archive/2013/02/21/2920254.html
+http://blog.csdn.net/miyatang/article/details/20997313 
+
+# 应用需求/场景: 使用 mongodb 存储云存储文件元数据
+Step1:
+mongodb://127.0.0.1:27017/{member}
+
+Step2:
+client = MongoClient(uri)
+Step3: # 切换到指定数据库
+db = client.get_default_database()
+Step4: # 制定操作指定数据表(Collection)
+meta_op = db.get_collection("metadata"
+Step5: # 操作Collection
+meta_op.insert_many([{"xyzpp":i} for i in range(100)])
+
+# 文件元数据属性
+1. file_md5
+2. filename
+3. created_at
+4. full_path
+5. size
+6. path_hash
+7. updated_at
+8. filemode
+9. isdir
+
+目录文件示范:
+{
+  "file_md5":"72bb60b9ea90d17e324bb1be2d184e6b",            # 文件夹无法计算 md5
+  "filename":"pics",								                        # filename
+  "created_at":"2016-03-16 00:00:00",        		   
+  "full_path":"/guojy/",                                    # 示例
+  "sizeInByte":10240,                                       # 4Byte
+  "path_hash":"",									                          # /guojy/pics/by.png 的加密  
+  "updated_at":"2016-03-16 00:00:00",				                # 
+  "filemode":2,                                             # 1-private  2-public read  3-public read/write 
+                                                            # 如果没有则 参考 root-bucket
+  "isdir":1
+}
+
+
+文件元数据示例:
+{
+  "file_md5":"72bb60b9ea90d17e324bb1be2d184e6b",
+  "filename":"homepage.png",
+  "created_at":"2016-03-16 00:00:00",
+  "full_path":"/guojy/pics/",
+  "sizeInByte":10240,
+  "path_hash":"",                          			  # /guojy/pics/by.png 的加密  
+  "updated_at":"2016-03-16 00:00:00",
+  "filemode":2,
+  "isdir":0
+}
+
+
+mongodb的正则查询:
+# shell 命令:
+> db.test.find({"path":{$regex:"/guojy/\\S+"}})
+{ "_id" : ObjectId("56e92874e77989451908e14b"), "path" : "/guojy/pic/home.png", "size" : 20 }
+{ "_id" : ObjectId("56e92887e77989451908e14c"), "path" : "/guojy/pic/index/index.png", "size" : 4 }
+{ "_id" : ObjectId("56e92896e77989451908e14d"), "path" : "/guojy/pic/head/back.png", "size" : 2 }
+{ "_id" : ObjectId("56e928a5e77989451908e14e"), "path" : "/guojy/pic/foot/foot_bar.png", "size" : 2 }
+{ "_id" : ObjectId("56e92b68f21216338a847a87"), "path" : "/guojy/pic/home.png", "size" : 20 }
+{ "_id" : ObjectId("56e92b73f21216338a847a88"), "path" : "/guojy/pic/index/index.png", "size" : 4 }
+{ "_id" : ObjectId("56e92b7ff21216338a847a89"), "path" : "/guojy/pic/head/back.png", "size" : 2 }
+{ "_id" : ObjectId("56e92b8cf21216338a847a8a"), "path" : "/guojy/pic/foot/foot_bar.png", "size" : 2 }
+
+# python 代码:
+db.metadata.find({"pdt":{$regex:/^h/i}})
+
+数据比较: 大于等于
+# shell 命令:
+> db.metadata.find({"x":{$gte:19}})               # >=
+{ "_id" : ObjectId("56e7bafae7798979297955ac"), "x" : 19 }
+
+# python 代码:
+> db.metadata.find({"x":{$gte:10}})               
+{ "_id" : ObjectId("56e7bafae7798979297955a3"), "x" : 10 }
+{ "_id" : ObjectId("56e7bafae7798979297955a4"), "x" : 11 }
+{ "_id" : ObjectId("56e7bafae7798979297955a5"), "x" : 12 }
+{ "_id" : ObjectId("56e7bafae7798979297955a6"), "x" : 13 }
+{ "_id" : ObjectId("56e7bafae7798979297955a7"), "x" : 14 }
+{ "_id" : ObjectId("56e7bafae7798979297955a8"), "x" : 15 }
+{ "_id" : ObjectId("56e7bafae7798979297955a9"), "x" : 16 }
+{ "_id" : ObjectId("56e7bafae7798979297955aa"), "x" : 17 }
+{ "_id" : ObjectId("56e7bafae7798979297955ab"), "x" : 18 }
+{ "_id" : ObjectId("56e7bafae7798979297955ac"), "x" : 19 }
+
+数据比较: 小于等于
+# shell 命令:
+> db.metadata.find({"x":{$lte:3}})                # <=
+{ "_id" : ObjectId("56e7bafae779897929795599"), "x" : 0 }
+{ "_id" : ObjectId("56e7bafae77989792979559a"), "x" : 1 }
+{ "_id" : ObjectId("56e7bafae77989792979559b"), "x" : 2 }
+{ "_id" : ObjectId("56e7bafae77989792979559c"), "x" : 3 }
+
+# python 代码:
+> db.metadata.find({"x":{$lt:3}})				  # < 
+{ "_id" : ObjectId("56e7bafae779897929795599"), "x" : 0 }
+{ "_id" : ObjectId("56e7bafae77989792979559a"), "x" : 1 }
+{ "_id" : ObjectId("56e7bafae77989792979559b"), "x" : 2 }
+
+数据比较: 大于等于
+# shell 命令:
+> db.metadata.find({"x":{$gt:18}})                # >
+{ "_id" : ObjectId("56e7bafae7798979297955ac"), "x" : 19 }
+# python 代码:
+> db.metadata.find({"x":{$gte:18}})
+{ "_id" : ObjectId("56e7bafae7798979297955ab"), "x" : 18 }
+{ "_id" : ObjectId("56e7bafae7798979297955ac"), "x" : 19 }
+
+数据比较: 不等于
+> db.metadata.find({"x":{$ne:18}})                # !=
+
+
+逻辑运算:
+# OR
+# AND
+# AND OR
+# AND OR LIKE
+
+# shell 命令:
+> db.metadata.insert({"x":80,"pdt":"mi","xyzs":30})
+WriteResult({ "nInserted" : 1 })
+> 
+> db.metadata.insert({"x":340,"pdt":"lee","xyzs":400})
+WriteResult({ "nInserted" : 1 })
+>
+> db.metadata.find({"x":{$gt:300},$or:[{"xyzs":{$ne:19},"pdt":{$regex:/^l/i}}]})
+{ "_id" : ObjectId("56e8c739e69b527fc2c86b71"), "x" : 340, "pdt" : "lee", "xyzs" : 400 }
+>
+> db.metadata.find({"x":{$gt:300},$or:[{"xyzs":{$ne:19},"pdt":{$regex:/^l/i}}]})
+{ "_id" : ObjectId("56e8c739e69b527fc2c86b71"), "x" : 340, "pdt" : "lee", "xyzs" : 400 }
+> db.metadata.remove({"x":{$gt:300},$or:[{"xyzs":{$ne:19},"pdt":{$regex:/^l/i}}]})
+WriteResult({ "nRemoved" : 1 })
+> db.metadata.find({"x":{$gt:300},$or:[{"xyzs":{$ne:19},"pdt":{$regex:/^l/i}}]})
+> db.metadata.find({"x":{$gt:300,$lt:480},$or:[{"xyzs":{$ne:19},"pdt":{$regex:/^l/i}}]})
+
+结果集排序:
+# ASC
+> db.metadata.find({"x":{$lt:5}}).sort({"x":1})
+{ "_id" : ObjectId("56e7bafae779897929795599"), "x" : 0 }
+{ "_id" : ObjectId("56e7bafae77989792979559a"), "x" : 1 }
+{ "_id" : ObjectId("56e7bafae77989792979559b"), "x" : 2 }
+{ "_id" : ObjectId("56e7bafae77989792979559c"), "x" : 3 }
+{ "_id" : ObjectId("56e7bafae77989792979559d"), "x" : 4 }
+# DESC
+> db.metadata.find({"x":{$lt:5}}).sort({"x":-1})
+{ "_id" : ObjectId("56e7bafae77989792979559d"), "x" : 4 }
+{ "_id" : ObjectId("56e7bafae77989792979559c"), "x" : 3 }
+{ "_id" : ObjectId("56e7bafae77989792979559b"), "x" : 2 }
+{ "_id" : ObjectId("56e7bafae77989792979559a"), "x" : 1 }
+{ "_id" : ObjectId("56e7bafae779897929795599"), "x" : 0 }
+
+聚合查询:
+# db.metadata.aggregate([{$match:{x:{$lt:10}}},{$group:{_id:null,totalSize:{$sum:"$x"}}}])
+# { "_id" : null, "totalSize" : 45 }
+
+e.g: 查询 /guojy/ 下所有文件的大小
+mysql:      select count(sizeInByte) from metadata where full_path like '/guojy/%';
+mongodb:    db.metadata.aggregate([{$match:{full_path:{$regex:/^\/guojy\//i}}},{$group:{_id:null,totalSize:{$sum:"$sizeInByte"}}}])
+
+
+数据库记录更新:
+> db.metadata.updateMany({isdir:true},{$set:{isdir:1}})
+{ "acknowledged" : true, "matchedCount" : 6, "modifiedCount" : 6 }
+> db.metadata.updateMany({isdir:false},{$set:{isdir:0}})
+{ "acknowledged" : true, "matchedCount" : 12, "modifiedCount" : 12 }
+
+# pymongodb的模糊查询:
+# pymongo中的aggregate:
+# http://api.mongodb.org/python/current/examples/aggregation.html#aggregate-examples
+
+## Test1: 聚合的使用
+scripts1:
+#! /usr/bin/python
+from pymongo import MongoClient
+client = MongoClient()
+db = client.get_database("test")
+pipe = [{"$match":{"x":{"$lt":10}}},{"$group":{"_id":None,"size":{"$sum":"$x"}}}]
+k = db.command("aggregate","metadata",pipeline=pipe)
+print k
+{u'ok': 1.0, u'waitedMS': 0L, u'result': [{u'_id': None, u'size': 45}]}
+
+"""
+mongodb commands:
+>db.metadata.find({"name":{$regex:/^hao/i}})
+{ "_id" : ObjectId("56e8e06a07e874f04e0e79d6"), "name" : "haoyy", "age" : 23 }
+{ "_id" : ObjectId("56e8e07207e874f04e0e79d7"), "name" : "haoxx", "age" : 25 }
+{ "_id" : ObjectId("56e8e07907e874f04e0e79d8"), "name" : "haozz", "age" : 27 }
+"""
+
+## Test2: 正则匹配+聚合的使用
+scripts2:
+#! /usr/bin/python
+from pymongo import MongoClient
+client = MongoClient()
+db = client.get_database("test")
+pipe = [{"$match":{"name":{"$regex":"hao\\S+"}}},{"$group":{"_id":None,"size":{"$sum":"$age"}}}]
+k = db.command("aggregate","metadata",pipeline=pipe)
+print k
+{u'ok': 1.0, u'waitedMS': 0L, u'result': [{u'_id': None, u'size': 75.0}]}
+
+
+"""
+Mongodb commands
+> db.metadata.insert({"path":"/guojy/pic/home.png","size":20})
+WriteResult({ "nInserted" : 1 })
+> db.metadata.insert({"path":"/guojy/pic/index/index.png","size":4})
+WriteResult({ "nInserted" : 1 })
+> db.metadata.insert({"path":"/guojy/pic/head/back.png","size":2})
+WriteResult({ "nInserted" : 1 })
+> db.metadata.insert({"path":"/guojy/pic/foot/foot_bar.png","size":2})
+WriteResult({ "nInserted" : 1 })
+
+> db.metadata.find({"path":{$regex:"/guojy/\\S+"}})
+{ "_id" : ObjectId("56e92874e77989451908e14b"), "path" : "/guojy/pic/home.png", "size" : 20 }
+{ "_id" : ObjectId("56e92887e77989451908e14c"), "path" : "/guojy/pic/index/index.png", "size" : 4 }
+{ "_id" : ObjectId("56e92896e77989451908e14d"), "path" : "/guojy/pic/head/back.png", "size" : 2 }
+{ "_id" : ObjectId("56e928a5e77989451908e14e"), "path" : "/guojy/pic/foot/foot_bar.png", "size" : 2 }
+{ "_id" : ObjectId("56e92b68f21216338a847a87"), "path" : "/guojy/pic/home.png", "size" : 20 }
+{ "_id" : ObjectId("56e92b73f21216338a847a88"), "path" : "/guojy/pic/index/index.png", "size" : 4 }
+{ "_id" : ObjectId("56e92b7ff21216338a847a89"), "path" : "/guojy/pic/head/back.png", "size" : 2 }
+{ "_id" : ObjectId("56e92b8cf21216338a847a8a"), "path" : "/guojy/pic/foot/foot_bar.png", "size" : 2 }
+
+"""
+
+## Test2: 聚合的使用:查询某bucket下的文件,并统计bucket容量使用量
+scripts3:
+#! /usr/bin/python
+from pymongo import MongoClient
+client = MongoClient()
+db = client.get_database("test")
+pipe = [{"$match":{"path":{"$regex":"/guojy/\\S+"}}},{"$group":{"_id":None,"size":{"$sum":"$size"}}}]
+k = db.command("aggregate","metadata",pipeline=pipe)
+print k
+pipe = [{"$match":{"path":{"$regex":"/guoggg/\\S+"}}},{"$group":{"_id":None,"size":{"$sum":"$size"}}}]
+k = db.command("aggregate","metadata",pipeline=pipe)
+print k
+
+pipe = [{"$match":{"isdir":0}},{"$group":{"_id":None,"size":{"$sum":"$sizeInByte"}}}]
+k = db.command("aggregate","metadata",pipeline=pipe)
+print k
+
+{u'ok': 1.0, u'waitedMS': 0L, u'result': [{u'_id': None, u'size': 28.0}]}
+{u'ok': 1.0, u'waitedMS': 0L, u'result': []}
+{u'ok': 1.0, u'waitedMS': 0L, u'result': [{u'_id': None, u'size': 9083772728.0}]}
+
+""" 说明: 统计某 bucket,e.g /guojy/ 下用户使用的总容量(单位:Byte) """
+
+
+## 测试用例-某bucket的文件层次: ##
+/yuebuqun(d)     							           /yuebuqun                                   
+		pic(d)											         /yuebuqun/pic
+			BeiJing2008.png                    /yuebuqun/pic/BeiJing2008.png
+			TianjinDavos2016.png               /yuebuqun/pic/TianjinDavos2016.png
+			Shanghai.png                       /yuebuqun/pic/Shanghai.png
+			BeiJing_2015_yuebing.png           /yuebuqun/pic/BeiJing_2015_yuebing.png
+			BeiJing_2015_birds_nest.png        /yuebuqun/pic/BeiJing_2015_birds_nest.png
+			BeiJing_Zhongguancun.png           /yuebuqun/pic/BeiJing_Zhongguancun.png
+			BeiJing_hutong.png                 /yuebuqun/pic/BeiJing_hutong.png
+			BeiJing_SummerPalace.png           /yuebuqun/pic/BeiJing_SummerPalace.png
+			BeiJing_Shanhaiguan.png            /yuebuqun/pic/BeiJing_Shanhaiguan.png
+			BeiJing_Badaling.png               /yuebuqun/pic/BeiJing_Badaling.png
+			BeiJing_Yangshi_大裤衩.png         /yuebuqun/pic/BeiJing_Yangshi_大裤衩.png
+			my2015(d)                          /yuebuqun/pic/my2015
+		      家人.png                       /yuebuqun/pic/my2015/家人.png
+		      MY_GF.png                      /yuebuqun/pic/my2015/MY_GF.png
+		      MY_TEACHER.png                 /yuebuqun/pic/my2015/MY_TEACHER.png
+		      NewYork(d)                     /yuebuqun/pic/my2015/NewYork
+		          NewYork_University.png     /yuebuqun/pic/my2015/NewYork/NewYork_University.png
+
+		mp3(d)                               /yuebuqun/mp3
+			爱我别走.mp3                       /yuebuqun/mp3/爱我别走.mp3
+			Far_away_from_home.mp3             /yuebuqun/mp3/Far_away_from_home.mp3
+			favourite                          /yuebuqun/mp3/favourite
+		video(d)                             /yuebuqun/video			
+			北京爱情.mkv                       /yuebuqun/video/北京爱情.mkv
+		share(d)                             /yuebuqun/share
+			金庸全集.zip                       /yuebuqun/share/金庸全集.zip
+			古龙全集.zip                       /yuebuqun/share/古龙全集.zip
+			梁羽生全集.zip                     /yuebuqun/share/梁羽生全集.zip
+			花千骨.txt                         /yuebuqun/share/花千骨.txt
+			致爱丽丝.mp3                       /yuebuqun/share/致爱丽丝.mp3
+		others(d)										         /yuebuqun/others
+			(空)
+		readme.txt(f)                        /yuebuqun/readme.txt
+
+
+# /yuebuqun
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e6b","filename":"yuebuqun","created_at":"2016-03-16 00:00:00",\
+"full_path":"/","sizeInByte":0,"path_hash":"a074d530-a590-454d-a5c3-13bdf541f3ae","updated_at":"2016-03-16 00:00:00","filemode":1,\
+"isdir":1})
+
+#/yuebuqun/pic
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"pic","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":1})
+
+#/yuebuqun/pic/my2015
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"my2015","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 00:00:00",
+"filemode":1,"isdir":1})
+
+#/yuebuqun/pic/my2015/家人.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"家人.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/my2015/MY_GF.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"MY_GF.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/my2015/MY_TEACHER.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"MY_TEACHER.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/my2015/NewYork
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"NewYork","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":1})
+
+#/yuebuqun/pic/my2015/NewYork/NewYork_University.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"NewYork_University.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/my2015/NewYork/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e",\
+"updated_at":"2016-03-16 00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing2008.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"BeiJing2008.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_2015_yuebing.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e68","filename":"BeiJing_2015_yuebing.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_2015_birds_nest.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e69","filename":"BeiJing_2015_birds_nest.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_hutong.png
+db.metadata.insert({"file_md5":"723461b9ea90d17e324bb1be2d184e69","filename":"BeiJing_hutong.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_Zhongguancun.png
+db.metadata.insert({"file_md5":"733462b9ea90d17e324bb1be2d184e69","filename":"BeiJing_Zhongguancun.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_SummerPalace.png
+db.metadata.insert({"file_md5":"733461b9ea90d17e324bb1be2d184e69","filename":"BeiJing_SummerPalace.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_Shanhaiguan.png
+db.metadata.insert({"file_md5":"733461b9eb90d17e324bb1be2d184e89","filename":"BeiJing_Shanhaiguan.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_Badaling.png
+db.metadata.insert({"file_md5":"733462c9eb90d17e324bb1be2d184e89","filename":"BeiJing_Badaling.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/BeiJing_Yangshi_大裤衩.png
+db.metadata.insert({"file_md5":"733462c9eb90d17e324bb1be2d184e89","filename":"BeiJing_Yangshi_大裤衩.png","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/pic/TianjinDavos2016.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e64","filename":"TianjinDavos2016.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/","sizeInByte":10234,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":0})
+
+#/yuebuqun/pic/Shanghai.png
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e65","filename":"Shanghai.png","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/pic/","sizeInByte":10124,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":0})
+
+#/yuebuqun/mp3
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e66","filename":"mp3","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":1})
+
+#/yuebuqun/mp3/爱我别走.mp3
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e67","filename":"爱我别走.mp3","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/mp3/","sizeInByte":89023400,"path_hash":"8a9b6d6c-3818-430a-ba22-661d0a81df8c","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/mp3/Far_away_from_home.mp3
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e69","filename":"Far_away_from_home.mp3","created_at":"2016-03-16 \
+00:00:00","full_path":"/yuebuqun/mp3/","sizeInByte":89021200,"path_hash":"8a9b6d6c-3818-430a-ba22-661d0a81df8c","updated_at":\
+"2016-03-16 00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/video
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e6a","filename":"video","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":1})
+
+#/yuebuqun/video/北京爱情.mkv
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e6c","filename":"北京爱情.mkv","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/video/","sizeInByte":8902120000,"path_hash":"70bb995f-287d-450a-bc53-bfc19adac6c0","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+
+#/yuebuqun/share
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e71","filename":"share","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":1})
+
+#/yuebuqun/share/金庸全集.zip
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e72","filename":"金庸全集.zip","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/share/","sizeInByte":890000,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/share/古龙全集.zip
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e73","filename":"古龙全集.zip","created_at":"2016-03-16 00:00:00","full_path":"/yuebuqun/share/","sizeInByte":890045,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/share/梁羽生全集.zip
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e74","filename":"梁羽生全集.zip","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/share/","sizeInByte":895745,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/share/花千骨.txt
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e75","filename":"花千骨.txt","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/share/","sizeInByte":89670,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":0})
+
+#/yuebuqun/share/致爱丽丝.mp3
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e76","filename":"致爱丽丝.mp3","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/share/","sizeInByte":812070,"path_hash":"890ac75e-65c9-496c-b54f-48fb83562209","updated_at":"2016-03-16 00\
+:00:00","filemode":1,"isdir":0})
+
+
+#/yuebuqun/others
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e77","filename":"others","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/","sizeInByte":0,"path_hash":"7e8f10c2-1e17-4190-b91b-059d8af40166","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":1})
+
+#/yuebuqun/readme.txt
+db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e61","filename":"readme.txt","created_at":"2016-03-16 00:00:00",\
+"full_path":"/yuebuqun/","sizeInByte":0,"path_hash":"242d5a1c-eca3-4d13-9d35-d488deb25838","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":0})
+
+
+## Test4: 使用测试用例进行测试
+scripts4:
+#! /usr/bin/python
+from pymongo import MongoClient
+client = MongoClient()
+db = client.get_database("qq")
+pipe = [{"$match":{"full_path":{"$regex":"/yuebuqun/\\S+"}}},{"$group":{"_id":None,"size":{"$sum":"$sizeInByte"}}}]
+k = db.command("aggregate","metadata",pipeline=pipe)
+print k
+
+#执行结果:
+{u'ok': 1.0, u'waitedMS': 0L, u'result': [{u'_id': None, u'size': 9083772728.0}]}
+
+scripts5:
+#! /usr/bin/python
+from pymongo import MongoClient
+client = MongoClient()
+db = client.get_database("guozh9999")
+coll = db.get_collection("test")
+coll.delete_many({'full_path': {'$regex':'/hailiang\\S+'}})
+
+scripts6:
+from pymongo import MongoClient
+client = MongoClient()
+db = client.get_database("guozh9999")
+coll = db.get_collection("test")
+coll.find({"$or":[{"filename":"readme"},{"filename":{"$regex":"\\S+mp3"}}]})
+""" 
+MYSQL: 
+select * from `guozh9999`.`test`  where filename = 'readme' or filename like '%mp3' 
+"""
+
+
+
+
+
