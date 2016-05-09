@@ -47,12 +47,12 @@ meta_op.insert_many([{"xyzpp":i} for i in range(100)])
 目录文件示范:
 {
   "file_md5":"72bb60b9ea90d17e324bb1be2d184e6b",            # 文件夹无法计算 md5
-  "filename":"pics",								                        # filename
+  "filename":"pics",		                            # filename
   "created_at":"2016-03-16 00:00:00",        		   
   "full_path":"/guojy/",                                    # 示例
   "sizeInByte":10240,                                       # 4Byte
-  "path_hash":"",									                          # /guojy/pics/by.png 的加密  
-  "updated_at":"2016-03-16 00:00:00",				                # 
+  "path_hash":"",				            # /guojy/pics/by.png 的加密  
+  "updated_at":"2016-03-16 00:00:00",		            # 
   "filemode":2,                                             # 1-private  2-public read  3-public read/write 
                                                             # 如果没有则 参考 root-bucket
   "isdir":1
@@ -66,7 +66,7 @@ meta_op.insert_many([{"xyzpp":i} for i in range(100)])
   "created_at":"2016-03-16 00:00:00",
   "full_path":"/guojy/pics/",
   "sizeInByte":10240,
-  "path_hash":"",                          			  # /guojy/pics/by.png 的加密  
+  "path_hash":"",                          	            # /guojy/pics/by.png 的加密  
   "updated_at":"2016-03-16 00:00:00",
   "filemode":2,
   "isdir":0
@@ -115,7 +115,7 @@ db.metadata.find({"pdt":{$regex:/^h/i}})
 { "_id" : ObjectId("56e7bafae77989792979559c"), "x" : 3 }
 
 # python 代码:
-> db.metadata.find({"x":{$lt:3}})				  # < 
+> db.metadata.find({"x":{$lt:3}})		 # < 
 { "_id" : ObjectId("56e7bafae779897929795599"), "x" : 0 }
 { "_id" : ObjectId("56e7bafae77989792979559a"), "x" : 1 }
 { "_id" : ObjectId("56e7bafae77989792979559b"), "x" : 2 }
@@ -178,7 +178,8 @@ WriteResult({ "nRemoved" : 1 })
 
 e.g: 查询 /guojy/ 下所有文件的大小
 mysql:      select count(sizeInByte) from metadata where full_path like '/guojy/%';
-mongodb:    db.metadata.aggregate([{$match:{full_path:{$regex:/^\/guojy\//i}}},{$group:{_id:null,totalSize:{$sum:"$sizeInByte"}}}])
+mongodb:    db.metadata.aggregate([{$match:{full_path:{$regex:/^\/guojy\//i}}},\
+		{$group:{_id:null,totalSize:{$sum:"$sizeInByte"}}}])
 
 
 数据库记录更新:
@@ -270,8 +271,8 @@ print k
 
 
 ## 测试用例-某bucket的文件层次: ##
-/yuebuqun(d)     							           /yuebuqun                                   
-		pic(d)											         /yuebuqun/pic
+/yuebuqun(d)     					   /yuebuqun                                   
+		pic(d)					   /yuebuqun/pic
 			BeiJing2008.png                    /yuebuqun/pic/BeiJing2008.png
 			TianjinDavos2016.png               /yuebuqun/pic/TianjinDavos2016.png
 			Shanghai.png                       /yuebuqun/pic/Shanghai.png
@@ -284,33 +285,33 @@ print k
 			BeiJing_Badaling.png               /yuebuqun/pic/BeiJing_Badaling.png
 			BeiJing_Yangshi_大裤衩.png         /yuebuqun/pic/BeiJing_Yangshi_大裤衩.png
 			my2015(d)                          /yuebuqun/pic/my2015
-		      家人.png                       /yuebuqun/pic/my2015/家人.png
-		      MY_GF.png                      /yuebuqun/pic/my2015/MY_GF.png
-		      MY_TEACHER.png                 /yuebuqun/pic/my2015/MY_TEACHER.png
-		      NewYork(d)                     /yuebuqun/pic/my2015/NewYork
-		          NewYork_University.png     /yuebuqun/pic/my2015/NewYork/NewYork_University.png
+		        家人.png                           /yuebuqun/pic/my2015/家人.png
+		        MY_GF.png                          /yuebuqun/pic/my2015/MY_GF.png
+		        MY_TEACHER.png                     /yuebuqun/pic/my2015/MY_TEACHER.png
+		        NewYork(d)                         /yuebuqun/pic/my2015/NewYork
+		        NewYork_University.png             /yuebuqun/pic/my2015/NewYork/NewYork_University.png
 
-		mp3(d)                               /yuebuqun/mp3
+		mp3(d)                                     /yuebuqun/mp3
 			爱我别走.mp3                       /yuebuqun/mp3/爱我别走.mp3
 			Far_away_from_home.mp3             /yuebuqun/mp3/Far_away_from_home.mp3
 			favourite                          /yuebuqun/mp3/favourite
-		video(d)                             /yuebuqun/video			
+		video(d)                                   /yuebuqun/video			
 			北京爱情.mkv                       /yuebuqun/video/北京爱情.mkv
-		share(d)                             /yuebuqun/share
+		share(d)                                   /yuebuqun/share
 			金庸全集.zip                       /yuebuqun/share/金庸全集.zip
 			古龙全集.zip                       /yuebuqun/share/古龙全集.zip
 			梁羽生全集.zip                     /yuebuqun/share/梁羽生全集.zip
 			花千骨.txt                         /yuebuqun/share/花千骨.txt
 			致爱丽丝.mp3                       /yuebuqun/share/致爱丽丝.mp3
-		others(d)										         /yuebuqun/others
+		others(d)		                   /yuebuqun/others
 			(空)
-		readme.txt(f)                        /yuebuqun/readme.txt
+		readme.txt(f)                              /yuebuqun/readme.txt
 
 
 # /yuebuqun
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e6b","filename":"yuebuqun","created_at":"2016-03-16 00:00:00",\
-"full_path":"/","sizeInByte":0,"path_hash":"a074d530-a590-454d-a5c3-13bdf541f3ae","updated_at":"2016-03-16 00:00:00","filemode":1,\
-"isdir":1})
+"full_path":"/","sizeInByte":0,"path_hash":"a074d530-a590-454d-a5c3-13bdf541f3ae","updated_at":"2016-03-16 00:00:00",\
+"filemode":1,"isdir":1})
 
 #/yuebuqun/pic
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"pic","created_at":"2016-03-16 00:00:00",\
@@ -319,23 +320,23 @@ db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"pi
 
 #/yuebuqun/pic/my2015
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"my2015","created_at":"2016-03-16 00:00:00",\
-"full_path":"/yuebuqun/pic/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 00:00:00",
-"filemode":1,"isdir":1})
+"full_path":"/yuebuqun/pic/","sizeInByte":0,"path_hash":"8f77169e-801f-441f-a8bf-249ddf9bca18","updated_at":"2016-03-16 \
+00:00:00","filemode":1,"isdir":1})
 
 #/yuebuqun/pic/my2015/家人.png
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"家人.png","created_at":"2016-03-16 00:00:00",\
-"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
-00:00:00","filemode":1,"isdir":0})
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":\
+"2016-03-16 00:00:00","filemode":1,"isdir":0})
 
 #/yuebuqun/pic/my2015/MY_GF.png
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"MY_GF.png","created_at":"2016-03-16 00:00:00",\
-"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
-00:00:00","filemode":1,"isdir":0})
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":\
+"2016-03-16 00:00:00","filemode":1,"isdir":0})
 
 #/yuebuqun/pic/my2015/MY_TEACHER.png
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"MY_TEACHER.png","created_at":"2016-03-16 00:00:00",\
-"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
-00:00:00","filemode":1,"isdir":0})
+"full_path":"/yuebuqun/pic/my2015/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":\
+"2016-03-16 00:00:00","filemode":1,"isdir":0})
 
 #/yuebuqun/pic/my2015/NewYork
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e62","filename":"NewYork","created_at":"2016-03-16 00:00:00",\
@@ -349,13 +350,13 @@ db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"Ne
 
 #/yuebuqun/pic/BeiJing2008.png
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e63","filename":"BeiJing2008.png","created_at":"2016-03-16 00:00:00",\
-"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:00",\
-"filemode":1,"isdir":0})
+"full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 00:00:\
+00","filemode":1,"isdir":0})
 
 #/yuebuqun/pic/BeiJing_2015_yuebing.png
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e68","filename":"BeiJing_2015_yuebing.png","created_at":"2016-03-16 \
-00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-16 \
-00:00:00","filemode":1,"isdir":0})
+00:00:00","full_path":"/yuebuqun/pic/","sizeInByte":10240,"path_hash":"a753460b-f051-40de-8d1c-af0628ec909e","updated_at":"2016-03-\
+16 00:00:00","filemode":1,"isdir":0})
 
 #/yuebuqun/pic/BeiJing_2015_birds_nest.png
 db.metadata.insert({"file_md5":"723460b9ea90d17e324bb1be2d184e69","filename":"BeiJing_2015_birds_nest.png","created_at":"2016-03-16 \
