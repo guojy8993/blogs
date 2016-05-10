@@ -22,48 +22,47 @@
   DESCRIPTION
     Attach new disk device.
 
-#必选项:虚拟机名字		               [--domain] <string>  domain name, id or uuid
-#必选项:新加磁盘文件完整路径         [--source] <string>  source of disk device
-#必选项:新加磁盘的挂载目标           [--target] <string>  target of disk device
-#可选:挂载目标的总线类型             --targetbus <string>  target bus of disk device
-#可选:磁盘设备驱动                   --driver <string>  driver of disk device
-#可选:子驱动(raw/qcow2/cow/vmdk)	   --subdriver <string>  subdriver of disk device
-#可选:IOThread                       --iothread <string>  IOThread to be used by supported device
-#可选:{none|writethrough|writeback}  --cache <string>  cache mode of disk device
+#必选项:虚拟机名字                [--domain] <string>  domain name, id or uuid
+#必选项:新加磁盘文件完整路径      [--source] <string>  source of disk device
+#必选项:新加磁盘的挂载目标        [--target] <string>  target of disk device
+#可选:挂载目标的总线类型          --targetbus <string>  target bus of disk device
+#可选:磁盘设备驱动                --driver <string>  driver of disk device
+#可选:子驱动(raw/qcow2/cow/vmdk)  --subdriver <string>  subdriver of disk device
+#可选:IOThread                    --iothread <string>  IOThread to be used by supported device
+#可选:{none|writethrough|writeback}     --cache <string>  cache mode of disk device
 # none:关闭缓存
 # writethrough:数据写入磁盘缓存与后端设备,优点:安全 缺点:写数据速度一般 (cache默认值)
 # writeback:数据写入磁盘缓存即返回,优点:写数据速度快 缺点:断电可能导致数据丢失
 
-#可选:目标设备类型					        --type <string>  target device type
-#可选:目标设备读写模式				      --mode <string>  mode of device reading and writing
-#可选:源文件的类型{file|block}		  --sourcetype <string>  type of source (block|file)
-#可选:磁盘设备的串行号 				      --serial <string>  serial of disk device
+#可选:目标设备类型                  --type <string>  target device type
+#可选:目标设备读写模式              --mode <string>  mode of device reading and writing
+#可选:源文件的类型{file|block}      --sourcetype <string>  type of source (block|file)
+#可选:磁盘设备的串行号              --serial <string>  serial of disk device
 #可选:磁盘设备全球唯一号            --wwn <string>   wwn of disk device
 # 	  wwn 即World Wide Number
 
-#可选:是否开启裸io					        --rawio      needs rawio capability
-#可选:磁盘设备地址					        --address <string>  address of disk device
+#可选:是否开启裸io                  --rawio      needs rawio capability
+#可选:磁盘设备地址                  --address <string>  address of disk device
 #	  address选项                     --multifunction  use multifunction pci under specified address
 #可选:导出加磁盘后的xml,并不真添加  --print-xml      print XML document rather than attach the disk
-#可选:使热添加持久化				        --persistent     make live change persistent
-#可选:下次启动是否有效				      --config      affect next boot
-#可选:是否立即生效					        --live        affect running domain
-#可选:当次生效						          --current     affect current domain
+#可选:使热添加持久化                --persistent     make live change persistent
+#可选:下次启动是否有效              --config      affect next boot
+#可选:是否立即生效                  --live        affect running domain
+#可选:当次生效                      --current     affect current domain
 
 
 ## 3.使用 virsh attach-disk 添加 qcow2 格式的镜像作为数据盘:
 [root@agent144 KY-vxlan100-A]# virsh  attach-disk  --domain KY-vxlan100-A \
-            								--source /data/instance/KY-vxlan100-A/data \
-            								--target vdb \
-            								--targetbus virtio \
-            								--driver qemu  \
-            								--subdriver qcow2 \
-            								--cache writeback \
-            								--sourcetype file \
-            								--live  \
-            								--config
+                                    --source /data/instance/KY-vxlan100-A/data \
+                                    --target vdb \
+                                    --targetbus virtio \
+                                    --driver qemu  \
+                                    --subdriver qcow2 \
+                                    --cache writeback \
+                                    --sourcetype file \
+                                    --live  \
+                                    --config
 # 将配置文件与命令行参数对比进行学习
-
 快照创建与还原,参考文档:
 1.http://www.it165.net/os/html/201309/6189.html             # 快照-实践篇
 2.http://blog.chinaunix.net/uid-20794164-id-3989713.html    # 快照-理论篇
