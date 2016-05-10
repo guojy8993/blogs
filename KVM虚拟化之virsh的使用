@@ -22,12 +22,12 @@
   DESCRIPTION
     Attach new disk device.
 
-#必选项:虚拟机名字		             [--domain] <string>  domain name, id or uuid
+#必选项:虚拟机名字		               [--domain] <string>  domain name, id or uuid
 #必选项:新加磁盘文件完整路径         [--source] <string>  source of disk device
 #必选项:新加磁盘的挂载目标           [--target] <string>  target of disk device
 #可选:挂载目标的总线类型             --targetbus <string>  target bus of disk device
 #可选:磁盘设备驱动                   --driver <string>  driver of disk device
-#可选:子驱动(raw/qcow2/cow/vmdk)	 --subdriver <string>  subdriver of disk device
+#可选:子驱动(raw/qcow2/cow/vmdk)	   --subdriver <string>  subdriver of disk device
 #可选:IOThread                       --iothread <string>  IOThread to be used by supported device
 #可选:{none|writethrough|writeback}  --cache <string>  cache mode of disk device
 # none:关闭缓存
@@ -53,15 +53,15 @@
 
 ## 3.使用 virsh attach-disk 添加 qcow2 格式的镜像作为数据盘:
 [root@agent144 KY-vxlan100-A]# virsh  attach-disk  --domain KY-vxlan100-A \
-                    								--source /data/instance/KY-vxlan100-A/data \
-                    								--target vdb \
-                    								--targetbus virtio \
-                    								--driver qemu  \
-                    								--subdriver qcow2 \
-                    								--cache writeback \
-                    								--sourcetype file \
-                    								--live  \
-                    								--config
+            								--source /data/instance/KY-vxlan100-A/data \
+            								--target vdb \
+            								--targetbus virtio \
+            								--driver qemu  \
+            								--subdriver qcow2 \
+            								--cache writeback \
+            								--sourcetype file \
+            								--live  \
+            								--config
 # 将配置文件与命令行参数对比进行学习
 
 快照创建与还原,参考文档:
