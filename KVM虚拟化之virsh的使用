@@ -63,8 +63,15 @@
                                     --live  \
                                     --config
 # 将配置文件与命令行参数对比进行学习
+
+参考文档:
+1.http://blog.chinaunix.net/uid-26000137-id-3957726.html    # qemu cache选项与说明
+
+
+
+【Snapshot】
+
 快照创建与还原,参考文档:
 1.http://www.it165.net/os/html/201309/6189.html             # 快照-实践篇
 2.http://blog.chinaunix.net/uid-20794164-id-3989713.html    # 快照-理论篇
 3.http://blog.chinaunix.net/uid-20940095-id-4752643.html    # openstack中的虚拟机快照功能
-4.http://blog.chinaunix.net/uid-26000137-id-3957726.html    # qemu cache选项与说明
