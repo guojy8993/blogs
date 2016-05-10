@@ -70,6 +70,53 @@
 
 
 【Snapshot】
+(1) virsh snapshot-create-as
+[root@agent144 KY009]# virsh help snapshot-create-as
+  NAME
+    snapshot-create-as - Create a snapshot from a set of args
+  SYNOPSIS
+    snapshot-create-as <domain> [--name <string>] [--description <string>] [--print-xml]
+    [--no-metadata] [--halt] [--disk-only] [--reuse-external] [--quiesce] [--atomic] [--live]
+    [--memspec <string>] [[--diskspec] <string>]...
+  DESCRIPTION
+    Create a snapshot (disk and RAM) from arguments
+## 虚拟机快照创建选项说明:
+#必选项:虚拟机名字                [--domain] <string>  domain name, id or uuid
+#可选项:快照名字                  --name <string>  name of snapshot
+#可选项:快照描述信息              --description <string>  description of snapshot
+#可选项:只打印xml不创建           --print-xml      print XML document rather than create
+#可选项:不创建元数据              --no-metadata    take snapshot but create no metadata
+#可选项:快照创建后暂停机器        --halt           halt domain after snapshot is created
+#可选项:仅创建磁盘快照,不创建机器快照                    --disk-only  capture disk state but not vm state
+#可选项:再利用外部文件(似乎是 external snapshot)         --reuse-external  reuse any existing external files
+#可选项:客户机文件系统静默                               --quiesce        quiesce guest's file systems
+#可选项:原子操作                  --atomic         require atomic operation
+#可选项:热操作:                   --live           take a live snapshot
+#可选项:内存选项                  --memspec <string>  memory attributes: [file=]name[,snapshot=type]
+#可选项:磁盘选项                  [--diskspec] <string>  disk attributes: disk[,snapshot=type][,driver=type][,file=name]
+
+## 下面是具体使用场景展示 ##
+# step1: 查看 KY-vxlan100-A 虚拟机信息
+# 只有系统盘
+# step2: 对 KY-vxlan100-A 虚拟机创建快照
+# 查看虚拟机 /root/snap.txt 中内容
+# 创建快照
+# 查看快照列表
+# step3: 在 KY-vxlan100-A 内操作文件
+# 查看 /root/snap.txt文件内容
+# step4: 执行快照还原,并查看 /root/snap.txt 中内容
+# step5: 为磁盘挂载新的数据盘
+# step6: 在虚拟机内格式化新加磁盘,挂载,并创建文件
+# step7: 对虚拟机创建快照
+# step8: 列出可用快照
+# step9: 将新加数据盘卸载,并执行快照还原
+# step10: 查看此时虚拟机磁盘列表,以及挂载文件夹内的文件
+# step11: 将数据盘文件修改名字,重新执行快照还原
+# step12: 查看磁盘的快照信息
+
+
+
+
 
 快照创建与还原,参考文档:
 1.http://www.it165.net/os/html/201309/6189.html             # 快照-实践篇
