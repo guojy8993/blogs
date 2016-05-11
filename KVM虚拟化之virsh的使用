@@ -273,6 +273,14 @@ Format specific information:
     refcount bits: 16
     corrupt: false
 
+注意事项:
+# raw 格式磁盘是不支持快照创建的
+[root@agent144 KY009]# virsh snapshot-create-as --domain KY009 --description "Snapshot cirros "
+error: unsupported configuration: internal snapshot for disk vda unsupported for storage type raw
+# 有快照的磁盘是不允许扩容的
+[root@agent144 KY-vxlan100-A]# qemu-img resize -q /data/instance/KY-vxlan100-A/data +1G
+qemu-img: Can't resize an image which has snapshots
+qemu-img: This image does not support resize
 
 
 快照创建与还原,参考文档:
