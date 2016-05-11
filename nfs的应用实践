@@ -1,0 +1,72 @@
+## 1.安装必须的软件 nfs-utils rpcbind  ##
+[root@agent115 ~]# yum install nfs-utils* rpcbind* -y
+
+## 2.编辑 /etc/exports 设置开放访问的本地路径与客户端
+[root@agent115 ~]# mkfs -t xfs /dev/sdb 
+[root@agent115 ~]# mkdir -p /var/lib/snapshots
+[root@agent115 ~]# mount -t xfs /dev/sdb /var/lib/snapshots/
+[root@agent115 ~]# useradd -u 1003 tom
+[root@agent115 ~]# chmod a+w /var/lib/snapshots/
+[root@agent115 ~]# echo "/var/lib/snapshots/ 10.160.0.130(rw,async,no_root_squash) 10.160.0.144(rw,async,no_root_squash)" \
+                  >> /etc/exports
+[root@agent115 ~]# systemctl restart rpcbind
+[root@agent115 ~]# systemctl restart nfs
+
+## 3.查看3个关键的服务,以及监听端口,添加防火墙例外
+(1) rpc.idmapd 
+[root@agent115 ~]# ps aux | grep map | egrep -v "color=auto"
+root     24318  0.0  0.0  43740   544 ?        Ss   03:27   0:00 /usr/sbin/rpc.idmapd
+(2) rpc.mountd
+[root@agent115 ~]# ps aux | grep mount | egrep -v "color=auto"
+root     24319  0.0  0.0  45000  1588 ?        Ss   03:27   0:00 /usr/sbin/rpc.mountd
+(3) nfsd
+[root@agent115 ~]# ps aux | grep nfs | egrep -v "color=auto"
+root     24324  0.0  0.0      0     0 ?        S<   03:27   0:00 [nfsd4]
+root     24325  0.0  0.0      0     0 ?        S<   03:27   0:00 [nfsd4_callbacks]
+root     24329  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24330  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24331  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24332  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24333  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24334  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24335  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+root     24336  0.0  0.0      0     0 ?        S    03:27   0:00 [nfsd]
+
+### 添加防火墙例外 ###
+## rpcbind 相关端口与规则
+[root@agent115 ~]# netstat -antulp | grep rpcbind
+tcp        0      0 0.0.0.0:111             0.0.0.0:*               LISTEN      24299/rpcbind       
+tcp6       0      0 :::111                  :::*                    LISTEN      24299/rpcbind       
+udp        0      0 0.0.0.0:111             0.0.0.0:*                           24299/rpcbind       
+udp        0      0 0.0.0.0:730             0.0.0.0:*                           24299/rpcbind       
+udp6       0      0 :::111                  :::*                                24299/rpcbind       
+udp6       0      0 :::730                  :::*                                24299/rpcbind
+[root@agent115 ~]# iptables -I INPUT -p tcp --dport 111 -j ACCEPT
+# [root@agent115 ~]# iptables -I INPUT -p tcp6 --dport 111 -j ACCEPT
+[root@agent115 ~]# iptables -I INPUT -p udp --dport 111 -j ACCEPT
+[root@agent115 ~]# iptables -I INPUT -p udp --dport 730 -j ACCEPT
+# [root@agent115 ~]# iptables -I INPUT -p udp6 --dport 730 -j ACCEPT
+# [root@agent115 ~]# iptables -I INPUT -p udp6 --dport 111 -j ACCEPT
+
+## mountd 相关端口与规则
+[root@agent115 ~]# netstat -antulp | grep mountd 
+tcp        0      0 0.0.0.0:20048           0.0.0.0:*               LISTEN      24319/rpc.mountd    
+tcp6       0      0 :::20048                :::*                    LISTEN      24319/rpc.mountd    
+udp        0      0 0.0.0.0:20048           0.0.0.0:*                           24319/rpc.mountd    
+udp6       0      0 :::20048                :::*                                24319/rpc.mountd
+[root@agent115 ~]# iptables -I INPUT -p tcp --dport 20048 -j ACCEPT
+# [root@agent115 ~]# iptables -I INPUT -p tcp6 --dport 20048 -j ACCEPT
+[root@agent115 ~]# iptables -I INPUT -p udp --dport 20048 -j ACCEPT
+# [root@agent115 ~]# iptables -I INPUT -p udp6 --dport 20048 -j ACCEPT
+
+## 4.在客户端 agent130,agen144上发现可挂载的文件系统,挂载
+[root@agent130 KY009]# showmount -e 10.160.0.115
+Export list for 10.160.0.115:
+/var/lib/snapshots 10.160.0.144,10.160.0.130
+[root@agent130 KY009]# mkdir -p /var/lib/snapshots/
+[root@agent130 KY009]# mount -t nfs 10.160.0.115:/var/lib/snapshots /var/lib/snapshots
+
+
+参考文档:
+1.http://blog.csdn.net/armeasy/article/details/6005703
+2.http://www.cnblogs.com/itech/archive/2012/06/17/2552514.html  # windows访问 linux nfs server
