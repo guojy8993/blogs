@@ -7,8 +7,8 @@
 [root@agent115 ~]# mount -t xfs /dev/sdb /var/lib/snapshots/
 [root@agent115 ~]# useradd -u 1003 tom
 [root@agent115 ~]# chmod a+w /var/lib/snapshots/
-[root@agent115 ~]# echo "/var/lib/snapshots/ 10.160.0.130(rw,async,no_root_squash) 10.160.0.144(rw,async,no_root_squash)" \
-                  >> /etc/exports
+[root@agent115 ~]# echo "/var/lib/snapshots/ 10.160.0.130(rw,async,no_root_squash) 10.160.0.144(rw,async,no_root_squash)\
+                    10.160.0.144(rw,async,no_root_squash)">> /etc/exports
 [root@agent115 ~]# systemctl restart rpcbind
 [root@agent115 ~]# systemctl restart nfs
 
