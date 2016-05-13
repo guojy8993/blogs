@@ -281,6 +281,9 @@ error: unsupported configuration: internal snapshot for disk vda unsupported for
 [root@agent144 KY-vxlan100-A]# qemu-img resize -q /data/instance/KY-vxlan100-A/data +1G
 qemu-img: Can't resize an image which has snapshots
 qemu-img: This image does not support resize
+# 有快照的而使用非共享存储的机器没法迁移
+[root@agent144 KY-vxlan100-A]# sh migrate-with-local-volume 
+error: Requested operation is not valid: cannot migrate domain with 1 snapshots
 
 
 快照创建与还原,参考文档:
