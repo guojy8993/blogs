@@ -78,16 +78,16 @@ total size is 197120  speedup is 520.11
 # rsync常见的5种文件同步方式,以及示例
 1.本地复制: rsync [opts] src dest
 [root@agent115 ~]# rsync -vzrtopg \
-					/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \
-					/var/lib/snapshots/
+/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \
+/var/lib/snapshots/
 2.通过 shell 远程下载文件: rsync [opts] user@host:src dest
 [root@agent128 ~]# rsync -vzrtopg \
-					root@10.160.0.115:/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \ 
-					/var/lib/rsync/common/
+root@10.160.0.115:/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \ 
+/var/lib/rsync/common/
 3.通过 shell 远程上传文件: rsync [opts] src  user@host:dest
 [root@agent128 ~]# rsync -vzrtopg \
-					/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \
-					root@10.160.0.115:/var/lib/rsync/common/windows-2k12.qcow2
+/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \
+root@10.160.0.115:/var/lib/rsync/common/windows-2k12.qcow2
 4.通过 rsync协议 远程下载文件: 
 # rsync [opts] user@host::src dest 或 rsync [opts] rsync://user@host:port/src dest
 5.通过 rsync协议 远程上传文件: 
