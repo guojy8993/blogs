@@ -208,7 +208,7 @@ Options
  -f, --filter=RULE           add a file-filtering RULE
  -F                          same as --filter='dir-merge /.rsync-filter'
                              repeated: --filter='- .rsync-filter'
-# 按摩师匹配文件
+# 按模式匹配文件
      --exclude=PATTERN       exclude files matching PATTERN
      --exclude-from=FILE     read exclude patterns from FILE
      --include=PATTERN       don't exclude files matching PATTERN
