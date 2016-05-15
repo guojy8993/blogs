@@ -1,0 +1,250 @@
+测试配置清单:
+Role         Hostname      Ip
+RsyncServer  agent115.com  10.160.0.115
+RsyncClient  agent130.com  10.160.0.130
+# 说明:
+# 1.rsync 根据数据变换进行"差异备份"
+# 2.!!特别注意!! RsyncServer定义源数据,RsyncClient在源数据变化以后才会从服务器上
+#   实际复制数据到本地;如果源数据被删除,客户端数据也会被删掉
+# 3.rsync使用tcp873端口通信,防火墙需要设置端口例外
+
+## Step1: 搭建Rsync Server
+# yum安装rsync
+[root@agent115 ~]# yum search rsync
+...
+============ N/S matched: rsync ============
+libguestfs-rsync.x86_64 : rsync support for libguestfs
+rsync.x86_64 : A program for synchronizing files over a network
+[root@agent115 ~]# yum install -y rsync.x86_64
+
+# 创建共享目录,准备共享文件
+[root@agent115 ~]# mkdir -p /var/lib/rsync/common/
+[root@agent115 ~]# cp /data/images/windows-2k*-x86_64.qcow2  /var/lib/rsync/common/
+# 修改rsyncd.conf配置文件
+# 注:可用配置项与说明 rsyncd.conf manpage链接
+[root@agent115 ~]# cp /etc/rsyncd.conf /etc/rsyncd.conf.original
+[root@agent115 ~]# cat > /etc/rsyncd.conf << EOF
+motd file = /etc/rsyncd.motd
+transfer logging = yes
+log file = /var/log/rsyncd.log
+pid file = /var/run/rsyncd.pid
+lock file = /var/run/rsync.lock
+port = 873
+address = 10.160.0.115
+uid = nobody
+gid = nobody
+use chroot = no
+readonly = yes
+max connections = 10
+[common]
+comment = Web content
+path = /var/lib/rsync/common
+ignore errors
+auth users = tom,jerry
+secrets file = /etc/rsyncd.secrets
+hosts allow = 10.160.0.128/255.255.0.0
+hosts deny = *
+list = false
+EOF
+# 创建帐号/密码文件,修改权限
+[root@agent115 ~]# echo "tom:t0mletmeg0" >> /etc/rsyncd.secrets
+[root@agent115 ~]# echo "jerry:jerryletmeg0" >> /etc/rsyncd.secrets
+[root@agent115 ~]# cat /etc/rsyncd.secrets
+tom:t0mletmeg0
+jerry:jerryletmeg0
+[root@agent115 ~]# chmod 600 /etc/rsyncd.secrets
+[root@agent115 ~]# echo "What can i do for you ?" > /etc/rsyncd.motd
+# 添加防火墙例外
+[root@agent115 ~]# iptables -I INPUT -p tcp --dport 873 -j ACCEPT
+# 设置rsync开机启动,并启动rsync服务,并查看启动日志
+[root@agent115 ~]# echo "/usr/bin/rsync --daemon" >> /etc/rc.local
+[root@agent115 ~]# chmod +x /etc/rc.local
+[root@agent115 ~]# /usr/bin/rsync --daemon
+[root@agent115 ~]# cat /var/log/rsyncd.log 
+2016/05/15 03:15:43 [4179] rsyncd version 3.0.9 starting, listening on port 873
+
+## Step2: 搭建Rsync Client
+# yum安装rsync
+参见前文,此处略.
+# 简单测试 RsyncServer 是否可用
+[root@agent128 ~]# mkdir -p /var/lib/rsync/common
+[root@agent128 ~]# rsync -vzrtopg root@10.160.0.115:/var/lib/rsync/common/windows-2k12\
+-x86_64.qcow2 /var/lib/rsync/common/
+root@10.160.0.115's password: 
+receiving incremental file list
+windows-2k12-x86_64.qcow2
+sent 30 bytes  received 349 bytes  44.59 bytes/sec
+total size is 197120  speedup is 520.11
+# rsync常见的5种文件同步方式,以及示例
+1.本地复制: rsync [opts] src dest
+[root@agent115 ~]# rsync -vzrtopg \
+					/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \
+					/var/lib/snapshots/
+2.通过 shell 远程下载文件: rsync [opts] user@host:src dest
+[root@agent128 ~]# rsync -vzrtopg \
+					root@10.160.0.115:/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \ 
+					/var/lib/rsync/common/
+3.通过 shell 远程上传文件: rsync [opts] src  user@host:dest
+[root@agent128 ~]# rsync -vzrtopg \
+					/var/lib/rsync/common/windows-2k12-x86_64.qcow2 \
+					root@10.160.0.115:/var/lib/rsync/common/windows-2k12.qcow2
+4.通过 rsync协议 远程下载文件: 
+# rsync [opts] user@host::src dest 或 rsync [opts] rsync://user@host:port/src dest
+5.通过 rsync协议 远程上传文件: 
+# rsync [opts] src user@host::dest 或 rsync [opts] src rsync://user@host:port/dest
+# 略,注意port使用默认的873即可
+
+
+附录:
+# rsync命令参数说明:
+# rsync 命令参数分2种,一种用于 rsyncd启动时指定配置项,另一种用于
+# rsync客户机同步文件的灵活选项;
+[root@agent128 ~]# rsync --help
+...
+Options
+# 输出调试信息
+-v, --verbose               increase verbosity
+# 静默模式,非错误信息不显示,不显示 motd 信息
+-q, --quiet                 suppress non-error messages
+    --no-motd               suppress daemon-mode MOTD (see manpage caveat)
+# 基于校验和比较文件是否需要传输
+-c, --checksum              skip based on checksum, not mod-time & size
+# 归档传输(允许递归+传输全部)
+-a, --archive               archive mode; equals -rlptgoD (no -H,-A,-X)
+    --no-OPTION             turn off an implied OPTION (e.g. --no-D)
+# 递归模式(文件夹操作)
+-r, --recursive             recurse into directories
+# 使用相对路径名称(路径是否作为文件名一部分)
+-R, --relative              use relative path names
+    --no-implied-dirs       don't send implied dirs with --relative
+# 需要备份到指定文件夹(特别是同步文件使用 --delete 选项情景)
+-b, --backup                make backups (see --suffix & --backup-dir)
+    --backup-dir=DIR        make backups into hierarchy based in DIR
+    --suffix=SUFFIX         set backup suffix (default ~ w/o --backup-dir)
+# 如果客户端处文件修改日期比服务器端新,则跳过该文件
+# 如果两者修改时间,但是大小不一样,则予以更新
+-u, --update                skip files that are newer on the receiver
+    # 如果需要更新,inplace这种更新模式直接把差异数据写入文件,
+    # 而不生成中间副本,对 qcow* 格式文件很有用,但是有诸多局限
+    --inplace               update destination files in-place (SEE MAN PAGE)
+    # 如果源文件比目的文件短,使用该模式可追加
+    --append                append data onto shorter files
+    --append-verify         like --append, but with old data in file checksum
+# 拷贝时包含目录
+-d, --dirs                  transfer directories without recursing
+# 按照源文件的link,在目的地创建新的link
+-l, --links                 copy symlinks as symlinks
+# 拷贝源文件的link
+-L, --copy-links            transform symlink into referent file/dir
+    --copy-unsafe-links     only "unsafe" symlinks are transformed
+    --safe-links            ignore symlinks that point outside the source tree
+-k, --copy-dirlinks         transform symlink to a dir into referent dir
+-K, --keep-dirlinks         treat symlinked dir on receiver as dir
+# 保留硬链接
+-H, --hard-links            preserve hard links
+# 保留权限
+ -p, --perms                 preserve permissions
+ # 保留文件可执行性
+ -E, --executability         preserve the file's executability
+     --chmod=CHMOD           affect file and/or directory permissions
+ -A, --acls                  preserve ACLs (implies --perms)
+ -X, --xattrs                preserve extended attributes
+ -o, --owner                 preserve owner (super-user only)
+ -g, --group                 preserve group
+# 拷贝字符设备或块设备文件,发送端必须root,接收端不作要求
+     --devices               preserve device files (super-user only)
+     --copy-devices          copy device contents as regular file
+     --specials              preserve special files
+ -D                          same as --devices --specials
+ -t, --times                 preserve modification times
+ -O, --omit-dir-times        omit directories from --times
+     --super                 receiver attempts super-user activities
+     --fake-super            store/recover privileged attrs using xattrs
+ -S, --sparse                handle sparse files efficiently
+ -n, --dry-run               perform a trial run with no changes made
+ -W, --whole-file            copy files whole (without delta-xfer algorithm)
+ # 递归文件夹时遇到挂载点(nfs共享文件系统),认定挂载点目录为空,而不跨文件系统
+ -x, --one-file-system       don't cross filesystem boundaries
+ -B, --block-size=SIZE       force a fixed checksum block-size
+ -e, --rsh=COMMAND           specify the remote shell to use
+     --rsync-path=PROGRAM    specify the rsync to run on the remote machine
+     --existing              skip creating new files on receiver
+     --ignore-existing       skip updating files that already exist on receiver
+     --remove-source-files   sender removes synchronized files (non-dirs)
+# 如果源文件不存在这个文件,则在目的目录删除
+# 以下定义了多种删除时机
+     --del                   an alias for --delete-during
+     --delete                delete extraneous files from destination dirs
+     --delete-before         receiver deletes before transfer, not during
+     --delete-during         receiver deletes during the transfer
+     --delete-delay          find deletions during, delete after
+     --delete-after          receiver deletes after transfer, not during
+     --delete-excluded       also delete excluded files from destination dirs
+     --ignore-errors         delete even if there are I/O errors
+     --force                 force deletion of directories even if not empty
+     --max-delete=NUM        don't delete more than NUM files
+# 指定同步文件的大小范围
+     --max-size=SIZE         don't transfer any file larger than SIZE
+     --min-size=SIZE         don't transfer any file smaller than SIZE
+     --partial               keep partially transferred files
+     --partial-dir=DIR       put a partially transferred file into DIR
+     --delay-updates         put all updated files into place at transfer's end
+ -m, --prune-empty-dirs      prune empty directory chains from the file-list
+     --numeric-ids           don't map uid/gid values by user/group name
+     --timeout=SECONDS       set I/O timeout in seconds
+     --contimeout=SECONDS    set daemon connection timeout in seconds
+ -I, --ignore-times          don't skip files that match in size and mod-time
+     --size-only             skip files that match in size
+     --modify-window=NUM     compare mod-times with reduced accuracy
+ -T, --temp-dir=DIR          create temporary files in directory DIR
+ -y, --fuzzy                 find similar file for basis if no dest file
+     --compare-dest=DIR      also compare destination files relative to DIR
+     --copy-dest=DIR         ... and include copies of unchanged files
+     --link-dest=DIR         hardlink to files in DIR when unchanged
+ -z, --compress              compress file data during the transfer
+     --compress-level=NUM    explicitly set compression level
+     --skip-compress=LIST    skip compressing files with a suffix in LIST
+ -C, --cvs-exclude           auto-ignore files the same way CVS does
+ -f, --filter=RULE           add a file-filtering RULE
+ -F                          same as --filter='dir-merge /.rsync-filter'
+                             repeated: --filter='- .rsync-filter'
+# 按摩师匹配文件
+     --exclude=PATTERN       exclude files matching PATTERN
+     --exclude-from=FILE     read exclude patterns from FILE
+     --include=PATTERN       don't exclude files matching PATTERN
+     --include-from=FILE     read include patterns from FILE
+     --files-from=FILE       read list of source-file names from FILE
+ -0, --from0                 all *-from/filter files are delimited by 0s
+ -s, --protect-args          no space-splitting; only wildcard special-chars
+# rsyncd 启动时间监听的地址与端口
+    --address=ADDRESS       bind address for outgoing socket to daemon
+    --port=PORT             specify double-colon alternate port number
+    --sockopts=OPTIONS      specify custom TCP options
+
+    --blocking-io           use blocking I/O for the remote shell
+    --stats                 give some file-transfer stats
+-8, --8-bit-output          leave high-bit chars unescaped in output
+-h, --human-readable        output numbers in a human-readable format
+ --progress              show progress during transfer
+-P                          same as --partial --progress
+-i, --itemize-changes       output a change-summary for all updates
+    --out-format=FORMAT     output updates using the specified FORMAT
+    --log-file=FILE         log what we're doing to the specified FILE
+    --log-file-format=FMT   log updates using the specified FMT
+    --password-file=FILE    read daemon-access password from FILE
+    --list-only             list the files instead of copying them
+    --bwlimit=KBPS          limit I/O bandwidth; KBytes per second
+    --write-batch=FILE      write a batched update to FILE
+    --only-write-batch=FILE like --write-batch but w/o updating destination
+    --read-batch=FILE       read a batched update from FILE
+    --protocol=NUM          force an older protocol version to be used
+    --iconv=CONVERT_SPEC    request charset conversion of filenames
+    --checksum-seed=NUM     set block/file checksum seed (advanced)
+
+
+
+参考文章:
+1.http://www.cnblogs.com/itech/archive/2009/08/10/1542945.html   # rsync安装配置与使用说明
+2.http://www.cnblogs.com/davidwang456/p/3684945.html      		 # rsync+inotify
+3.http://optics.ph.unimelb.edu.au/help/rsync/rsyncd.conf.html    # rsync.conf 可用配置项与说明
+4.http://linux.chinaunix.net/techdoc/system/2008/09/20/1033351.shtml  # rsync命令参数详解
