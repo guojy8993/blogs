@@ -1,7 +1,7 @@
 测试配置清单:
 Role         Hostname      Ip
 RsyncServer  agent115.com  10.160.0.115
-RsyncClient  agent130.com  10.160.0.130
+RsyncClient  agent128.com  10.160.0.128
 # 说明:
 # 1.rsync 根据数据变换进行"差异备份"
 # 2.!!特别注意!! RsyncServer定义源数据,RsyncClient在源数据变化以后才会从服务器上
