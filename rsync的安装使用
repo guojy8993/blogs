@@ -36,22 +36,29 @@ gid = nobody
 use chroot = no
 readonly = yes
 max connections = 10
+
 [common]
-comment = Web content
+# 注意 [THIS_IS_OPEN_ACCESS_MODULE]
+# 必须与 rsync -avz ${auth_user}@${address}::${module} $dest
+# 中$module一致
+comment = common
+# 模块注释信息
 path = /var/lib/rsync/common
-ignore errors
-auth users = tom,jerry
+# 该模块对应的文件路径
+ignore errors = true
+auth users = root
+# 注意 允许哪些用户访问就开放哪些用户
 secrets file = /etc/rsyncd.secrets
-hosts allow = 10.160.0.128/255.255.0.0
+# 注意设置文件的600访问权限
+hosts allow=10.160.0.128/255.255.0.0
+# 设置客户端机器范围,可以是单个ip或整个ip段
 hosts deny = *
 list = false
 EOF
 # 创建帐号/密码文件,修改权限
-[root@agent115 ~]# echo "tom:t0mletmeg0" >> /etc/rsyncd.secrets
-[root@agent115 ~]# echo "jerry:jerryletmeg0" >> /etc/rsyncd.secrets
+[root@agent115 ~]# echo "root:16d287d5-454e-4334-96f7-f0068022f4bd" >> /etc/rsyncd.secrets
 [root@agent115 ~]# cat /etc/rsyncd.secrets
-tom:t0mletmeg0
-jerry:jerryletmeg0
+root:16d287d5-454e-4334-96f7-f0068022f4bd
 [root@agent115 ~]# chmod 600 /etc/rsyncd.secrets
 [root@agent115 ~]# echo "What can i do for you ?" > /etc/rsyncd.motd
 # 添加防火墙例外
