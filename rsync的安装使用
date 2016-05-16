@@ -103,7 +103,15 @@ root@10.160.0.115:/var/lib/rsync/common/windows-2k12.qcow2
 
 
 ### 使用 rsync+crontab 创建文件定时备份功能 ###
+
+# 创建密码文件
 [root@agent128 ~]# echo "16d287d5-454e-4334-96f7-f0068022f4bd" > /etc/rsyncd.secrets
+# 修改密码文件权限与所有者
+[root@agent128 ~]# chmod 600 /etc/rsyncd.secrets
+# 出于安全考虑,请保证密码文件600权限,否则会报出类似"must not other-accessible"的错误 
+[root@agent128 ~]# chown root:root /etc/rsyncd.secrets
+# 请保证密码文件所有者与下文脚本执行者身份一致
+# 创建备份配置文件的脚本
 [root@agent128 ~]# cat > rsync_backup << EOF 
 #! /bin/bash
 # Description: This script does backup through resync
@@ -118,9 +126,21 @@ dest=/var/lib/rsync/common/
 [ ! -d $dest ] && mkdir -p $dest
 [ ! -e $passfile ] && exit 2
 rsync -vzrtopg --progress  --password-file=${passfile}  \
-    ${user}@${server}::common/*  \
+    ${user}@${server}::common/{*.conf,*.ini}  \
     ${dest}
 EOF
+
+# 给脚本添加执行权限
+[root@agent128 ~]# chmod +x rsync_backup
+# 添加定时任务,重启crond刷新定时任务:30min执行一次
+[root@agent128 ~]# echo "*/30 * * * * root /bin/sh /root/rsync_backup" >> /etc/crontab
+[root@agent128 ~]# systemctl restart crond
+
+# 验证
+[root@agent128 ~]# ll  /var/lib/rsync/common/
+total 3
+-rw-r--r--. 1 root root 197120 May 15 03:25 neutron.conf
+You have mail in /var/spool/mail/root
 
 附录:
 # rsync命令参数说明:
