@@ -1,0 +1,5 @@
+## Step1:部署 Rsync Server与Rsync Client
+# 测试服务器的配置与程序安装步骤: 参考文章--"rsync的安装于使用"
+
+## Step2:安装 inotify
+
