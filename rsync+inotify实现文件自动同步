@@ -1,5 +1,103 @@
-## Step1:部署 Rsync Server与Rsync Client
-# 测试服务器的配置与程序安装步骤: 参考文章--"rsync的安装于使用"
+测试配置清单:
+Role          Hostname      Ip               Comment
+RsyncServer   agent115.com  10.160.0.115     Web服务器
+WebPublisher  agent128.com  10.160.0.128     Web站点发布服务器
 
-## Step2:安装 inotify
+# 安装inotify
+# 下载安装包:https://github.com/rvoicilas/inotify-tools
+# 或 使用 rz 传送工作环境中下载好的压缩包到WebPublisher机器
+[root@agent128 rpms]# yum install -y unzip automake  libtool
+[root@agent128 rpms]# unzip /home/guojingyu/rpms/inotify-tools-master.zip
+[root@agent128 rpms]# cd inotify-tools-master
+[root@agent128 inotify-tools-master]# ./configure
+[root@agent128 inotify-tools-master]# make && make install
+
+## 简单示范inotify的使用
+# 设置对指定目录的监视
+[root@agent128 inotify-tools-master]# cd ../
+[root@agent128 rpms]# inotifywait inotify-tools-master
+Setting up watches.
+Watches established.
+# 切换到另一个窗口,删除被监视目录
+[root@agent128 ~]# rm -rf /home/guojingyu/rpms/inotify-tools-master
+inotify-tools-master/ OPEN,ISDIR
+# 事件被监听到
+[root@agent128 inotify-tools-master]# cd ../
+[root@agent128 rpms]# inotifywait inotify-tools-master
+Setting up watches.
+Watches established.
+inotify-tools-master/ OPEN,ISDIR
+
+## inotify常见的几种可监视的事件
+#[root@agent128 rpms]# inotifywait --help
+# Events:
+# access		file or directory contents were read  文件/目录被读取
+# modify		file or directory contents were written 文件/目录被修改
+# attrib		file or directory attributes changed  文件/目录属性被修改
+# close_write	file or directory closed, after being opened in writeable mode 以可读方式打开,关闭
+# close_nowrite	file or directory closed, after being opened in read-only mode 以只读方式打开,关闭
+# close		    file or directory closed, regardless of read/write mode  以任何方式打开,关闭
+# open		    file or directory opened   文件/目录属性被打开
+# moved_to	    file or directory moved to watched directory   有文件/目录被移入被监视目录
+# moved_from	file or directory moved from watched directory   有文件/目录被移出被监视目录
+# move		    file or directory moved to or from watched directory  被监视目录有文件/目录被移动
+# move_self		A watched file or directory was moved.    有被监视文件/目录被移动
+# create		file or directory created within watched directory 被监视目录内有文件被新建
+# delete		file or directory deleted within watched directory 被监视目录内有文件被删除
+# delete_self	file or directory was deleted   任何的文件/目录删除事件
+# unmount		file system containing file or directory unmounted  被监视的目录内有挂载点umount
+
+## inotify监听事件示范
+# Event:create
+[root@agent128 log]# inotifywait -e create /var/log/
+Setting up watches.
+Watches established.
+/var/log/ CREATE,ISDIR inotify-dir
+[root@agent128 log]# mkdir -p inotify-dir
+[root@agent128 log]# inotifywait -e create /var/log/
+...
+/var/log/ CREATE,ISDIR inotify-dir
+
+# Event:move
+[root@agent128 log]# inotifywait -e move /var/log/inotify-dir
+Setting up watches.
+Watches established.
+[root@agent128 ~]# mv migr.tar.gz /var/log/inotify-dir/
+[root@agent128 log]# inotifywait -e move /var/log/inotify-dir
+Setting up watches.
+Watches established.
+/var/log/inotify-dir/ MOVED_TO migr.tar.gz
+
+# Event:attrib
+[root@agent128 log]# inotifywait -e attrib /var/log/inotify-dir/migr.tar.gz 
+Setting up watches.
+Watches established.
+[root@agent128 ~]# chmod 400 /var/log/inotify-dir/migr.tar.gz
+[root@agent128 log]# inotifywait -e attrib /var/log/inotify-dir/migr.tar.gz 
+Setting up watches.
+Watches established.
+/var/log/inotify-dir/migr.tar.gz ATTRIB
+
+# Event:close_write
+[root@agent128 log]# inotifywait -e close_write  /var/log/inotify-dir/migr.tar.gz 
+Setting up watches.
+Watches established.
+[root@agent128 ~]# echo "1222" >> /var/log/inotify-dir/migr.tar.gz
+[root@agent128 log]# inotifywait -e close_write  /var/log/inotify-dir/migr.tar.gz 
+Setting up watches.
+Watches established.
+/var/log/inotify-dir/migr.tar.gz CLOSE_WRITE,CLOSE
+
+# Event:moved_from
+[root@agent128 log]# inotifywait -e moved_from  /var/log/inotify-dir
+Setting up watches.
+Watches established.
+[root@agent128 ~]# mv /var/log/inotify-dir/mig.tar.gz /root/
+[root@agent128 log]# inotifywait -e moved_from  /var/log/inotify-dir
+Setting up watches.
+/var/log/inotify-dir/ MOVED_FROM mig.tar.gz
+
+
+参考链接:
+1.http://www.cnblogs.com/davidwang456/p/3684945.html   rsync+inotify实现文件自动同步
 
