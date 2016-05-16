@@ -46,7 +46,8 @@ comment = common
 path = /var/lib/rsync/common
 # 该模块对应的文件路径
 ignore errors = true
-auth users = root
+auth users = james
+# 虚用户
 # 注意 允许哪些用户访问就开放哪些用户
 secrets file = /etc/rsyncd.secrets
 # 注意设置文件的600访问权限
@@ -56,7 +57,7 @@ hosts deny = *
 list = false
 EOF
 # 创建帐号/密码文件,修改权限
-[root@agent115 ~]# echo "root:16d287d5-454e-4334-96f7-f0068022f4bd" >> /etc/rsyncd.secrets
+[root@agent115 ~]# echo "james:16d287d5-454e-4334-96f7-f0068022f4bd" >> /etc/rsyncd.secrets
 [root@agent115 ~]# cat /etc/rsyncd.secrets
 root:16d287d5-454e-4334-96f7-f0068022f4bd
 [root@agent115 ~]# chmod 600 /etc/rsyncd.secrets
@@ -99,7 +100,7 @@ root@10.160.0.115:/var/lib/rsync/common/windows-2k12.qcow2
 # rsync [opts] user@host::src dest 或 rsync [opts] rsync://user@host:port/src dest
 [root@agent128 ~]# rsync -vzrtopg --progress  \
             --password-file=/etc/rsyncd.secrets \
-            root@10.160.0.115::common/snap.qcow2 \
+            james@10.160.0.115::common/snap.qcow2 \
             /var/lib/rsync/common/qq.qcow2
 What can i do for you ?
 receiving incremental file list
@@ -115,7 +116,7 @@ total size is 197120  speedup is 396.62
 [root@agent128 ~]# rsync -vzrtopg --progress  \
             --password-file=/etc/rsyncd.secrets  \
             /var/lib/rsync/common/qq.qcow2  \
-            root@10.160.0.115::common/snap.qcow2
+            james@10.160.0.115::common/snap.qcow2
 
 ### 使用 rsync+crontab 创建文件定时备份功能 ###
 # 创建密码文件
@@ -134,7 +135,7 @@ total size is 197120  speedup is 396.62
 # Version: v1.0
 src=common
 server=10.160.0.115
-user=root
+user=james
 passfile=/etc/rsyncd.secrets
 dest=/var/lib/rsync/common/
 [ ! -d $dest ] && mkdir -p $dest
