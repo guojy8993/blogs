@@ -295,3 +295,4 @@ Options
 2.http://www.cnblogs.com/davidwang456/p/3684945.html      		 # rsync+inotify
 3.http://optics.ph.unimelb.edu.au/help/rsync/rsyncd.conf.html    # rsync.conf 可用配置项与说明
 4.http://linux.chinaunix.net/techdoc/system/2008/09/20/1033351.shtml  # rsync命令参数详解
+5.http://www.cnblogs.com/cute/archive/2012/05/11/2496213.html    # crontab添加定时任务
