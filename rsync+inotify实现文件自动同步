@@ -18,9 +18,11 @@ WebPublisher  agent128.com  10.160.0.128     Web站点发布服务器
 [root@agent128 rpms]# inotifywait inotify-tools-master
 Setting up watches.
 Watches established.
+
 # 切换到另一个窗口,删除被监视目录
 [root@agent128 ~]# rm -rf /home/guojingyu/rpms/inotify-tools-master
 inotify-tools-master/ OPEN,ISDIR
+
 # 事件被监听到
 [root@agent128 inotify-tools-master]# cd ../
 [root@agent128 rpms]# inotifywait inotify-tools-master
@@ -97,6 +99,52 @@ Watches established.
 Setting up watches.
 /var/log/inotify-dir/ MOVED_FROM mig.tar.gz
 
+
+### 案例:使用inotify监视httpd服务状态 ###
+# 编写inotify监视脚本
+[root@agent128 ~]# cat monitor << EOF
+#! /bin/bash
+while inotifywait -e modify /var/log/messages
+do
+  if tail -n1 /var/log/messages | grep "Apache HTTP Server"
+  then
+    echo "$(date) httpd status changed." >> /var/log/httpd_monitor.log
+  fi
+done
+EOF
+# 启动事件监视脚本
+[root@agent128 ~]# sh monitor
+Setting up watches.
+Watches established.
+# 重启httpd服务
+[root@agent128 log]# systemctl restart httpd
+# http服务状态改变被监控到
+[root@agent128 ~]# sh monitor
+Setting up watches.
+Watches established.
+/var/log/messages MODIFY
+May 16 05:14:44 agent128 systemd: Stopping The Apache HTTP Server...
+Setting up watches.
+Watches established.
+/var/log/messages MODIFY 
+May 16 05:14:45 agent128 systemd: Starting The Apache HTTP Server...
+Setting up watches.
+Watches established.
+/var/log/messages MODIFY 
+May 16 05:14:45 agent128 systemd: Started The Apache HTTP Server.
+# 查看日志
+[root@agent128 ~]# cat /var/log/httpd_monitor.log
+Mon May 16 05:14:44 EDT 2016 httpd status changed.
+Mon May 16 05:14:45 EDT 2016 httpd status changed.
+Mon May 16 05:14:45 EDT 2016 httpd status changed.
+
+## 思路扩展:监控服务器磁盘坏道 ##
+# 注:这是为团队同事服务器监控功能实现提出的一个思路,现展示如下:
+# (1) python提供inotify包,支持以编程的方式监控系统事件
+# (2) 磁盘读写出错信息可能存储在系统某文件(不确定)
+# (3) 磁盘坏道引发读写错误一般都有关键字,可能例如:IOError等
+# (4) 以编程的方式监控某文件,关注磁盘坏道引发读写错误的关键字
+# (5) 监听到敏感信息则发邮件通知管理员
 
 参考链接:
 1.http://www.cnblogs.com/davidwang456/p/3684945.html   rsync+inotify实现文件自动同步
