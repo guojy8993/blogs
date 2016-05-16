@@ -102,6 +102,26 @@ root@10.160.0.115:/var/lib/rsync/common/windows-2k12.qcow2
 # 略,注意port使用默认的873即可
 
 
+### 使用 rsync+crontab 创建文件定时备份功能 ###
+[root@agent128 ~]# echo "16d287d5-454e-4334-96f7-f0068022f4bd" > /etc/rsyncd.secrets
+[root@agent128 ~]# cat > rsync_backup << EOF 
+#! /bin/bash
+# Description: This script does backup through resync
+# Author: guojingyu
+# Date: 2016-05-15
+# Version: v1.0
+src=common
+server=10.160.0.115
+user=root
+passfile=/etc/rsyncd.secrets
+dest=/var/lib/rsync/common/
+[ ! -d $dest ] && mkdir -p $dest
+[ ! -e $passfile ] && exit 2
+rsync -vzrtopg --progress  --password-file=${passfile}  \
+    ${user}@${server}::common/*  \
+    ${dest}
+EOF
+
 附录:
 # rsync命令参数说明:
 # rsync 命令参数分2种,一种用于 rsyncd启动时指定配置项,另一种用于
