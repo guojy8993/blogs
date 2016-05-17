@@ -1,7 +1,7 @@
 测试配置清单:
 Role                        Hostname      Ip               Comment
-WebSite,RsyncServer		 agent115.com  10.160.0.115     Web服务器
-WebPublisher,RsyncClient    agent128.com  10.160.0.128     Web站点发布服务器
+WebSite      RsyncServer  	agent115.com  10.160.0.115     Web服务器
+WebPublisher RsyncClient    agent128.com  10.160.0.128     Web站点发布服务器
 
 # 特别注意:若允许WebPublisher向RsyncServer推送站点,后者需要进行配置上的特别调整,即
 # (1)将RsyncServer的配置(rsyncd.conf)中设置:readonly = no
