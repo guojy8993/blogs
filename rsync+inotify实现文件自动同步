@@ -189,6 +189,9 @@ do
 done &
 EOF
 
+# 运行监控脚本
+[root@agent128 ~]# sh rsyncwww
+
 # 修改qq.qcow2属主,触发attrib事件,发生rsync同步:删除RsyncServer站点文件夹中相对WebPublisher
 # 目录中多余的文件(s),并同步qq.qcow2属主属性
 [root@agent128 ~]# chown nobody:nobody /var/lib/rsync/common/qq.qcow2 
