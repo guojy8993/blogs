@@ -9,9 +9,9 @@ WebPublisher  agent128.com  10.160.0.128     Web站点发布服务器
 # (3)杀掉原来rsyncd后台进程,重启之
 # 测试推送:
 # [root@agent128 log]# rsync -vzrtopg --progress  \
-#						--password-file=/etc/rsyncd.secrets  \
-#						/var/lib/rsync/common/qq.qcow2 \
-#						james@10.160.0.115::common/snap2016.qcow2
+#				--password-file=/etc/rsyncd.secrets  \
+#				/var/lib/rsync/common/qq.qcow2 \
+#				james@10.160.0.115::common/snap2016.qcow2
 # What can i do for you ?
 # sending incremental file list
 # qq.qcow2
