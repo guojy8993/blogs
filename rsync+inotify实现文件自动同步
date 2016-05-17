@@ -3,6 +3,22 @@ Role          Hostname      Ip               Comment
 RsyncServer   agent115.com  10.160.0.115     Web服务器
 WebPublisher  agent128.com  10.160.0.128     Web站点发布服务器
 
+# 特别注意:若允许WebPublisher向RsyncServer推送站点,后者需要进行配置上的特别调整,即
+# (1)将RsyncServer的配置(rsyncd.conf)中设置:readonly = no
+# (2)将共享模块common对应的文件夹改变所有者:chown nobody:nobody /var/lib/rsync/common
+# (3)杀掉原来rsyncd后台进程,重启之
+# 测试推送:
+# [root@agent128 log]# rsync -vzrtopg --progress  \
+#						--password-file=/etc/rsyncd.secrets  \
+#						/var/lib/rsync/common/qq.qcow2 \
+#						james@10.160.0.115::common/snap2016.qcow2
+# What can i do for you ?
+# sending incremental file list
+# qq.qcow2
+#     197120 100%   52.25MB/s    0:00:00 (xfer#1, to-check=0/1)
+# sent 323 bytes  received 27 bytes  700.00 bytes/sec
+# total size is 197120  speedup is 563.20
+
 # 安装inotify
 # 下载安装包:https://github.com/rvoicilas/inotify-tools
 # 或 使用 rz 传送工作环境中下载好的压缩包到WebPublisher机器
@@ -145,6 +161,65 @@ Mon May 16 05:14:45 EDT 2016 httpd status changed.
 # (3) 磁盘坏道引发读写错误一般都有关键字,可能例如:IOError等
 # (4) 以编程的方式监控某文件,关注磁盘坏道引发读写错误的关键字
 # (5) 监听到敏感信息则发邮件通知管理员
+
+## Rsync+Inotify结合实现网站发布 ##
+[root@agent128 ~]# cat > rsyncwww << EOF
+#! /bin/bash
+# Description: This script takes responsibility for wwwroot files synchronization
+# Date: 2016-05-16
+# Author: guojingyu
+# Version: v1.0
+export PATH=/bin:/usr/bin:/usr/local/bin
+publisher_src=/var/lib/rsync/common/
+website01_wwwroot=common
+website01_ipaddr=10.160.0.115
+user=james
+passfile=/etc/rsyncd.secrets
+[ ! -e $passfile ] && exit 2
+inotifywait -mrq  --timefmt '%y-%m-%d %H:%M' \
+                  --format '%T %w%f %e' \
+                  --event modify,create,move,delete,attrib \
+                  $publisher_src | while read line
+do
+        echo "$line" >> /var/log/http_inotify.log  2>&1
+        /usr/bin/rsync -avz --delete \
+                        --progress \
+                        --password-file=$passfile $publisher_src \
+                ${user}@${website01_ipaddr}::${website01_wwwroot}  2>&1
+done &
+EOF
+
+# 修改qq.qcow2属主,触发attrib事件,发生rsync同步:删除RsyncServer站点文件夹中相对WebPublisher
+# 目录中多余的文件(s),并同步qq.qcow2属主属性
+[root@agent128 ~]# chown nobody:nobody /var/lib/rsync/common/qq.qcow2 
+[root@agent128 ~]# What can i do for you ?
+sending incremental file list
+./
+deleting windows-2k12.qcow2
+deleting system
+deleting snap2016.qcow2
+deleting snap0512.qcow2
+deleting snap.qcow2
+deleting data
+deleting Game.of.Thrones.S06E02.720p.HDTV.x264-FLEET.chs.eng.mp4
+qq.qcow2
+      197120 100%   52.25MB/s    0:00:00 (xfer#1, to-check=1/3)
+sent 395 bytes  received 30 bytes  850.00 bytes/sec
+total size is 394240  speedup is 927.62
+
+# 源文件夹删除qq.qcow2,触发delete事件,发生rsync同步:删除WebSite目录中qq.qcow2
+[root@agent128 ~]# rm -rf  /var/lib/rsync/common/qq.qcow2
+[root@agent128 ~]# What can i do for you ?
+sending incremental file list
+./
+deleting qq.qcow2
+sent 67 bytes  received 11 bytes  156.00 bytes/sec
+total size is 197120  speedup is 2527.18
+
+# 查看inotify监控日志:
+[root@agent128 log]# tail -10f /var/log/http_inotify.log
+16-05-16 21:16 /var/lib/rsync/common/qq.qcow2 ATTRIB
+16-05-16 21:17 /var/lib/rsync/common/qq.qcow2 DELETE
 
 参考链接:
 1.http://www.cnblogs.com/davidwang456/p/3684945.html   rsync+inotify实现文件自动同步
