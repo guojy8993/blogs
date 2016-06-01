@@ -6,7 +6,7 @@ Step2: 在第二窗口中启动work1
 [root@agent144 workqueue]# python worker.py 
 [*] Waiting for messages ...
 
-Step3: 在第三窗口中启动producer,发布5个耗时任务(message中.越多代表执行时间越长)
+Step3: 在第三窗口中启动producer,发布4个耗时任务(message中.越多代表执行时间越长)
 [root@agent144 workqueue]# python producer.py message............................... && \
                             python producer.py message. && python producer.py message... && \
                             python producer.py message...........
