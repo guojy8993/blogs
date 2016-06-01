@@ -65,3 +65,6 @@ Step5: 启动生产者脚本,for循环模拟大量请求:
 [X] body 'request1' received !
 [X] body 'request2' received !
 [X] body 'request3' received !
+
+
+参考官方:http://www.rabbitmq.com/tutorials/tutorial-one-python.html
