@@ -5,6 +5,8 @@ Step1: 快速安装 rabbitMQ
 [root@agent144 pbc]# systemctl status rabbitmq-server
 
 Step2: 安装rabbitMQ python客户端pika
+[root@agent144 pbc]# python --version
+Python 2.7.5
 [root@agent144 pbc]# yum install -y python2-pika.noarch
 
 Step3: 创建生产者脚本(producer.py):
