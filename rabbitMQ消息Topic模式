@@ -1,3 +1,54 @@
+Step1: 在窗口一启动订阅者程序(关心主题:kernal.warn,cron.error)
+[root@agent144 topic]# python subscriber.py kernal.warn cron.error  
+[*] Waiting for logs ...
+Step2: 在窗口二启动发布者程序,并发布三条消息
+[root@agent144 topic]# python publisher.py kernal.warn unknown file system ZFS
+[*] 'kernal.warn':'unknown file system ZFS'
+[root@agent144 topic]# python publisher.py cron.error  script '/opt/zip_log' not found
+[*] 'cron.error':'script /opt/zip_log not found'
+[root@agent144 topic]# python publisher.py cron.warn  interpreter version not competible
+[*] 'cron.warn':'interpreter version not competible'
+窗口一输出:
+[root@agent144 topic]# python subscriber.py kernal.warn cron.error  
+[*] Waiting for logs ...
+[*] 'kernal.warn':'unknown file system ZFS'
+[*] 'cron.error':'script /opt/zip_log not found'
+可见,订阅者按自己关心的主题有选择接受消息并处理,主题外的消息不予理会;
+
+Step3: 重新在窗口一启动订阅者程序(变更其"趣味"为 auth.*,只关心授权系统的日志)
+[root@agent144 topic]# python subscriber.py auth.*
+[*] Waiting for logs ...
+
+Step4: 在窗口二中发布三条消息(1条 cron 日志,2条 auth日志)
+[root@agent144 topic]# python publisher.py cron.warn  interpreter version not competible
+[*] 'cron.warn':'interpreter version not competible'
+[root@agent144 topic]# python publisher.py auth.info  ftp user 'guojingyu' logged in
+[*] 'auth.info':'ftp user guojingyu logged in'
+[root@agent144 topic]# python publisher.py auth.error  ftp user 'maorunzhi' auth info no correct
+[*] 'auth.error':'ftp user maorunzhi auth info no correct'
+在窗口一中观察输出:
+[root@agent144 topic]# python subscriber.py auth.*
+[*] Waiting for logs ...
+[*] 'auth.info':'ftp user guojingyu logged in'
+[*] 'auth.error':'ftp user maorunzhi auth info no correct'
+
+Step5: 重启订阅者程序(再次变更订阅者趣味为 node_122_114_119_251.#)
+[root@agent144 topic]# python subscriber.py node_122_114_119_251.#
+[*] Waiting for logs ...
+# 只关心节点122_114_119_251的任何日志
+在窗口二中发布3条消息:
+[root@agent144 topic]# python publisher.py node_122_114_119_251.fs.vda  there is not enough space now
+[*] 'node_122_114_119_251.fs.sda':'there is not enough space now'
+[root@agent144 topic]# python publisher.py node_122_114_119_251.auth.error  ftp user 'maorunzhi' tried to login with old passwd
+[*] 'node_122_114_119_251.auth.error':'ftp user maorunzhi tried to login with old passwd'
+[root@agent144 topic]# python publisher.py node_controller.auth.error  ftp user 'admin' tried to login with old passwd
+[*] 'node_controller.auth.error':'ftp user admin tried to login with old passwd'
+而在窗口一中观察订阅者输出:
+[root@agent144 topic]# python subscriber.py node_122_114_119_251.#
+[*] Waiting for logs ...
+[*] 'node_122_114_119_251.fs.sda':'there is not enough space now'
+[*] 'node_122_114_119_251.auth.error':'ftp user maorunzhi tried to login with old passwd'
+仅仅关注 node_122_114_119_251 消息,其他的不予理会
 
 附:
 消息发布者程序(publisher.py)
