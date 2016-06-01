@@ -1,1 +1,102 @@
+Step1: 在窗口一启动服务端程序:
+[root@agent144 rpc]# python   rpc_server.py 
+[*] Waiting for rpc request ...
+Step2: 在窗口二启动客户端程序:
+[root@agent144 rpc]# python  rpc_client.py 14
+[*] Request fib(14):
+[*] Fib(14): 377
+观察窗口一输出:
+[root@agent144 rpc]# python   rpc_server.py 
+[*] Waiting for rpc request ...
+[*] fib(14)
 
+附:
+客户端程序(rpc_client.py)
+#! /usr/bin/env python
+
+import pika
+import sys
+import uuid
+
+class FibnaciRpcClient(object):
+
+    def __init__(self):
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host='localhost')
+        )
+        self.channel = self.connection.channel()
+        result = self.channel.queue_declare(exclusive=True)
+        self.callback_queue = result.method.queue
+
+        self.channel.basic_consume(
+            self.on_response,
+            queue=self.callback_queue
+        )
+    
+    def call(self,n):
+        self.response = None
+        self.correlation_id = str(uuid.uuid4())
+        self.channel.basic_publish(
+            exchange='',
+            routing_key='rpc_queue',
+            body=str(n),
+            properties=pika.BasicProperties(
+                correlation_id=self.correlation_id,
+                reply_to=self.callback_queue
+            )
+        )
+        while not self.response:
+            self.connection.process_data_events()
+        return int(self.response)
+
+    def on_response(self,ch,method,props,body):
+        if props.correlation_id == self.correlation_id:
+            self.response = body
+
+fibnaci_rpc = FibnaciRpcClient()
+n = sys.argv[1]
+print "[*] Request fib(%s):" % n
+q = fibnaci_rpc.call(int(n))
+print "[*] Fib(%s): %s" % (n, q)
+
+服务端程序(rpc_server.py)
+#! /usr/bin/env python
+
+import pika
+import sys
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost')
+)
+channel = connection.channel()
+channel.queue_declare(queue='rpc_queue')
+
+def fib(n):
+    if n == 0:
+        return 0
+    elif n == 1:
+        return 1
+    else:
+        return fib(n-1) + fib(n-2)
+
+def on_request(ch, method, properties, body):
+    n = int(body)
+    print "[*] fib(%s)" % n
+    response = fib(n)
+    ch.basic_publish(
+        exchange='',
+        routing_key=properties.reply_to,
+        properties=pika.BasicProperties(
+            correlation_id=properties.correlation_id
+        ),
+        body=str(response)
+    )
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+channel.basic_qos(prefetch_count=1)
+channel.basic_consume(
+    on_request,
+    queue='rpc_queue'
+)
+print "[*] Waiting for rpc request ..."
+channel.start_consuming()
