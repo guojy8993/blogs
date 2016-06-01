@@ -1,0 +1,65 @@
+Step1: 快速安装 rabbitMQ
+[root@agent144 pbc]# yum install -y rabbitmq-server
+[root@agent144 pbc]# systemctl start  rabbitmq-server
+[root@agent144 pbc]# systemctl enable rabbitmq-server
+[root@agent144 pbc]# systemctl status rabbitmq-server
+
+Step2: 安装rabbitMQ python客户端pika
+[root@agent144 pbc]# yum install -y python2-pika.noarch
+
+Step3: 创建生产者脚本(producer.py):
+#! /usr/bin/env python
+import pika
+import sys
+
+try:
+    msg = sys.argv[1:][0]
+except IndexError:
+    msg = "noop"
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters('localhost'))
+channel = connection.channel()
+channel.queue_declare(queue='hello')
+channel.basic_publish(
+    exchange='',
+    routing_key='hello',
+    body=msg
+)
+print "[X] '%s' sent !" % msg
+connection.close()
+
+Step4: 创建消费者脚本(consumer.py):
+#! /usr/bin/env python
+import pika
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters('localhost'))
+channel = connection.channel()
+channel.queue_declare(queue='hello')
+
+
+def callback(channel, method, properties, body):
+    print "[X] body %r received !" % body
+
+channel.basic_consume(
+    callback,
+    queue='hello',
+    no_ack=True
+)
+print "[X] Waiting ..."
+channel.start_consuming()
+
+Step4: 启动消费者脚本
+[root@agent144 pbc]# python consumer.py 
+[X] Waiting ...
+
+Step5: 启动生产者脚本,for循环模拟大量请求:
+[root@agent144 pbc]# for i in {1..3};do python producer.py request$i;done
+[X] 'request1' sent !
+[X] 'request2' sent !
+[X] 'request3' sent !
+查看消费者窗口输出:
+[root@agent144 pbc]# python consumer.py 
+[X] Waiting ...
+[X] body 'request1' received !
+[X] body 'request2' received !
+[X] body 'request3' received !
