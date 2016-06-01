@@ -1,0 +1,84 @@
+Step1: 在第一窗口中启动work0
+[root@agent144 workqueue]# python worker.py 
+[*] Waiting for messages ...
+
+Step2: 在第二窗口中启动work1
+[root@agent144 workqueue]# python worker.py 
+[*] Waiting for messages ...
+
+Step3: 在第三窗口中启动producer,发布5个耗时任务(message中.越多代表执行时间越长)
+[root@agent144 workqueue]# python producer.py message............................... && \
+                            python producer.py message. && python producer.py message... && \
+                            python producer.py message...........
+[*] message 'message...............................' sent 
+[*] message 'message.' sent 
+[*] message 'message...' sent 
+[*] message 'message...........' sent
+
+Step4: 观察第一二窗口控制台输出
+[root@agent144 workqueue]# python worker.py 
+[*] Waiting for messages ...
+[*] message 'message...............................' received !
+[*] done
+
+[root@agent144 workqueue]# python worker.py 
+[*] Waiting for messages ...
+[*] message 'message.' received !
+[*] done
+[*] message 'message...' received !
+[*] done
+[*] message 'message...........' received !
+[*] done
+
+附:
+消息生产者脚本(producer.py)
+#!/usr/bin/env python
+
+import pika
+import sys
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost'))
+channel = connection.channel()
+channel.queue_declare(queue='work_queue', durable=True)
+message = ' '.join(sys.argv[1:]) or 'Hell0,work queue!'
+channel.basic_publish(
+    exchange='',
+    routing_key='work_queue',
+    body=message,
+    properties=pika.BasicProperties(
+        delivery_mode=2,
+    )
+)
+print "[*] message %r sent " % message
+connection.close()
+
+消息生产者脚本(worker.py)
+#!/usr/bin/env python
+
+import pika
+import time
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost'))
+channel = connection.channel()
+channel.queue_declare(queue='work_queue', durable=True)
+print "[*] Waiting for messages ..."
+
+
+def callback(channel, method, properties, body):
+    # print "[*] method %s" % method
+    # print "[*] properties %s" % properties
+    print "[*] message %r received !" % body
+    time.sleep(body.count(b'.'))
+    print "[*] done"
+    channel.basic_ack(delivery_tag=method.delivery_tag)
+
+channel.basic_qos(prefetch_count=1)
+channel.basic_consume(
+    callback,
+    queue='work_queue'
+)
+channel.start_consuming()
+
+参考官方:http://www.rabbitmq.com/tutorials/tutorial-two-python.html
