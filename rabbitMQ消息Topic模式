@@ -1,0 +1,66 @@
+
+附:
+消息发布者程序(publisher.py)
+#! /usr/bin/env python
+
+import pika
+import sys
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost')
+)
+channel = connection.channel()
+channel.exchange_declare(
+    exchange='topic_exchange',
+    type='topic'
+)
+routing_key = sys.argv[1] if len(sys.argv) > 1 else 'anonymous.info'
+message = ' '.join(sys.argv[2:]) or 'Hello rabbitmq !'
+channel.basic_publish(
+    exchange='topic_exchange',
+    routing_key=routing_key,
+    body=message
+)
+print "[*] %r:%r" % (routing_key, message)
+connection.close()
+
+消息订阅者程序(subscriber.py)
+#! /usr/bin/env python
+
+import pika
+import sys
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost')
+)
+channel = connection.channel()
+channel.exchange_declare(
+    exchange='topic_exchange',
+    type='topic'
+)
+result = channel.queue_declare(exclusive=True)
+queue = result.method.queue
+
+binding_keys = sys.argv[1:]
+if not binding_keys:
+    sys.stderr.write("Usage: %s [binging_key]...\n" % sys.argv[0])
+    sys.exit(1)
+
+for key in binding_keys:
+    channel.queue_bind(
+        exchange='topic_exchange',
+        queue=queue,
+        routing_key=key
+    )
+print "[*] Waiting for logs ..."
+
+
+def callback(channel, method, properties, body):
+    print "[*] %r:%r" % (method.routing_key, body)
+    
+channel.basic_consume(
+    callback,
+    queue=queue,
+    no_ack=True
+)
+channel.start_consuming()
