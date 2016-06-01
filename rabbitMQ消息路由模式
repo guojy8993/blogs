@@ -1,0 +1,85 @@
+Step1: 在窗口一运行消费者程序(收集 info warn 日志)
+[root@agent144 rps]# python  consumer.py info warn
+[*] Waiting for messages ...
+
+Step2: 在窗口二运行生产者程序(发布不同 level 的日志)
+[root@agent144 rps]# python producer.py error network latency is too high
+[*] error:network latency is too high 
+[root@agent144 rps]# python producer.py warn  multi lbaas-agents were checked ruuning on network node
+[*] warn:multi agents were checked ruuning on network node 
+[root@agent144 rps]# python producer.py info  user 'guojingyu' logged in
+[*] info:user guojingyu logged in
+观察窗口一的输出信息:
+[root@agent144 rps]# python  consumer.py info warn
+[*] Waiting for messages ...
+[*] 'warn':'multi agents were checked ruuning on network node'
+[*] 'info':'user guojingyu logged in'
+可知:consumer关注 ino,warn信息,却对 error 信息视而不见
+
+附:
+生产者程序(producer.py)
+#!/usr/bin/env python
+
+import pika
+import sys
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost')
+)
+channel = connection.channel()
+channel.exchange_declare(
+    exchange='logs',
+    type='direct'
+)
+severity = sys.argv[1] if len(sys.argv) > 1 else 'info'
+message = ' '.join(sys.argv[2:]) or 'Hello rabbitMQ !'
+channel.basic_publish(
+    exchange='logs',
+    routing_key=severity,
+    body=message
+)
+print "[*] %s:%s " % (severity,message)
+connection.close()
+
+消费者程序(consumer.py)
+#!/usr/bin/env python
+
+import pika
+import sys
+
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost')
+)
+channel = connection.channel()
+channel.exchange_declare(
+    exchange='logs',
+    type='direct'
+)
+result = channel.queue_declare(exclusive=True)
+queue = result.method.queue
+
+severities = sys.argv[1:]
+if not severities:
+    sys.stderr.write("Usage:%s [info][warn][error] \n" % sys.argv[0])
+    sys.exit(1)
+
+for sererity in severities:
+    channel.queue_bind(
+        exchange='logs',
+        routing_key=sererity,
+        queue=queue
+    )
+print "[*] Waiting for messages ..."
+
+def callback(channel, method, properties, body):
+    print "[*] %r:%r" % (method.routing_key, body)
+
+channel.basic_consume(
+    callback,
+    queue=queue,
+    no_ack=True
+)
+channel.start_consuming()
+
+
+
