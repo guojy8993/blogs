@@ -1,0 +1,67 @@
+# File.a: rsyncd.conf.template
+
+motd file = /etc/rsyncd.motd
+transfer logging = yes
+log file = /var/log/rsyncd.log
+pid file = /var/run/rsyncd.pid
+lock file = /var/run/rsync.lock
+port = 873
+address = 10.160.0.144
+uid = nobody
+gid = nobody
+use chroot = no
+readonly = no
+max connections = 10
+[common]
+comment = common
+path = /data/image
+ignore errors = true
+auth users = glance-admin
+secrets file = /etc/rsyncd.secrets
+hosts allow= 10.160.0.0/255.255.0.0
+hosts deny = *
+list = false
+
+# File.b: deploy image-store server
+
+#! /bin/bash
+# install rsynv
+yum install -y rsync
+echo "!!! Welcome to image server !!!" > /etc/rsyncd.motd
+# add firewall exception for default rsyncd port:873
+iptables -I INPUT -p tcp --dport 873 -j ACCEPT
+# add fake user:passwd
+echo "glance-admin:glance-admin" > /etc/rsyncd.secrets
+[[ -e /etc/rsyncd.conf ]] && mv /etc/rsyncd.conf  /etc/rsyncd.conf.backup
+cp rsyncd.conf /etc/rsyncd.conf
+sed -ri "s/(auth users =).*/\1 glance-admin/"  /etc/rsyncd.conf
+# get localhost ipaddr
+ipaddr=`ip -o addr | awk '{print $4}' | egrep "^10." | awk -F'/' '{print $1}'`
+sed -ri "s/(address =).*/\1 ${ipaddr}/"  /etc/rsyncd.conf
+sed -ri "s/(secrets file =).*/\1 \/etc\/rsyncd.secrets/"  /etc/rsyncd.conf
+# local image store
+sed -ri "s/(path =).*/\1 \/data\/image/"  /etc/rsyncd.conf
+# add acl
+sed -ri "s/(hosts allow=).*/\1 10.0.0.0\/255.0.0.0/"  /etc/rsyncd.conf
+# set rwx for secrets file to make it available
+chmod 600 /etc/rsyncd.secrets
+# set rwx for image store
+chmod -R 644 /data/image
+# set owner nobody:nobody,as defined in /etc/rsyncd.conf;
+chown nobody:nobody /data/image
+# run proc as daemon
+rm -rf /var/run/rsyncd.pid
+rsync --daemon
+
+
+# File.c: deploy compute-node rsync client
+#! /bin/bash
+
+yum install rsync -y
+echo "glance-admin" > /etc/glance-admin.secrets
+chmod 600 /etc/glance-admin.secrets
+echo -e '#! /bin/bash\r\n[[ $(ps aux | grep rsync | grep progress | wc -l) -eq 0 ]] && (echo "$(date +%Y-%m-%d%%%H:%M:%S) Rsync images:" >> /var/log/cron_image_rsync.log && rsync -vzrtopg --progress --password-file=/etc/glance-admin.secrets glance-admin@10.160.0.7::common/*.qcow2 /data/image/ >> /var/log/cron_image_rsync.log 2>&1)|| echo "$(date +%Y-%m-%d%%%H:%M:%S) There exists image rsync task！ Skip！" >> /var/log/cron_image_rsync.log' > /opt/cron_rsync_image
+echo '*/1 * * * *   /bin/bash /opt/cron_rsync_image' >> /var/spool/cron/root
+
+
+
