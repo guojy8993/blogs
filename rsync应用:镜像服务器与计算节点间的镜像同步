@@ -1,4 +1,4 @@
-# File.a: rsyncd.conf.template
+# File-a: rsyncd.conf.template
 
 motd file = /etc/rsyncd.motd
 transfer logging = yes
@@ -22,7 +22,7 @@ hosts allow= 10.160.0.0/255.255.0.0
 hosts deny = *
 list = false
 
-# File.b: deploy image-store server
+# File-b: deploy image-store server
 
 #! /bin/bash
 # install rsynv
@@ -54,7 +54,7 @@ rm -rf /var/run/rsyncd.pid
 rsync --daemon
 
 
-# File.c: deploy compute-node rsync client
+# File-c: deploy compute-node rsync client
 #! /bin/bash
 
 yum install rsync -y
