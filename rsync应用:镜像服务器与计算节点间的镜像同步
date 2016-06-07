@@ -33,7 +33,7 @@ iptables -I INPUT -p tcp --dport 873 -j ACCEPT
 # add fake user:passwd
 echo "glance-admin:glance-admin" > /etc/rsyncd.secrets
 [[ -e /etc/rsyncd.conf ]] && mv /etc/rsyncd.conf  /etc/rsyncd.conf.backup
-cp rsyncd.conf /etc/rsyncd.conf
+cp rsyncd.conf.template  /etc/rsyncd.conf
 sed -ri "s/(auth users =).*/\1 glance-admin/"  /etc/rsyncd.conf
 # get localhost ipaddr
 ipaddr=`ip -o addr | awk '{print $4}' | egrep "^10." | awk -F'/' '{print $1}'`
