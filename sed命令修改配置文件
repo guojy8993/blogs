@@ -6,7 +6,6 @@ address = 10.160.0.1223
 [root@imageSRC testsh]# sed -ri "s/(auth users =).*/\1 glance-admin/"  rsyncd.conf
 
 [root@imageSRC testsh]# cat rsyncd.conf
-[root@imageSRC testsh]# cat rsyncd.conf
 auth users = glance-admin
 address = 10.160.0.144
 
