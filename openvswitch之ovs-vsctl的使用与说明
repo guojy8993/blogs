@@ -1,1 +1,99 @@
+netnode # ovs-vsctl add-br br-vxlan
+netnode # ovs-vsctl set-controller br-vxlan tcp:10.160.0.150:6633
+netnode # ovs-vsctl set Bridge br-vxlan fail-mode=secure
+netnode # ovs-ofctl dump-flows br-vxlan
+NXST_FLOW reply (xid=0x4):
+ cookie=0x2b00000000000001, duration=2834.406s, table=0, n_packets=0, n_bytes=0, idle_age=2834, priority=2,in_port=3 actions=CONTROLLER:65535
+ cookie=0x2b00000000000001, duration=2838.115s, table=0, n_packets=107, n_bytes=5118, idle_age=0, priority=0 actions=drop
+ cookie=0x2b00000000000001, duration=2838.115s, table=0, n_packets=0, n_bytes=0, idle_age=2838, priority=100,dl_type=0x88cc actions=CONTROLLER:65535
+
+odlnode # iptables -I INPUT -p tcp--dport 6633 -j ACCEPT
+
+
+curl --user admin:admin -H 'content-type: application/json' -X GET 'http://127.0.0.1:8083/vtn-webapi/api_version.json'
+
+
+ovs-vsctl add-port br-vxlan vxlan -- set interface vxlan type=gre options:remote_ip=10.160.0.144
+
+tcpdump host 172.172.172.144 -i ens192
+
+ovs-vsctl del-port vxlan
+
+ovs-vsctl add-port br-vxlan vxlan -- set interface vxlan type=vxlan options:remote_ip=172.172.172.128 options:key=100
+
+ovs-vsctl add-port br-vxlan vxlan -- set interface vxlan type=vxlan options:remote_ip=172.172.172.144 options:key=100
+
+
+ovs-vsctl -- --if-exists del-port gateway -- add-port br-vxlan gateway -- set Interface gateway type=internal -- set Interface gateway external-ids:iface-id=998dea2f-1184-41ab-82b0-707f63fba6d2 -- set Interface gateway external-ids:iface-status=active -- set Interface gateway external-ids:attached-mac=fa:16:3e:4c:74:16
+
+ip netns add vrouter
+
+ip link set gateway netns vrouter
+
+[root@agent128 ~]# ip netns exec vrouter sysctl -w net.ipv4.ip_forward=1
+net.ipv4.ip_forward = 1
+[root@agent128 ~]# ip netns exec vrouter sysctl -a | grep ipv4 | grep forward
+
+
+route add -net 192.168.192.0/24 gw 192.168.192.1
+
+32: qr-eda0d32c-b7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN 
+    link/ether fa:16:3e:81:58:79 brd ff:ff:ff:ff:ff:ff
+    inet 172.10.14.1/24 brd 172.10.14.255 scope global qr-eda0d32c-b7
+       valid_lft forever preferred_lft forever
+    inet6 fe80::f816:3eff:fe81:5879/64 scope link 
+       valid_lft forever preferred_lft forever
+
+103: gateway: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN 
+    link/ether fa:16:3e:4c:74:16 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.192.1/24 brd 192.168.192.255 scope global gateway
+       valid_lft forever preferred_lft forever
+    inet6 fe80::1026:9fff:feab:4694/64 scope link 
+       valid_lft forever preferred_lft forever
+
+"""
+netnode # ovs-vsctl del-controller br-vxlan
+netnode # ovs-vsctl set Bridge br-vxlan fail-mode=standalone
+"""
+================
+
+""" setup gateway """
+# ovs-vsctl add-br br-vxlan101
+# ovs-vsctl add-port br-vxlan101 vxlan101 -- set interface vxlan101 type=vxlan options:remote_ip=172.172.172.128 options:key=101
+
+# ovs-vsctl -- --if-exists del-port gateway101 -- add-port br-vxlan101 gateway101 -- set Interface gateway101 type=internal -- set Interface gateway101 external-ids:iface-id=998dea2f-1184-41ab-82b1-707f63fba6d2 -- set Interface gateway101 external-ids:iface-status=active -- set Interface gateway101 external-ids:attached-mac=fa:16:3e:4c:74:17
+ip link set gateway101 netns vrouter
+
+""" setup host """
+ovs-vsctl -- --if-exists del-port hostif-193-191 -- add-port br-vxlan101 hostif-193-191 -- set Interface hostif-193-191 type=internal -- set Interface hostif-193-191 external-ids:iface-id=998dea2f-1184-41ab-82b1-707f63fba6d3 -- set Interface hostif-193-191 external-ids:iface-status=active -- set Interface hostif-193-191 external-ids:attached-mac=fa:16:3e:4c:74:18
+ip netns add hostnetns193
+ip link set hostif-193-191 netns hostnetns193
+ip netns exec hostnetns193 ip link set lo up
+ip netns exec hostnetns193 ifconfig hostif-193-191 192.168.193.191/24 up
+ip netns exec hostnetns193 ping 192.168.193.1
+ip netns exec hostnetns193 route add -net 192.168.192.0/24 dev hostif-193-191
+
+=================
+
+参考:
+http://sdnhub.org/tutorials/opendaylight/
+http://www.sdnlab.com/16430.html
+http://archive.openflow.org/wk/index.php?title=OpenDayLight_Tutorial
+https://nexus.opendaylight.org/content/sites/site/org.opendaylight.docs/master/userguide/manuals/userguide/bk-user-guide/content/_opendaylight_controller_overview.html
+
+http://www.360doc.com/content/10/1230/16/2614615_82680038.shtml   # bgp
+http://cunshen.cnblogs.com/archive/2006/02/11/149553.html         #bgp
+http://blog.csdn.net/achejq/article/details/12945127              # vtep
+http://networkstatic.net/configuring-vxlan-and-gre-tunnels-on-openvswitch/ #tunnel-net configuring
+http://www.sdnlab.com/5365.html             # vxlan test
+http://notes.yuwh.net/%E5%9C%A8centos7%E4%B8%8A%E9%85%8D%E7%BD%AEopen-vswitch%E5%92%8Cvxlan/
+https://wiki.opendaylight.org/view/OpenDaylight_Virtual_Tenant_Network_%28VTN%29:Service_Chaining_with_VTN_Manager_Rest_API  # VTN
+http://www.cnblogs.com/xuguan/p/4634051.html
+https://wiki.opendaylight.org/view/Release/Helium/VTN/Installation_Guide # enable vtn-feature
+
+
+
+
+
+
 
