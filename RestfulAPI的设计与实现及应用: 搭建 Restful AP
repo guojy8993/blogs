@@ -23,7 +23,7 @@ httpserver.serve(application, host='127.0.0.1', port=8080)
 # PEP8规范:
 # (1) 函数定义前空出两行;
 # (2) 函数参数列表使用 ", "分割;
-(2) 测试调用wsgi服
+(2) 测试调用wsgi服务
 [root@dev 12.2.1]# python simplewsgi.py
 serving on http://127.0.0.1:8080
 [root@dev restapi]# curl 127.0.0.1:8080
@@ -44,8 +44,33 @@ paste.app_factory = wsgi_paste:app_factory
 # composite(复合体):用于创建复杂的应用,可以进行分支选择;例如根据API的version,
 #                 决定程序调用 v1或v2或v..实现
 (2) 定义 wsgi_paste 文件:app工厂,服务启动
+#! /usr/bin/env python
+from webob import Response
+from webob.dec import wsgify
+from paste import httpserver
+from paste.deploy import loadapp
+import os
+import sys
 
+ini_path = sys.argv[1]
+if not os.path.exists(ini_path) or not os.path.isfile(ini_path):
+    print "Invalid Configuration File: %s" % ini_path
+    sys.exit()
+# Here are two blank lines
+@wsgify
+def application(request):
+    return Response('Hello Paste Deploy WSGI!\n')
+# Here are two blank lines
+def app_factory(global_config, **local_config):
+    return application
+wsgi_app = loadapp('config:%s' % ini_path)
+httpserver.serve(wsgi_app, host='127.0.0.1', port=8080)
 
+(3) 测试调用wsgi服务
+[root@dev 11.2.2]# python wsgi_paste.py /home/rabbitmq/restapi/11.2.2/api-paste.ini
+serving on http://127.0.0.1:8080
+[root@dev 11.2.2]# curl 127.0.0.1:8080
+Hello Paste Deploy WSGI!
 
 
 
