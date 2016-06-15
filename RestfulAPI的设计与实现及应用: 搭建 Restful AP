@@ -91,11 +91,17 @@ from webob import exc
 # Here are two blank lines
 @wsgify.middleware
 def auth_filter(request,app):
+    print "Display wsgi request body:\n"
+    headers = request.headers
+    for key in headers:
+        print "Key:%s,Value:%s" % (key,headers[key])
     if request.headers.get('X-Auth-Token') != 'open-sesame':
         return exc.HTTPForbidden()
     return app(request)
 # Here are two blank lines
 def filter_factory(global_config,**local_config):
+    print "global_config:%s\n" % global_config
+    print "local_config:%s\n" % local_config
     return auth_filter
 
 (3) 定义 app 脚本
@@ -128,10 +134,34 @@ httpserver.serve(wsgi_app, host='127.0.0.1', port=8080)
 [root@dev 11.2.3]# python wsgi_paste.py /home/rabbitmq/restapi/11.2.3/api-paste.ini
 global_config:{'__file__': '/home/rabbitmq/restapi/11.2.3/api-paste.ini', 'here': '/home/rabbitmq/restapi/11.2.3'}
 local_config:{}
+global_config:{'__file__': '/home/rabbitmq/restapi/11.2.3/api-paste.ini', 'here': '/home/rabbitmq/restapi/11.2.3'}
+local_config:{}
 serving on http://127.0.0.1:8080
+
+[root@dev 11.2.3]# curl -H 'X-Auth-Token:open-sesame' -H 'PP:2008' 127.0.0.1:8080
+Hello Paste Deploy WSGI!
+
+[root@dev 11.2.3]# python wsgi_paste.py /home/rabbitmq/restapi/11.2.3/api-paste.ini
+...
+Display wsgi request body:
+Key:Pp,Value:2008
+Key:Content-Length,Value:0
+Key:X-Auth-Token,Value:open-sesame
+Key:User-Agent,Value:curl/7.29.0
+Key:Host,Value:127.0.0.1:8080
+Key:Accept,Value:*/*
+Key:Content-Type,Value:
+
 [root@dev 11.2.3]# curl 127.0.0.1:8080
 403 Forbidden
 Access was denied to this resource.
-[root@dev 11.2.3]# curl -H 'X-Auth-Token:open-sesame' 127.0.0.1:8080
-Hello Paste Deploy WSGI!
+[root@dev 11.2.3]# python wsgi_paste.py /home/rabbitmq/restapi/11.2.3/api-paste.ini
+...
+Display wsgi request body:
+...
+Key:Content-Length,Value:0
+Key:User-Agent,Value:curl/7.29.0
+Key:Host,Value:127.0.0.1:8080
+Key:Accept,Value:*/*
+Key:Content-Type,Value:
 
