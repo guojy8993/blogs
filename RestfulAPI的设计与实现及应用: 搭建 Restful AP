@@ -72,8 +72,66 @@ serving on http://127.0.0.1:8080
 [root@dev 11.2.2]# curl 127.0.0.1:8080
 Hello Paste Deploy WSGI!
 
+## 3.PasteDeploy定制WSGI服务进阶:带过滤器的WSGI服务 ##
+(1) 定义PasteDeploy配置文件(api-paste.ini)
+[root@dev 11.2.3]# cat api-paste.ini 
+[pipeline:main]
+pipeline = auth hello
+[filter:auth]
+paste.filter_factory = wsgi_middleware:filter_factory
+[app:hello]
+paste.app_factory = wsgi_paste:app_factory
+# 注意 filter 组件使用:paste.FILTER_factory
+# 注意 app 组件使用:paste.APP_factory
+(2) 定义 auth 脚本
+[root@dev 11.2.3]# cat wsgi_middleware.py
+#! /usr/bin/env python
+from webob.dec import wsgify
+from webob import exc
+# Here are two blank lines
+@wsgify.middleware
+def auth_filter(request,app):
+    if request.headers.get('X-Auth-Token') != 'open-sesame':
+        return exc.HTTPForbidden()
+    return app(request)
+# Here are two blank lines
+def filter_factory(global_config,**local_config):
+    return auth_filter
 
+(3) 定义 app 脚本
+[root@dev 11.2.3]# cat wsgi_paste.py
+#! /usr/bin/env python
+from webob import Response
+from webob.dec import wsgify
+from paste import httpserver
+from paste.deploy import loadapp
+import os
+import sys
+# Here is a blank line
+ini_path = sys.argv[1]
+if not os.path.exists(ini_path) or not os.path.isfile(ini_path):
+    print "Invalid Configuration File: %s" % ini_path
+    sys.exit()
+# Here are two blank lines
+@wsgify
+def app(request):
+    return Response('Hello Paste Deploy WSGI!\n')
+# Here are two blank lines
+def app_factory(global_config, **local_config):
+    print "global_config:%s\n" % global_config
+    print "local_config:%s\n" % local_config
+    return app
+wsgi_app = loadapp('config:%s' % ini_path)
+httpserver.serve(wsgi_app, host='127.0.0.1', port=8080)
 
-
-
+(4) 测试 WSGI 服务
+[root@dev 11.2.3]# python wsgi_paste.py /home/rabbitmq/restapi/11.2.3/api-paste.ini
+global_config:{'__file__': '/home/rabbitmq/restapi/11.2.3/api-paste.ini', 'here': '/home/rabbitmq/restapi/11.2.3'}
+local_config:{}
+serving on http://127.0.0.1:8080
+[root@dev 11.2.3]# curl 127.0.0.1:8080
+403 Forbidden
+Access was denied to this resource.
+[root@dev 11.2.3]# curl -H 'X-Auth-Token:open-sesame' 127.0.0.1:8080
+Hello Paste Deploy WSGI!
 
