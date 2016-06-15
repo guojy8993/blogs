@@ -1,1 +1,222 @@
+PEP8 Python 编码规范
+
+一 代码编排
+1 缩进。4个空格的缩进（编辑器都可以完成此功能），不使用Tap，更不能混合使用Tap和空格。
+2 每行最大长度79，换行可以使用反斜杠，最好使用圆括号。换行点要在操作符的后边敲回车。
+3 类和top-level函数定义之间空两行；类中的方法定义之间空一行；函数内逻辑无关段落之间空一行；其他地方尽量不要再空行。
+
+二 文档编排
+1 模块内容的顺序：模块说明和docstring—import—globals&constants—其他定义。其中import部分，又按标准、三方和自己编写顺序依次排放，之间空一行。
+2 不要在一句import中多个库，比如import os, sys不推荐。
+3 如果采用from XX import XX引用库，可以省略‘module.’，都是可能出现命名冲突，这时就要采用import XX。
+
+三 空格的使用
+        总体原则，避免不必要的空格。
+1 各种右括号前不要加空格。
+2 逗号、冒号、分号前不要加空格。
+3 函数的左括号前不要加空格。如Func(1)。
+4 序列的左括号前不要加空格。如list[2]。
+5 操作符左右各加一个空格，不要为了对齐增加空格。
+6 函数默认参数使用的赋值符左右省略空格。
+7 不要将多句语句写在同一行，尽管使用‘；’允许。
+8 if/for/while语句中，即使执行语句只有一句，也必须另起一行。
+
+四 注释
+        总体原则，错误的注释不如没有注释。所以当一段代码发生变化时，第一件事就是要修改注释！
+        注释必须使用英文，最好是完整的句子，首字母大写，句后要有结束符，结束符后跟两个空格，开始下一句。如果是短语，可以省略结束符。
+1 块注释，在一段代码前增加的注释。在‘#’后加一空格。段落之间以只有‘#’的行间隔。比如：
+# Description : Module config.
+# 
+# Input : None
+#
+# Output : None
+2 行注释，在一句代码后加注释。比如：x = x + 1			# Increment x
+但是这种方式尽量少使用。
+3 避免无谓的注释。
+
+五 文档描述
+1 为所有的共有模块、函数、类、方法写docstrings；非共有的没有必要，但是可以写注释（在def的下一行）。
+2 如果docstring要换行，参考如下例子,详见PEP 257
+"""Return a foobang
+
+Optional plotz says to frobnicate the bizbaz first.
+
+"""
+
+六 命名规范
+        总体原则，新编代码必须按下面命名风格进行，现有库的编码尽量保持风格。
+1 尽量单独使用小写字母‘l’，大写字母‘O’等容易混淆的字母。
+2 模块命名尽量短小，使用全部小写的方式，可以使用下划线。
+3 包命名尽量短小，使用全部小写的方式，不可以使用下划线。
+4 类的命名使用CapWords的方式，模块内部使用的类采用_CapWords的方式。
+5 异常命名使用CapWords+Error后缀的方式。
+6 全局变量尽量只在模块内有效，类似C语言中的static。实现方法有两种，一是__all__机制;二是前缀一个下划线。
+7 函数命名使用全部小写的方式，可以使用下划线。
+8 常量命名使用全部大写的方式，可以使用下划线。
+9 类的属性（方法和变量）命名使用全部小写的方式，可以使用下划线。
+9 类的属性有3种作用域public、non-public和subclass API，可以理解成C++中的public、private、protected，non-public属性前，前缀一条下划线。
+11 类的属性若与关键字名字冲突，后缀一下划线，尽量不要使用缩略等其他方式。
+12 为避免与子类属性命名冲突，在类的一些属性前，前缀两条下划线。比如：类Foo中声明__a,访问时，只能通过Foo._Foo__a，避免歧义。如果子类也叫Foo，那就无能为力了。
+13 类的方法第一个参数必须是self，而静态方法第一个参数必须是cls。
+
+七 编码建议
+1 编码中考虑到其他python实现的效率等问题，比如运算符‘+’在CPython（Python）中效率很高，都是Jython中却非常低，所以应该采用.join()的方式。
+2 尽可能使用‘is’‘is not’取代‘==’，比如if x is not None 要优于if x。
+3 使用基于类的异常，每个模块或包都有自己的异常类，此异常类继承自Exception。
+4 异常中不要使用裸露的except，except后跟具体的exceptions。
+5 异常中try的代码尽可能少。比如：
+try:
+value = collection[key]
+except KeyError:
+return key_not_found(key)
+else:
+return handle_value(value)
+要优于
+try:
+# Too broad!
+return handle_value(collection[key])
+except KeyError:
+# Will also catch KeyError raised by handle_value()
+return key_not_found(key)
+6 使用startswith() and endswith()代替切片进行序列前缀或后缀的检查。比如：
+Yes:  if foo.startswith('bar'):优于
+No:  if foo[:3] == 'bar':
+7 使用isinstance()比较对象的类型。比如
+Yes:  if isinstance(obj, int): 优于
+No:  if type(obj) is type(1):
+8 判断序列空或不空，有如下规则
+Yes:  if not seq:
+if seq:
+优于
+No:  if len(seq)
+if not len(seq)
+9 字符串不要以空格收尾。
+10 二进制数据判断使用 if boolvalue的方式。
+
+1 变量
+
+常量 : 大写加下划线
+USER_CONSTANT
+对于不会发生改变的全局变量，使用大写加下划线。
+
+私有变量 : 小写和一个前导下划线
+_private_value
+Python 中不存在私有变量一说，若是遇到需要保护的变量，使用小写和一个前导下划线。但这只是程序员之间的一个约定，用于警告说明这是一个私有变量，外部类不要去访问它。但实际上，外部类还是可以访问到这个变量。
+
+内置变量 : 小写，两个前导下划线和两个后置下划线
+__class__
+两个前导下划线会导致变量在解释期间被更名。这是为了避免内置变量和其他变量产生冲突。用户定义的变量要严格避免这种风格。以免导致混乱。
+
+
+2 函数和方法
+
+总体而言应该使用，小写和下划线。但有些比较老的库使用的是混合大小写，即首单词小写，之后每个单词第一个字母大写，其余小写。但现在，小写和下划线已成为规范。
+
+私有方法 ： 小写和一个前导下划线
+def _secrete(self):
+    print "don't test me."
+这里和私有变量一样，并不是真正的私有访问权限。同时也应该注意一般函数不要使用两个前导下划线(当遇到两个前导下划线时，Python 的名称改编特性将发挥作用)。特殊函数后面会提及。
+
+特殊方法 ： 小写和两个前导下划线，两个后置下划线
+
+def __add__(self, other):
+    return int.__add__(other)
+这种风格只应用于特殊函数，比如操作符重载等。
+
+函数参数 : 小写和下划线，缺省值等号两边无空格
+
+def connect(self, user=None):
+    self._user = user
+
+
+3 类
+
+类总是使用驼峰格式命名，即所有单词首字母大写其余字母小写。类名应该简明，精确，并足以从中理解类所完成的工作。常见的一个方法是使用表示其类型或者特性的后缀，例如:
+SQLEngine
+MimeTypes
+
+对于基类而言，可以使用一个 Base 或者 Abstract 前缀
+BaseCookie
+AbstractGroup
+class UserProfile(object):
+    def __init__(self, profile):
+        return self._profile = profile
+
+    def profile(self):
+        return self._profile
+
+
+4 模块和包
+
+除特殊模块 __init__ 之外，模块名称都使用不带下划线的小写字母。
+若是它们实现一个协议，那么通常使用lib为后缀，例如:
+import smtplib
+import os
+import sys
+
+
+5 关于参数
+
+5.1 不要用断言来实现静态类型检测
+断言可以用于检查参数，但不应仅仅是进行静态类型检测。 Python 是动态类型语言，静态类型检测违背了其设计思想。断言应该用于避免函数不被毫无意义的调用。
+
+5.2 不要滥用 *args 和 **kwargs
+*args 和 **kwargs 参数可能会破坏函数的健壮性。它们使签名变得模糊，而且代码常常开始在不应该的地方构建小的参数解析器。
+
+
+6 其他
+
+6.1 使用 has 或 is 前缀命名布尔元素
+
+is_connect = True
+has_member = False
+
+6.2 用复数形式命名序列
+
+members = ['user_1', 'user_2']
+
+6.3 用显式名称命名字典
+
+person_address = {'user_1':'10 road WD', 'user_2' : '20 street huafu'}
+
+6.4 避免通用名称
+诸如 list, dict, sequence 或者 element 这样的名称应该避免。
+
+6.5 避免现有名称
+诸如 os, sys 这种系统已经存在的名称应该避免。
+
+
+7 一些数字
+一行列数 : PEP 8 规定为 79 列，这有些苛刻了。根据自己的情况，比如不要超过满屏时编辑器的显示列数。这样就可以在不动水平游标的情况下，方便的查看代码。
+
+一个函数 : 不要超过 30 行代码, 即可显示在一个屏幕类，可以不使用垂直游标即可看到整个函数。
+一个类 : 不要超过 200 行代码，不要有超过 10 个方法。
+一个模块 不要超过 500 行。
+
+
+8 验证脚本
+
+可以安装一个 pep8 脚本用于验证你的代码风格是否符合 PEP8。
+
+http://pypi.python.org/pypi/pep8/#downloads
+
+>>easy_install pep8
+
+>>pep8 -r --ignore E501 Test.py
+
+这个命令行的意思是，重复打出错误，并且忽略 501 错误(代码超过 79 行)
+
+
+CentOS7 下安装 PEP8风格 辅助校验工具:
+[root@agent144 rabbitmq]# yum search pep8
+....
+============ N/S matched: pep8 =============
+python2-pytest-pep8.noarch : Pytest plugin to check PEP8 requirements
+python-flake8.noarch : Code checking using pep8 and pyflakes
+python-pep8.noarch : Python style guide checker
+[root@agent144 rabbitmq]# yum install -y python-pep8.noarch
+
+
+参考链接:
 http://blog.sae.sina.com.cn/archives/4781
+http://blog.csdn.net/robinzhou/article/details/6991078
