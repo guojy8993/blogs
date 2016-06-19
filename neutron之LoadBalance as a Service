@@ -1,13 +1,16 @@
-## PART01: Neutron 负载均衡架构设计 ##
-参考文档: https://wiki.openstack.org/wiki/Neutron_LBaaS_Arch
 
-https://wiki.openstack.org/wiki/Neutron/LBaaS/Architecture/Scheduler
+[目录]
+Chapter 01    Neutron 负载均衡架构设计
+传送门: https://github.com/guojy8993/blogs/blob/master/Neutron%20负载均衡架构设计
 
-## PART02: Neutron 负载均衡(haproxy)的实现 ##
+Chapter 02    Neutron 负载均衡(haproxy)的实现
+传送门: https://github.com/guojy8993/blogs/blob/master/Neutron%20负载均衡(haproxy)的实现
 
-## PART03: Neutron负载均衡服务的工作流与源码分析 ##
+Chapter 03    负载均衡( Neutron负载均衡服务的工作流与源码分析
+传送门: https://github.com/guojy8993/blogs/blob/master/负载均衡(%20Neutron负载均衡服务的工作流与源码分析
 
-## PART04: 扩展:从neutron-lbaas服务的实现学习自定义服务 ##
+Chapter 04    扩展:从neutron-lbaas服务的实现学习自定义服务
+传送门: https://github.com/guojy8993/blogs/blob/master/从neutron-lbaas服务的实现学习自定义服务
 
 
 
