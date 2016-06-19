@@ -1,20 +1,28 @@
 ===Haproxy===
 *简介
 
-HAProxy is a TCP/HTTP reverse proxy which is particularly suited for high availability environments(非常适合高可用环境). <br/>
-Indeed, it can(可以完成如下工作):<br/>
-- route HTTP requests depending on statically assigned cookies ; (使用http cookies 路由http 请求)<br/>
-- spread the load among several servers while assuring server persistence through the use of HTTP cookies ; (均衡负载的同时使用http cookies 确保服务器持久化) <br/>
-- switch to backup servers in the event a main one fails ;( 服务器故障时自动切换到备用节点) <br/>
-- accept connections to special ports dedicated to service monitoring ; (接受(并转发)连接到 专用的 服务监控 端口)<br/>
-- stop accepting connections without breaking existing ones ;(拒绝(超出上限的)新连接而不影响现有连接) <br/>
-- add/modify/delete HTTP headers both ways ; (增删改 http header) <br/>
-- block requests matching a particular pattern ;( 阻塞 匹配特定模式的请求) <br/>
-- hold clients to the right application server depending on application cookies.( 使用application coolkie 保证客户端与application server 的对应.) <br/>
-- report detailed status as HTML pages to authenticated users from an URI intercepted from the application.( 以html网页形式向授权用户汇报 application的详细状态 )<br/>
+HAProxy is a TCP/HTTP reverse proxy which is particularly suited for high availability 
+environments(非常适合高可用环境).
+Indeed, it can(可以完成如下工作):
+- route HTTP requests depending on statically assigned cookies ; (使用http cookies 路由
+http 请求)
+- spread the load among several servers while assuring server persistence through the use
+of HTTP cookies (均衡负载的同时使用http cookies 确保服务器持久化)
+- switch to backup servers in the event a main one fails (服务器故障时自动切换到备用节点)
+- accept connections to special ports dedicated to service monitoring ; (接受并转发连接到
+专用的 服务监控 端口)
+- stop accepting connections without breaking existing ones ;(拒绝(超出上限的)连接而不影响
+现有连接)
+- add/modify/delete HTTP headers both ways ; (增删改 http header)
+- block requests matching a particular pattern ;( 阻塞 匹配特定模式的请求)
+- hold clients to the right application server depending on application cookies.(使用applic
+  -ation coolkie 保证客户端与application server 的对应.)
+- report detailed status as HTML pages to authenticated users from an URI intercepted from 
+  the application.( 以html网页形式向授权用户汇报 application的详细状态 )
 <br/>
-It needs very little resource. Its event-driven architecture allows it to easily handle thousands of simultaneous  connections  on hundreds of instances without risking the system's stability.<br/>
-Haproxy 消耗非常少的资源.它的事件驱动架构允许它轻松处理数以百计虚拟机上的数以千计的并发连接而不损失系统稳定性.<br/>
+It needs very little resource. Its event-driven architecture allows it to easily handle thou
+-sands of simultaneous  connections  on hundreds of instances without risking the system's stability.
+Haproxy 消耗非常少的资源.它的事件驱动架构允许它轻松处理数以百计虚拟机上的数以千计的并发连接而不损失系统稳定性.
 
 
 *配置文件 示范
@@ -53,30 +61,25 @@ backend 8f09dbaf-0c78-48f1-8b80-662e75036485
 </console>
 
 *启动haproxy进程 示范
-<console>
 [root@network 8f09dbaf-0c78-48f1-8b80-662e75036485]# ps aux | grep haproxy
 root      1324  0.0  0.0 112640   964 pts/0    S+   17:24   0:00 grep --color=auto haproxy
 nobody    5818  0.0  0.0  49832  1660 ?        Ss   12:48   0:00 haproxy -f \
 /var/lib/neutron/lbaas/8f09dbaf-0c78-48f1-8b80-662e75036485/conf -p \
-/var/lib/neutron/lbaas/8f09dbaf-0c78-48f1-8b80-662e75036485/pid -sf 27485 
-</console>
+/var/lib/neutron/lbaas/8f09dbaf-0c78-48f1-8b80-662e75036485/pid -sf 27485
 
 *结合neutron lbaas来学习
+上述配置文件是探索 负载均衡 时创建的样例负载均衡的配置;
+对比负载均衡资源池,VIP,后端RIP(即members)的配置与Happroxy进程配置文件中的选项.首先查看VIP
 
-上述配置文件是探索 负载均衡 时创建的样例负载均衡的配置，参考链接:http://192.168.100.158/mw/index.php/Lbaas.
-对比负载均衡资源池,VIP,后端RIP(即members)的配置与Happroxy进程配置文件中的选项.首先查看VIP.
-<console>   
 [root@controller ~(keystone_admin)]# neutron lb-vip-list
 +-----+------+---------------+----------+----------------+--------+
 | id  | name | address       | protocol | admin_state_up | status |
 +-----+------+---------------+----------+----------------+--------+
 | c4..| VIP  | 172.172.172.7 | HTTP     | True           | ACTIVE |
 +-----+------+---------------+----------+----------------+--------+
-</console>
+
 
 查看 前端VIP 详细配置.
-
-<console>
 [root@controller ~(keystone_admin)]# neutron lb-vip-show c4c49fc1-bf10-4270-bc20-02b93439897f
 +---------------------+------------------------------------------+
 | Field               | Value                                    |
@@ -97,10 +100,9 @@ nobody    5818  0.0  0.0  49832  1660 ?        Ss   12:48   0:00 haproxy -f \
 | subnet_id           | 0f7ecb42-a266-4bc9-96d6-efeea20d2b14     |
 | tenant_id           | f4b12182b9c14436bb5a0943f22c4602         |
 +---------------------+------------------------------------------+
-</console>
 
-查看负载均衡的 后端的多个成员.
-<console>
+
+查看负载均衡的 后端的多个成员
 [root@controller ~(keystone_admin)]# neutron lb-member-list
 +-------+---------------+---------------+----------------+--------+
 | id    | address       | protocol_port | admin_state_up | status |
@@ -109,10 +111,8 @@ nobody    5818  0.0  0.0  49832  1660 ?        Ss   12:48   0:00 haproxy -f \
 | 44c.. | 172.172.172.6 |            80 | True           | ACTIVE |
 | c96.. | 172.172.172.5 |            80 | True           | ACTIVE |
 +-------+---------------+---------------+----------------+--------+
-</console>
 
 查看负载均衡的 后端的成员详细配置.
-<console>
 [root@controller ~(keystone_admin)]# neutron lb-member-show \
 0c7d3741-df7b-4bf3-9396-14cc3c05b5a5
 +--------------------+--------------------------------------+
@@ -128,10 +128,8 @@ nobody    5818  0.0  0.0  49832  1660 ?        Ss   12:48   0:00 haproxy -f \
 | tenant_id          | f4b12182b9c14436bb5a0943f22c4602     |
 | weight             | 100                                  |
 +--------------------+--------------------------------------+ 
-</console>
 
 查看负载均衡资源池信息.
-<console>
 [root@controller ~(keystone_admin)]# neutron lb-pool-list
 +-----+-----------------+----------+-------------------+----------+----------------+--------+
 | id  | name            | provider | lb_method         | protocol | admin_state_up | status |
@@ -139,10 +137,8 @@ nobody    5818  0.0  0.0  49832  1660 ?        Ss   12:48   0:00 haproxy -f \
 | 33..| LB_POOL_Ext_Net | haproxy  | ROUND_ROBIN       | HTTP     | True           | ACTIVE |
 | 8f..| LB_POOL         | haproxy  | LEAST_CONNECTIONS | HTTP     | True           | ACTIVE |
 +-----+-----------------+----------+-------------------+----------+----------------+--------+
-</console>
 
 查看负载均衡资源池详细配置.
-<console>
 [root@controller ~(keystone_admin)]# neutron lb-pool-show \
 8f09dbaf-0c78-48f1-8b80-662e75036485
 +------------------------+--------------------------------------+
@@ -166,8 +162,6 @@ nobody    5818  0.0  0.0  49832  1660 ?        Ss   12:48   0:00 haproxy -f \
 | tenant_id              | f4b12182b9c14436bb5a0943f22c4602     |
 | vip_id                 | c4c49fc1-bf10-4270-bc20-02b93439897f |
 +------------------------+--------------------------------------+
-</console>
 
 *总结
-Neutron中的负载均衡即服务(Lbaas) 根据指定的前端(VIP)，后端(RIPs)即此处的"成员",拼装haproxy配置文件，然后以之启动了一个haproxy进程 由VIP按指定的算法 在众成员间均衡负载.
-
+Neutron中的负载均衡即服务(Lbaas) 根据指定的前端(VIP)，后端(RIPs)即此处的"成员",拼装haproxy配置文件，然后以之启动了一个haproxy进程 由VIP按指定的算法 在众成员间均衡负载;
