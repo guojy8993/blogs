@@ -1,3 +1,14 @@
+# 需求: 云计算管理员上传一份系统模版到模板服务器,自动下刷到计算节点;
+# 思路: 在模板服务器搭建rsync服务端,共享本地模板目录,而计算节点部署rsync客户端(脚本),定时从模板服务器同步
+# 实现: 
+#   1.在模板服务器上搭建 rsync服务器,共享模板目录
+#     相关文件:(1) rsyncd服务配置文件File-a:rsyncd.conf模版;
+#              (2) rsyncd服务配置与启动脚本File-b;
+#   2.计算节点上部署"模板同步"脚本,添加定时任务执行之;
+#     相关文件:(1) rsync自动同步客户端部署脚本File-c;
+#     特别注意:进行模板同步之前需要检测是否有上次定时任务尚未执行完同步任务,如果有,跳过该次同步;
+
+附文件:
 # File-a: rsyncd.conf.template
 
 motd file = /etc/rsyncd.motd
@@ -60,7 +71,15 @@ rsync --daemon
 yum install rsync -y
 echo "glance-admin" > /etc/glance-admin.secrets
 chmod 600 /etc/glance-admin.secrets
-echo -e '#! /bin/bash\r\n[[ $(ps aux | grep rsync | grep progress | wc -l) -eq 0 ]] && (echo "$(date +%Y-%m-%d%%%H:%M:%S) Rsync images:" >> /var/log/cron_image_rsync.log && rsync -vzrtopg --progress --password-file=/etc/glance-admin.secrets glance-admin@10.160.0.7::common/*.qcow2 /data/image/ >> /var/log/cron_image_rsync.log 2>&1)|| echo "$(date +%Y-%m-%d%%%H:%M:%S) There exists image rsync task！ Skip！" >> /var/log/cron_image_rsync.log' > /opt/cron_rsync_image
+
+# 注意此处代码是一行
+echo -e '#! /bin/bash\r\n[[ $(ps aux | grep rsync | grep progress | wc -l) -eq 0 ]] 
+&& (echo "$(date +%Y-%m-%d%%%H:%M:%S) Rsync images:" >> /var/log/cron_image_rsync.log 
+&& rsync -vzrtopg --progress --password-file=/etc/glance-admin.secrets glance-admin@10.160.0.7::common/*.qcow2 /data/image/ 
+>> /var/log/cron_image_rsync.log 2>&1)|| echo "$(date +%Y-%m-%d%%%H:%M:%S) There exists image rsync task！ Skip！" 
+>> /var/log/cron_image_rsync.log' > /opt/cron_rsync_image
+# 注意此处代码是一行
+
 echo '*/1 * * * *   /bin/bash /opt/cron_rsync_image' >> /var/spool/cron/root
 
 
