@@ -29,6 +29,10 @@ serving on http://127.0.0.1:8080
 [root@dev restapi]# curl 127.0.0.1:8080
 Hello WSGI!
 
+
+
+
+
 ## 2.PasteDeploy定制WSGI服务 ##
 # 通过配置文件配置WSGI服务,大大增强WSGI服务的伸缩性
 (1) 定义PasteDeploy配置文件(api-paste.ini)
@@ -164,4 +168,143 @@ Key:User-Agent,Value:curl/7.29.0
 Key:Host,Value:127.0.0.1:8080
 Key:Accept,Value:*/*
 Key:Content-Type,Value:
+
+
+
+
+## 4.使用类实现过滤器与应用 ##
+# 文件与功能说明:
+#  类名           所在文件           作用
+#  Auth           middleware.py      实现身份信息过滤
+#  Hello          app.py             实现核心业务
+#  WSGIService    service.py         用于WSGI服务的管理,包括服务的创建/停止/启动
+#  Loader         wsgi.py            加载服务的应用
+#  Server         wsgi.py            实现WSGI服务,创建/配置/管理线程
+附文件:
+(1) middleware.py
+[root@agent144 clazzWsgi]# cat middleware.py
+#! /usr/bin/env python
+from webob.dec import wsgify
+from webob import exc
+import webob
+
+class Auth(object):
+    def __init__(self, app):
+        self.app = app
+
+    @classmethod
+    def factory(cls, global_config, **local_config):
+        def _factory(app):
+            return cls(app)
+        return _factory
+
+    @wsgify(RequestClass=webob.Request)
+    def __call__(self, request):
+        resp = self.process_request(request)
+        if resp:
+            return resp
+        return request.get_response(self.app)
+
+    def process_request(self, request):
+        if request.headers.get('X-AUTH-Token') != 'open-sesame':
+            return exc.HTTPForbidden()
+
+(2) app.py
+[root@agent144 clazzWsgi]# cat app.py
+#! /usr/bin/env python
+from webob.dec import wsgify
+from webob import Request
+from webob import Response
+
+
+class Hello(object):
+    @wsgify(RequestClass=Request)
+    def __call__(self, request):
+        return Response('Hello, Secret world of webob !')
+
+
+def app_factory(global_config, **local_config):
+    return Hello()
+
+(3) service.py
+[root@agent144 clazzWsgi]# cat service.py 
+#! /usr/bin/env python
+import wsgi
+
+
+class WSGIService(object):
+    def __init__(self):
+        self.loader = wsgi.Loader()
+        self.app = self.loader.load_app()
+        self.server = wsgi.Server(self.app, '0.0.0.0', 9996)
+
+    def start(self):
+        self.server.start()
+
+    def stop(self):
+        self.server.stop()
+
+    def wait(self):
+        self.server.wait()
+
+if __name__ == "__main__":
+    server = WSGIService()
+    server.start()
+    server.wait()
+
+(4) wsgi.py
+[root@agent144 clazzWsgi]# cat wsgi.py
+#! /usr/bin/env pythoni
+import os
+import sys
+from greenlet import GreenletExit
+import eventlet
+from eventlet import wsgi
+from paste import deploy
+
+
+class Loader(object):
+    def load_app(self):
+        ini_path = sys.argv[1]
+        if not os.path.exists(ini_path):
+            print ("api-paste.ini not found !")
+            sys.exit(1)
+        return deploy.loadapp('config:' + ini_path)
+
+
+class Server(object):
+    def __init__(self, app, host='0.0.0.0', port=9996):
+        self.pool = eventlet.GreenPool(10)
+        self.app = app
+        self._socket = eventlet.listen((host, port), backlog=10)
+        (self.host, self.port) = self._socket.getsockname()
+        print ("listening on %(host)s:%(port)s" % self.__dict__)
+
+    def start(self):
+        self._server = eventlet.spawn(
+            wsgi.server,
+            self._socket,
+            self.app,
+            protocol=eventlet.wsgi.HttpProtocol,
+            custom_pool=self.pool)
+
+    def stop(self):
+        if self._server is not None:
+            self._pool.resize(0)
+            self._server.kill()
+
+    def wait(self):
+        try:
+            self._server.wait()
+        except GreenletExit:
+            print ("WSGI server has stopped.")
+# 启动应用: 
+# [root@agent144 clazzWsgi]# python service.py /home/guojingyu/rabbitmq/rest/clazzWsgi/api-paste.ini
+# listening on 0.0.0.0:9996
+# (1811) wsgi starting up on http://0.0.0.0:9996
+# 调用测试:
+# [root@agent144 ~]# curl -H "X-AUTH-Token:open-sesame" 127.0.0.1:9996
+# Hello, Secret world of webob !
+
+
 
