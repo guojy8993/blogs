@@ -220,3 +220,22 @@ python-pep8.noarch : Python style guide checker
 参考链接:
 http://blog.sae.sina.com.cn/archives/4781
 http://blog.csdn.net/robinzhou/article/details/6991078
+
+
+
+
+错误代码与信息:
+1.E501 line too long (143 > 79 characters)
+self._server = eventlet.spawn(eventlet.wsgi.server, self._socket, self.app, protocol=eventlet.wsgi.HttpProtocol, custom_pool=self.pool)
+# 单行太长
+
+2.E128 continuation line under-indented for visual indent
+def start(self):
+        self._server = eventlet.spawn(# 函数参数太多应该怎样处理
+            eventlet.wsgi.server,
+            self._socket,
+            self.app,
+            protocol=eventlet.wsgi.HttpProtocol,
+            custom_pool=self.pool)
+
+
