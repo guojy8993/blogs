@@ -1,0 +1,159 @@
+网络节点       network    10.160.0.130/16(外网)
+计算节点       compute    10.160.0.128/16(外网)
+虚拟机         localhost  10.160.0.147/16(外网) & 172.172.172.3/24(租户内网)
+租户内网dhcp     -        172.172.172.2/24(租户内网)
+租户私有router   -        ----
+
+##### 网络节点设置 #####
+
+创建3个必须的ovs交换机:
+[root@network ~]# ovs-vsctl add-br br-ex
+[root@network ~]# ovs-vsctl add-br br-int
+[root@network ~]# ovs-vsctl add-br br-tun
+
+将br-ex连接到外网网卡上
+[root@network ~]# ip link add link ens34 name ens34.610 type vlan id 610  # 外网valn610
+[root@network ~]# ifconfig ens34.610 up
+[root@network ~]# ovs-vsctl add-port br-ex ens34.610
+
+将br-tun通过内网ip建立传输隧道
+# network:10.160.0.130
+[root@network ~]# ovs-vsctl add-port br-tun tun -- set Interface tun type=vxlan options:local_ip=10.160.0.130 \
+                  options:remote_ip=10.160.0.128 options:key=flow
+
+将br-tun与br-int通过patch port互联
+[root@network ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
+[root@network ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun
+
+在br-int上添加qdhcp设备并创建dhcp命名空间
+[root@network ~]# ovs-vsctl -- --if-exists del-port qdhcp -- add-port br-int qdhcp -- set Interface qdhcp type=internal \
+                  -- set Interface qdhcp external-ids:iface-id=733431fe-567a-447f-a29e-5fb94aa36a4c -- set Interface qdhcp \
+                  external-ids:iface-status=active -- set Interface qdhcp external-ids:attached-mac=fa:16:00:4c:74:16
+[root@network ~]# ip netns add qdhcp-netns
+[root@network ~]# ip link set qdhcp netns qdhcp-netns
+[root@network ~]# ip netns exec qdhcp-netns  ip link set lo up
+[root@network ~]# ip netns exec qdhcp-netns  ip link set qdhcp up
+[root@network ~]# ip netns exec qdhcp-netns ip addr add dev qdhcp 172.172.172.2/24
+
+[root@network ~]# uuidgen
+2de37faa-c97c-4191-8c40-8eebe2c32fdd
+[root@network ~]# mkdir -p /var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd
+[root@network ~]# ip netns exec qdhcp-netns dnsmasq --no-hosts --no-resolv --strict-order \ 
+								--bind-interfaces --interface=qdhcp --except-interface=lo  \
+								--pid-file=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/pid  \
+								--dhcp-hostsfile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/host \
+								--addn-hosts=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/addn_hosts \
+								--dhcp-optsfile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/opts \
+								--dhcp-leasefile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/leases \
+								--dhcp-range=set:tag0,172.172.172.0,static,86400s --dhcp-lease-max=256 \
+								--conf-file= \
+								--domain=mydhcp
+
+在br-int上添加租户内网网关并创建私有路由
+[root@network ~]# ovs-vsctl -- --if-exists del-port qrouter -- add-port br-int qrouter -- set Interface qrouter type=internal 
+                  -- set Interface qrouter external-ids:iface-id=633432fe-567a-447f-a29e-5fb94aa36a4c -- set Interface qrouter \ 
+                  external-ids:iface-status=active -- set Interface qrouter external-ids:attached-mac=fa:16:00:4d:74:16
+[root@network ~]# ip netns add qrouter-netns
+[root@network ~]# ip link set qrouter netns qrouter-netns
+[root@network ~]# ip netns exec qrouter-netns ip link set  qrouter up
+[root@network ~]# ip netns exec qrouter-netns ip link set lo  up
+[root@network ~]# ip netns exec qrouter-netns ip addr add dev qrouter 172.172.172.1/24
+
+
+在br-ex添加设备,作为虚拟路由的外网网关
+[root@network ~]# ovs-vsctl -- --if-exists del-port qgw -- add-port br-ex qgw -- set Interface qgw type=internal -- set Interface \ 
+                  qgw external-ids:iface-id=893431fe-567a-447f-d59e-5fb94aa36a40 -- set Interface qgw external-ids:iface-status=active \
+                  -- set Interface qgw external-ids:attached-mac=fa:16:00:4c:88:16
+[root@network ~]# ip link set qgw netns qrouter-netns
+[root@network ~]# ip netns exec qrouter-netns ip link set qgw up
+[root@network ~]# ip netns exec qrouter-netns ip addr add dev qgw 10.160.0.148/16 broadcast 10.160.255.255
+[root@network ~]# ip netns exec qrouter-netns ip route add via 10.160.0.1 dev qgw
+
+##### 计算节点设置 #####
+添加br-tun与br-int交换机
+[root@compute ~]# ovs-vsctl add-br br-int
+[root@compute ~]# ovs-vsctl add-br br-tun
+
+为br-tun添加隧道传输端口
+[root@compute ~]# ovs-vsctl add-port br-tun tun -- set Interface tun type=vxlan options:local_ip=10.160.0.128 
+                  options:remote_ip=10.160.0.130 options:key=flow
+
+将br-tun与br-int互联
+[root@compute ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
+[root@compute ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun
+
+创建linux bridge并使之与br-int互联,作为安全组防火墙实现
+[root@compute ~]# ip link add veth-sg-br type veth peer name veth-br-int
+[root@compute ~]# brctl addbr br-sg
+[root@compute ~]# brctl addif br-sg veth-sg-br
+[root@compute ~]# ovs-vsctl add-port br-int veth-br-int
+[root@compute ~]# ip link set veth-sg-br up
+[root@compute ~]# ip link set veth-br-int up
+[root@compute ~]# ip link set br-sg up
+
+启动虚拟机连接到 firewall-linux-bridge 上
+[root@compute ~]# virt-install -n B  --description B  --ram 1024  --vcpus 2,cpuset=2-3  \
+             --cpu host-model  --accelerate  --hvm --network  bridge:br-sg   \
+             --disk /data/instance/B/system,bus=virtio,cache=writeback,driver_type=qcow2 \
+             --boot hd --graphics vnc,listen=0.0.0.0  --noautoconsole --input tablet,bus=usb
+
+查看新建虚拟机的vnc端口号
+[root@compute ~]# virsh vncdisplay B
+:0
+
+使用vncviewer连接宿主(10.160.0.128)端口(5900+0)查看视图,进行管理
+# 配置ip(也可以使用dhcp方式,从网络节点的qdhcp处获取)
+[root@localhost ~]# ip addr add dev eth0 172.172.172.3/24
+[root@localhost ~]# ip route add via 172.172.172.1 dev eth0
+# ping测试租户路由内网网关是否通
+
+
+##### 网络节点设置 #####
+为虚拟机 172.172.172.3 绑定浮动ip(e.g: 10.160.0.147)
+[root@network ~]# ip netns exec qrouter-netns ip addr add dev qgw 10.160.0.147/32 broadcast 10.160.0.147
+
+使用iptables进行nat,将虚拟机内网ip与浮动ip进行转换
+[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  PREROUTING  -d 10.160.0.147 -j DNAT --to-destination 172.172.172.3
+[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  OUTPUT  -d 10.160.0.147 -j DNAT --to-destination 172.172.172.3
+[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  POSTROUTING  -s 172.172.172.3 -j SNAT --to-source 10.160.0.147
+
+注意开启虚拟路由下的路由转发(iptables nat + ip forward 很重要的2项配置)
+[root@network ~]# ip netns exec qrouter-netns sysctl -w net.ipv4.ip_forward=1
+
+
+附: neutron 网络节点虚拟路由下的iptables规则:
+
+###############################################################################################
+
+POSTROUTING --> neutron-postrouting-bottom
+	                |
+	                |
+	                |
+	                |--> neutron-l3-agent-snat
+	                       |
+	                       |
+	                       |--> neutron-l3-agent-float-snat
+	                              |
+	                              |---- -s 172.10.6.10/32 -j SNAT --to-source 121.23.12.37
+
+# (1) 依次为参考组装自己对应的规则:
+#  iptables -t nat -A  POSTROUTING  -s 172.172.172.3/32 -j SNAT --to-source 10.160.0.147
+
+
+OUTPUT --> neutron-l3-agent-OUTPUT
+             |
+             |
+             |--> -d 121.23.12.37/32 -j DNAT --to-destination 172.10.6.10
+# (2) 依次为参考组装自己对应的规则:
+#  iptables -t nat -A  OUTPUT  -d 10.160.0.147/32 -j DNAT --to-destination 172.172.172.3
+
+
+
+PREROUTING --> neutron-l3-agent-PREROUTING
+                 |
+                 |
+                 |--> -d 121.23.12.37/32 -j DNAT --to-destination 172.10.6.10
+# (3) 依次为参考组装自己对应的规则:
+#  iptables -t nat -A  PREROUTING  -d 10.160.0.147/32 -j DNAT --to-destination 172.172.172.3
+
+###############################################################################################
