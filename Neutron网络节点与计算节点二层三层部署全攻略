@@ -39,15 +39,15 @@
 2de37faa-c97c-4191-8c40-8eebe2c32fdd
 [root@network ~]# mkdir -p /var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd
 [root@network ~]# ip netns exec qdhcp-netns dnsmasq --no-hosts --no-resolv --strict-order \ 
-								--bind-interfaces --interface=qdhcp --except-interface=lo  \
-								--pid-file=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/pid  \
-								--dhcp-hostsfile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/host \
-								--addn-hosts=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/addn_hosts \
-								--dhcp-optsfile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/opts \
-								--dhcp-leasefile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/leases \
-								--dhcp-range=set:tag0,172.172.172.0,static,86400s --dhcp-lease-max=256 \
-								--conf-file= \
-								--domain=mydhcp
+				--bind-interfaces --interface=qdhcp --except-interface=lo  \
+				--pid-file=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/pid  \
+				--dhcp-hostsfile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/host \
+				--addn-hosts=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/addn_hosts \
+				--dhcp-optsfile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/opts \
+				--dhcp-leasefile=/var/lib/dhcp/2de37faa-c97c-4191-8c40-8eebe2c32fdd/leases \
+				--dhcp-range=set:tag0,172.172.172.0,static,86400s --dhcp-lease-max=256 \
+				--conf-file= \
+				--domain=mydhcp
 
 在br-int上添加租户内网网关并创建私有路由
 [root@network ~]# ovs-vsctl -- --if-exists del-port qrouter -- add-port br-int qrouter -- set Interface qrouter type=internal 
