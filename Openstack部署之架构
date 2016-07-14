@@ -33,7 +33,7 @@ DBService      Trove     为关系型/非关系型数据库引擎，提供可扩
 使用Neutron网络的3节点的结构，各节点运行服务，网卡设备需求等如下所示:
 
 节点类型       服务:基础           服务:可选           服务:支持            网卡
-*controller     keystone            cinder              mysql/mariadb        mgmt(e.g:10.160.0.120/16)
+*controller    keystone            cinder              mysql/mariadb        mgmt(e.g:10.160.0.120/16)
                glance              swift-proxy         rabbitmq/qpid
                nova-api            trove mgmt
                neutron-server      heat
