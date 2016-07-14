@@ -33,18 +33,18 @@ DBService      Trove     为关系型/非关系型数据库引擎，提供可扩
 使用Neutron网络的3节点的结构，各节点运行服务，网卡设备需求等如下所示:
 
 节点类型         服务:基础           服务:可选           服务:支持            网卡
-controller     keystone            cinder              mysql/mariadb        mgmt(e.g:10.160.0.120/16)
-               glance              swift-proxy         rabbitmq/qpid
+controller     keystone            cinder            mysql/mariadb        mgmt(e.g:10.160.0.120/16)
+               glance              swift-proxy       rabbitmq/qpid
                nova-api            trove mgmt
                neutron-server      heat
                ml2-plugin          ceilometer
                dashboard
-network        ml2-plugin                                                    mgmt(e.g:10.160.0.121/16)
-               openvswitch-agent                                             tunnel(172.172.172.121/24)
-               l3-agent                                                      external(vlan tag required)
+network        ml2-plugin                                                 mgmt(e.g:10.160.0.121/16)
+               openvswitch-agent                                          tunnel(172.172.172.121/24)
+               l3-agent                                                   external(vlan tag required)
                dhcp-agent
-compute        nova-compute        ceilometer-agent                          mgmt(e.g:10.160.0.122/16)
-               kvm/qemu/libvirt                                              tunnel(172.172.172.122/24)
+compute        nova-compute        ceilometer-agent                       mgmt(e.g:10.160.0.122/16)
+               kvm/qemu/libvirt                                           tunnel(172.172.172.122/24)
                ml2-plugin
                openvswitch-agent
 
