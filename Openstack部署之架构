@@ -2,4 +2,27 @@
 来自全球范围内的专家都在为它贡献智慧。
     Openstack通过各种服务的实现，提供了IAAS,即"基础设施即服务"解决方案。每个服务都提供了API。如
 下展示了其包含的各种服务:
+服务            项目       描述
+Dashbord       Horizon   提供一套基于web的自助管理系统,以与基础的OpenStack
+                         服务交互; 例如启动实例,分配ip,配置ACL
+
+Compute        Nova      对实例进行生命周期管理,包括产生,调度,关闭，挂起，配
+                         置调整，迁移
+
+Networking     Neutron   为其他服务提供网络互联,例如计算服务;提供一套API供用户
+                         定义网络拓扑，网络设备；支持许多流行的网络技术(VPN,防火墙,
+                         负载均衡,租户网络,大二层)
+
+ObjectStorage  Swift     通过Restful API存储与获取任意非结构化的数据。通过数据拷贝与
+                         横向扩展(Scale out)架构,实现高容错。它的实现并非想象中的文件
+                         目录可挂载的文件服务器。
+BlockStorage   Cinder    为运行的实例提供持续的块存储。他的驱动可插拔架构对块设备的创建与
+                         管理很有益
+
+Identity       Keystone  为 OpenSatck的其他服务提供认证与授权服务。汇总各服务端点信息;
+
+Orchestration  Heat      通过使用本地的HOT Template或AWS CloudFormat编排多种混合云
+                         应用;其实现既要用到OpenStack的 Rest API 又可用到兼容 Cloud
+                         -Format的 query API
+DBService      Trove     为关系型/非关系型数据库引擎，提供可扩展，可靠的 "数据库即服务"；
 
