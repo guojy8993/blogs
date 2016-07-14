@@ -1,0 +1,19 @@
+文档分篇目录:
+
+第0部分: 架构
+第1部分: 基本环境配置
+第2部分: 配置Identity服务
+第3部分: 安装配置OpenStack客户端
+第4部分: 配置镜像服务(Glance)
+第5部分: 配置计算服务(Nova)
+第6部分: 添加网络服务(Neutron)
+第7部分: 安装配置控制面板(DashBoard)
+第8部分: 安装配置块存储服务(Cinder)
+第9部分: 安装配置对象存储服务
+第A部分: 安装配置编排服务(Orchestration)
+第B部分: 安装测量服务(Telemetry)
+第C部分: 安装数据库服务(Trove)
+第D部分: 启动实例(VM)
+
+# 官方链接:
+# http://docs.openstack.org/icehouse/install-guide/install/yum/content/reserved_uids.html
