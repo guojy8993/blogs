@@ -76,10 +76,22 @@ EOF
 建议修改其余节点从主控节点同步时间,而不是从外部网络同步；同上安装ntp服务,修改配置,使用主控节点作为网络时间源;
 
 实践部分:
-
-
-
-
+[root@localhost ~]# cat > ntp_clients_setting << EOF
+#!/bin/bash
+# 使用公司内部既有时间服务器
+InternetTimeServer="10.120.11.11"
+# 修改时区
+rm -rf /etc/localtime
+ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+# 安装ntp服务
+yum install ntp.x86_64 ntpdate.x86_64 -y
+cp /etc/ntp.conf /etc/ntp.conf.backup
+# 修ntp服务配置文件的time server为InternetTimeServer 
+sed -ri "s/(server ).*/server ${InternetTimeServer}/" /etc/ntp.conf
+# 重启 ntp服务
+systemctl enable ntpd
+systemctl restart ntpd
+EOF
 
 ################################################ NO.3 安全         ##########################################################
 ################################################ NO.4 数据库       ##########################################################
