@@ -113,6 +113,174 @@ echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-t
 实战部分:
 
 ################################################ NO.2 I定义用户,租户,角色 ####################################################
+Define users, tenants, and roles
+
+After you install the Identity Service, set up users, tenants, and roles to authenticate against. These are used to allow access to services and endpoints, described in the next section.
+
+Typically, you would indicate a user and password to authenticate with the Identity Service. At this point, however, you have not created any users, so you have to use the authorization token created in an earlier step, see the section called “Install the Identity Service” for further details. You can pass this with the --os-token option to the keystone command or set the OS_SERVICE_TOKEN environment variable. Set OS_SERVICE_TOKEN, as well as OS_SERVICE_ENDPOINT to specify where the Identity Service is running. Replace ADMIN_TOKEN with your authorization token.
+
+$ export OS_SERVICE_TOKEN=ADMIN_TOKEN
+$ export OS_SERVICE_ENDPOINT=http://controller:35357/v2.0
+ 
+Create an administrative user
+
+Follow these steps to create an administrative user, role, and tenant. You will use this account for administrative interaction with the OpenStack cloud.
+
+By default, the Identity Service creates a special _member_ role. The OpenStack dashboard automatically grants access to users with this role. You will give the admin user access to this role in addition to the admin role.
+
+[Note]	Note
+Any role that you create must map to roles specified in the policy.json file included with each OpenStack service. The default policy file for most services grants administrative access to the admin role.
+
+Create the admin user:
+
+$ keystone user-create --name=admin --pass=ADMIN_PASS --email=ADMIN_EMAIL
+Replace ADMIN_PASS with a secure password and replace ADMIN_EMAIL with an email address to associate with the account.
+
+Create the admin role:
+
+$ keystone role-create --name=admin
+Create the admin tenant:
+
+$ keystone tenant-create --name=admin --description="Admin Tenant"
+You must now link the admin user, admin role, and admin tenant together using the user-role-add option:
+
+$ keystone user-role-add --user=admin --tenant=admin --role=admin
+Link the admin user, _member_ role, and admin tenant:
+
+$ keystone user-role-add --user=admin --role=_member_ --tenant=admin
+ 
+Create a normal user
+
+Follow these steps to create a normal user and tenant, and link them to the special _member_ role. You will use this account for daily non-administrative interaction with the OpenStack cloud. You can also repeat this procedure to create additional cloud users with different usernames and passwords. Skip the tenant creation step when creating these users.
+
+Create the demo user:
+
+$ keystone user-create --name=demo --pass=DEMO_PASS --email=DEMO_EMAIL
+Replace DEMO_PASS with a secure password and replace DEMO_EMAIL with an email address to associate with the account.
+
+Create the demo tenant:
+
+$ keystone tenant-create --name=demo --description="Demo Tenant"
+[Note]	Note
+Do not repeat this step when adding additional users.
+
+Link the demo user, _member_ role, and demo tenant:
+
+$ keystone user-role-add --user=demo --role=_member_ --tenant=demo
+ 
+Create a service tenant
+
+OpenStack services also require a username, tenant, and role to access other OpenStack services. In a basic installation, OpenStack services typically share a single tenant named service.
+
+You will create additional usernames and roles under this tenant as you install and configure each service.
+
+Create the service tenant:
+
+$ keystone tenant-create --name=service --description="Service Tenant"
+
 
 ################################################ NO.3 定义服务与API Endpoint #################################################
+Define services and API endpoints
+
+So that the Identity Service can track which OpenStack services are installed and where they are located on the network, you must register each service in your OpenStack installation. To register a service, run these commands:
+
+keystone service-create. Describes the service.
+
+keystone endpoint-create. Associates API endpoints with the service.
+
+You must also register the Identity Service itself. Use the OS_SERVICE_TOKEN environment variable, as set previously, for authentication.
+
+Create a service entry for the Identity Service:
+
+$ keystone service-create --name=keystone --type=identity \
+  --description="OpenStack Identity"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description | OpenStack Identity               |
+| id          | 15c11a23667e427e91bc31335b45f4bd |
+| name        | keystone                         |
+| type        | identity                         |
++-------------+----------------------------------+
+The service ID is randomly generated and is different from the one shown here.
+
+Specify an API endpoint for the Identity Service by using the returned service ID. When you specify an endpoint, you provide URLs for the public API, internal API, and admin API. In this guide, the controller host name is used. Note that the Identity Service uses a different port for the admin API.
+
+$ keystone endpoint-create \
+  --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
+  --publicurl=http://controller:5000/v2.0 \
+  --internalurl=http://controller:5000/v2.0 \
+  --adminurl=http://controller:35357/v2.0
++-------------+-----------------------------------+
+|   Property  |             Value                 |
++-------------+-----------------------------------+
+| adminurl    | http://controller:35357/v2.0      |
+| id          | 11f9c625a3b94a3f8e66bf4e5de2679f  |
+| internalurl | http://controller:5000/v2.0       |
+| publicurl   | http://controller:5000/v2.0       |
+| region      | regionOne                         |
+| service_id  | 15c11a23667e427e91bc31335b45f4bd  |
++-------------+-----------------------------------+
+
 ################################################ NO.4 Identity服务验收 #######################################################
+Verify the Identity Service installation
+
+To verify that the Identity Service is installed and configured correctly, clear the values in the OS_SERVICE_TOKEN and OS_SERVICE_ENDPOINT environment variables:
+
+$ unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
+These variables, which were used to bootstrap the administrative user and register the Identity Service, are no longer needed.
+
+You can now use regular user name-based authentication.
+
+Request a authentication token by using the admin user and the password you chose for that user:
+
+$ keystone --os-username=admin --os-password=ADMIN_PASS \
+  --os-auth-url=http://controller:35357/v2.0 token-get
+In response, you receive a token paired with your user ID. This verifies that the Identity Service is running on the expected endpoint and that your user account is established with the expected credentials.
+
+Verify that authorization behaves as expected. To do so, request authorization on a tenant:
+
+$ keystone --os-username=admin --os-password=ADMIN_PASS \
+  --os-tenant-name=admin --os-auth-url=http://controller:35357/v2.0 \
+  token-get
+In response, you receive a token that includes the ID of the tenant that you specified. This verifies that your user account has an explicitly defined role on the specified tenant and the tenant exists as expected.
+
+You can also set your --os-* variables in your environment to simplify command-line usage. Set up a admin-openrc.sh file with the admin credentials and admin endpoint:
+
+Select Text
+1
+2
+3
+4
+export OS_USERNAME=admin
+export OS_PASSWORD=ADMIN_PASS
+export OS_TENANT_NAME=admin
+export OS_AUTH_URL=http://controller:35357/v2.0
+Source this file to read in the environment variables:
+
+$ source admin-openrc.sh
+Verify that your admin-openrc.sh file is configured correctly. Run the same command without the --os-* arguments:
+
+$ keystone token-get
+The command returns a token and the ID of the specified tenant. This verifies that you have configured your environment variables correctly.
+
+Verify that your admin account has authorization to perform administrative commands:
+
+$ keystone user-list
++----------------------------------+-------+---------+-------------------+
+|                id                |  name | enabled |    email          |
++----------------------------------+-------+---------+-------------------+
+| afea5bde3be9413dbd60e479fddf9228 | admin |   True  | admin@example.com |
+| 32aca1f9a47540c29d6988091f76c934 |  demo |   True  | demo@example.com  |
++----------------------------------+-------+---------+-------------------+
+$ keystone user-role-list --user admin --tenant admin
++----------------------------------+----------+----------------------------------+----------------------------------+
+|                id                |   name   |             user_id              |            tenant_id             |
++----------------------------------+----------+----------------------------------+----------------------------------+
+| 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | afea5bde3be9413dbd60e479fddf9228 | e519b772cb43474582fa303da62559e5 |
+| 5d3b60b66f1f438b80eaae41a77b5951 |  admin   | afea5bde3be9413dbd60e479fddf9228 | e519b772cb43474582fa303da62559e5 |
++----------------------------------+----------+----------------------------------+----------------------------------+
+Seeing that the id in the output from the keystone user-list command matches the user_id in the keystone user-role-list command, and that the admin role is listed for that user, for the related tenant, this verifies that your user account has the admin role, which matches the role used in the Identity Service policy.json file.
+
+[Note]	Note
+As long as you define your credentials and the Identity Service endpoint through the command line or environment variables, you can run all OpenStack client commands from any machine. For details, see Chapter 4, Install and configure the OpenStack clients.
