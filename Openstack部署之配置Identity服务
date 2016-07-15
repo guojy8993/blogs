@@ -67,6 +67,50 @@ Identity服务概念:
     step1: 服务向用户汇报执行执行进度,执行结果;
 
 ################################################ NO.1 安装Identity服务 #######################################################
+理论部分:
+(1) 在主控节点安装keystone,以及依赖库python-keystoneclient;
+# yum install openstack-keystone python-keystoneclient -y
+
+(2) 该服务使用数据库存储信息,在服务的配置文件中指定数据库的位置;在本例中,我们使用mysql数据库,用户名"keystone"; 使用合适的密码替换
+KEYSTONE_DBPASS(前文已经用openssl生成并分配);
+# openstack-config --set /etc/keystone/keystone.conf \
+   database connection mysql://keystone:KEYSTONE_DBPASS@controller/keystone
+(3) 使用之前登录的root用户密码,创建keystone用户:
+$ mysql -u root -p
+mysql> CREATE DATABASE keystone;
+mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' \
+  IDENTIFIED BY 'KEYSTONE_DBPASS';
+mysql> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' \
+  IDENTIFIED BY 'KEYSTONE_DBPASS';
+mysql> exit
+
+(4) 为 Identity Service创建数据库数据表:
+# su -s /bin/sh -c "keystone-manage db_sync" keystone
+
+(5) 定义一个认证token作为共享密文在Identity Service与其他OpenStack服务键共享;使用 openssl 生成token并将其置于配置文件中:
+# ADMIN_TOKEN=$(openssl rand -hex 10)
+# echo $ADMIN_TOKEN
+# openstack-config --set /etc/keystone/keystone.conf DEFAULT \
+   admin_token $ADMIN_TOKEN
+
+默认情况下,Keystone使用PKI tokens; 
+(6) 创建签名keys以及证书,并设置对这些数据的访问权限;
+# keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+# chown -R keystone:keystone /etc/keystone/ssl
+# chmod -R o-rwx /etc/keystone/ssl
+
+(7) 启动Identity Service服务,并设置其开机自启:
+# service openstack-keystone start
+# chkconfig openstack-keystone on
+
+(8) 默认情况下,Identity Service 会永远存储过期tokens.尽管在生产环境中可能用于审计, 不断增长的过期tokens会惊人地增加数据库
+大小并,有可能,降低服务器性能,特别是在资源有限的测试环境下. 推荐做法是创建定时任务,每小时定时进行过期tokens的清理;
+执行下述命令, 定时清除到期tokens,并输出log;
+# (crontab -l -u keystone 2>&1 | grep -q token_flush) || \
+echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1' \
+>> /var/spool/cron/keystone
+
+实战部分:
 
 ################################################ NO.2 I定义用户,租户,角色 ####################################################
 
