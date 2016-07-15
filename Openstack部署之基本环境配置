@@ -63,7 +63,7 @@ EOF
 
 # 注意虽然推荐禁用NetworkManager,但是实际情况下宿主的管理网络ip皆nmcli工具
 # 配置,一旦禁用之,网卡配置失效,此处饶过它!
-# cnetos7下提供了好用的服务管理工具 systemctl !
+# centos7下提供了好用的服务管理工具 systemctl !
 
 ################################################ NO.2 NTP服务      ##########################################################
 理论部分:
@@ -98,8 +98,6 @@ EOF
 OpenStack服务支持各种安全方法,包括密码,策略,加密.另外,支持性的服务(包括数据库服务器,消息队列)都支持"密码安全"方法;
 为了简化安装过程,该指导文档仅演示密码安全的应用;你可以通过密码生成工具,e.g:pwgen,手动创建安全密码,命令行如下:
 $ openssl rand -hex 10
-For OpenStack services, this guide uses SERVICE_PASS to reference service account passwords and SERVICE_DBPASS to reference 
-database passwords.
 针对OpenStack服务,本手册使用SERVICE_PASS指代service帐号的密码,而SERVICE_DBPASS指代数据库的密码;
 下面是需要密码的服务一览表:
 PASSWD Name                            Description
@@ -154,26 +152,26 @@ a02a2a42a9af59b74712
 密码分配如下:
 PASSWD Name                            Value
 ----------------------------------------------------------------------------------------
-Database password (no variable used) 	 1428101ae612a0110bb9
-RABBIT_PASS 	                         a02a2a42a9af59b74712
-KEYSTONE_DBPASS 	                     f9b101949a581ac12dfe
-DEMO_PASS 	                           22eb630cad4785bfdc81
-ADMIN_PASS 	                           d65c077ed7332d8aa238
-GLANCE_DBPASS 	                       c088217738b0a8c913f3
-GLANCE_PASS 	                         597a6caadd8ef75a7745
-NOVA_DBPASS 	                         8430e3bff4d000a04085
-NOVA_PASS 	                           0275aa48b1e0a313bced
-DASH_DBPASS 	                         b5c153284fc7885010ac
-CINDER_DBPASS                        	 a078669d817403330c67
+Database password (no variable used)   1428101ae612a0110bb9
+RABBIT_PASS                            a02a2a42a9af59b74712
+KEYSTONE_DBPASS                        f9b101949a581ac12dfe
+DEMO_PASS                              22eb630cad4785bfdc81
+ADMIN_PASS                             d65c077ed7332d8aa238
+GLANCE_DBPASS                          c088217738b0a8c913f3
+GLANCE_PASS                            597a6caadd8ef75a7745
+NOVA_DBPASS                            8430e3bff4d000a04085
+NOVA_PASS                              0275aa48b1e0a313bced
+DASH_DBPASS                            b5c153284fc7885010ac
+CINDER_DBPASS                          a078669d817403330c67
 CINDER_PASS                            b3445b99fa075d43a7aa
-NEUTRON_DBPASS 	                       f79719d688c353d0703c
-NEUTRON_PASS 	                         fd659cbfdc98a28bed5b
-HEAT_DBPASS 	                         25bbc1c058255215930c
-HEAT_PASS 	                           58a0cc5a2fb248027398
-CEILOMETER_DBPASS 	                   c82dcdeb6a0bd79b7254
+NEUTRON_DBPASS                         f79719d688c353d0703c
+NEUTRON_PASS                           fd659cbfdc98a28bed5b
+HEAT_DBPASS                            25bbc1c058255215930c
+HEAT_PASS                              58a0cc5a2fb248027398
+CEILOMETER_DBPASS                      c82dcdeb6a0bd79b7254
 CEILOMETER_PASS                        76e8ea91e09ee96ea847
-TROVE_DBPASS 	                         3416e5df6efd63a83b2d
-TROVE_PASS 	                           623a6cccdd8af75a7645
+TROVE_DBPASS                           3416e5df6efd63a83b2d
+TROVE_PASS                             623a6cccdd8af75a7645
 ----------------------------------------------------------------------------------------
 
 ################################################ NO.4 数据库       ##########################################################
