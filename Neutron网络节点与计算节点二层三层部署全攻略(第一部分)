@@ -61,9 +61,9 @@
 
 
 在br-ex添加设备,作为虚拟路由的外网网关
-[root@network ~]# ovs-vsctl -- --if-exists del-port qgw -- add-port br-ex qgw -- set Interface qgw type=internal -- set Interface \ 
-                  qgw external-ids:iface-id=893431fe-567a-447f-d59e-5fb94aa36a40 -- set Interface qgw external-ids:iface-status=active \
-                  -- set Interface qgw external-ids:attached-mac=fa:16:00:4c:88:16
+[root@network ~]# ovs-vsctl -- --if-exists del-port qgw -- add-port br-ex qgw -- set Interface qgw type=internal -- \
+                  set Interface  qgw external-ids:iface-id=893431fe-567a-447f-d59e-5fb94aa36a40 -- set Interface qgw  \
+                  external-ids:iface-status=active -- set Interface qgw external-ids:attached-mac=fa:16:00:4c:88:16
 [root@network ~]# ip link set qgw netns qrouter-netns
 [root@network ~]# ip netns exec qrouter-netns ip link set qgw up
 [root@network ~]# ip netns exec qrouter-netns ip addr add dev qgw 10.160.0.148/16 broadcast 10.160.255.255
@@ -113,12 +113,30 @@
 [root@network ~]# ip netns exec qrouter-netns ip addr add dev qgw 10.160.0.147/32 broadcast 10.160.0.147
 
 使用iptables进行nat,将虚拟机内网ip与浮动ip进行转换
-[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  PREROUTING  -d 10.160.0.147 -j DNAT --to-destination 172.172.172.3
-[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  OUTPUT  -d 10.160.0.147 -j DNAT --to-destination 172.172.172.3
-[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  POSTROUTING  -s 172.172.172.3 -j SNAT --to-source 10.160.0.147
+[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  PREROUTING  -d 10.160.0.147 -j DNAT --to-destination \
+                  172.172.172.3
+[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  OUTPUT  -d 10.160.0.147 -j DNAT --to-destination \
+                  172.172.172.3
+[root@network ~]# ip netns exec qrouter-netns iptables -t nat -A  POSTROUTING  -s 172.172.172.3 -j SNAT --to-source \
+                  10.160.0.147
 
 注意开启虚拟路由下的路由转发(iptables nat + ip forward 很重要的2项配置)
 [root@network ~]# ip netns exec qrouter-netns sysctl -w net.ipv4.ip_forward=1
+
+使用浮动ip测试ssh连接10.160.0.147:
+[root@network ~]# ssh root@10.160.0.147
+# 测试成功
+
+本篇的目标:
+创建通畅链路以及可用的虚拟路由,至此已经达成;
+
+下一篇的目标:
+调试dhcp命名空间下的dnsmasq服务,允许虚拟机通过dhcp方式自动获取ip;
+
+第三篇的目标:
+操作ovs交换机流表,实现:
+(1)学习型交换机,加快网络访问;
+(2)多租户&租户隔离的功能;
 
 
 附: neutron 网络节点虚拟路由下的iptables规则:
@@ -157,3 +175,5 @@ PREROUTING --> neutron-l3-agent-PREROUTING
 #  iptables -t nat -A  PREROUTING  -d 10.160.0.147/32 -j DNAT --to-destination 172.172.172.3
 
 ###############################################################################################
+
+
