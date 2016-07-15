@@ -209,6 +209,34 @@ character-set-server = utf8
 TODO
 
 ################################################ NO.5 Openstack包  ##########################################################
+理论部分:
+各发行版(Linux系统)发布OpenStack包作为他们的一部分，因为OpenStack与发行版的发布时间是彼此独立的;
+该部分描述了你在安装最新版OpenStack包之后必须进行的配置;
+本例使用RDO的reposity,这些packages工作于RH平台,兼容Centos6,Fedora 20;
+安装 yum-plugin-priorities 插件;此包允许相对优先级的分配所配置的软件库;该特性被RDO的发行版安装包使用;
+# yum install yum-plugin-priorities
+为了能够使用RDO的repository,需要下载安装do-release-icehouse package;
+# yum install http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
+EPEL的包包含GPG keys用于package签名以及repository信息;推荐安装于RH Linux或CentOS下,而不是Fedora;安装最新版的epel
+-release包;例如:
+# yum install http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+OpenStack-Utils包包含使得安装配置更容易的工具程序
+# yum install openstack-utils
+
+特别注意:
+openstack-config程序使用(crudini)对ini配置文件的增删改查操作配置文件;可是,crudini(v0.3)不
+支持多值选项;
+openstack-selinux 程序(包含policy files,用以在 OpenStack安装于 RH或CentOS时,配置SELinux; 该步骤对Fedora不是必
+须的;安装openstack-selinux,命令如下:
+# yum install openstack-selinux
+升级你的系统包:
+# yum upgrade
+如果包含内核升级,重启系统确保内核更新生效:
+# reboot
+
+实践部分:
+TODO
+
 ################################################ NO.6 消息队列服务 ##########################################################
 
 # 参考官方:
