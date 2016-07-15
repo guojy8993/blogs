@@ -45,9 +45,26 @@ Identity服务概念:
 个token就包含该用户所有可扮演的角色. 服务根据该用户所具有的全部角色以决定它有权限进行哪些操作，可以获取使用哪些资源;
 
 最后举例详细说明Identity的工作原理:
-
-
-
+(1) User/API 与 KEYSTONE 的交互:
+    step1: 用户或者API向KEYSTONE发送凭据
+    step2: KEYSTONE向用户或API发送临时token以及服务目录
+    step3: 用户或者API 使用临时token向KEYSTONE请求租户列表
+    step4: KEYSTONE向用户或API发送租户列表
+    step5: 用户或者API 使用指定租户的凭据请求服务列表;
+    step6: KEYSTONE向用户或API发送服务列表以及租户token;
+(2) User/API 与 ENDPOINT 的交互:
+    step1: User/API决定某需求(启动VM)所需要的服务端点,使用token向端点发送请求
+    step2: 端点检验token是否有效,以及该token是否有使用该端点的权限
+(3) Service 与 ENDPOINT 的交互:
+    step1: 如果上述检查顺利，KEYSTONE将在token中添加额外信息,包括:
+           a.该租户被授权访问该资源;
+           b.token与请求相匹配;
+           c.该token属于该租户
+(4) Service 与 Service 的交互:
+    step1: 服务根据策略检查请求
+    step2: 如果策略允许,择执行该请求的事务;
+(5) Service 与 User/API 的交互:
+    step1: 服务向用户汇报执行执行进度,执行结果;
 
 ################################################ NO.1 安装Identity服务 #######################################################
 
