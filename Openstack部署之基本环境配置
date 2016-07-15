@@ -175,6 +175,39 @@ TROVE_PASS                             623a6cccdd8af75a7645
 ----------------------------------------------------------------------------------------
 
 ################################################ NO.4 数据库       ##########################################################
+理论部分:
+在主控节点,安装mysql客户端与服务端程序,以及mysql的python连接库:
+# yum install mysql mysql-server MySQL-python
+如果mysql想要良好服务openstack各种服务,那么它还需要进行一些配置,编辑/etc/my.cnf:
+(1) 在[mysqld]区域,把bind-address的值设置当前主控节点的(管理网络)ip,以允许其他节点通过管理网络连接;
+[mysqld]
+...
+bind-address = 10.0.0.11
+(2) 同样在[mysqld]区域,设置允许InnoDB,utf8默认字符集;
+[mysqld]
+...
+default-storage-engine = innodb
+innodb_file_per_table
+collation-server = utf8_general_ci
+init-connect = 'SET NAMES utf8'
+character-set-server = utf8
+(3) 启动mysql服务端程序,并设置其为开机自启:
+# service mysqld start
+# chkconfig mysqld on
+
+(4)最后,需要为数据库设置root密码;Openstack那些建立数据库与表的服务会提示输入密码;
+特别注意:删除任何数据库建立之初创建的匿名用户;
+# mysql_install_db
+# mysql_secure_installation
+当你尚未设置数据库root密码情况下,如果被提示输入密码，你点击回车键即可;该命令代表一系列的保证数据库安全安装的选项;对所有提示
+回复YES，除非你有好的理由不那样做.
+
+在其余诸节点上仅安装mysql的python连接类库即可:
+# yum install MySQL-python
+
+实践部分:
+TODO
+
 ################################################ NO.5 Openstack包  ##########################################################
 ################################################ NO.6 消息队列服务 ##########################################################
 
