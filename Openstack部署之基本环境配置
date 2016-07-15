@@ -55,20 +55,32 @@ Compute       CentOS7-X86_64   16       16*1024   100     ens160      internal-n
 实践部分:
 [root@localhost ~]# cat > network_setting  << EOF
 #! /bin/bash
-systemctl disable NetworkManager
-systemctl stop NetworkManager
-systemctl start network.service
-systemctl enable network.service
+systemctl enable NetworkManager
+systemctl start NetworkManager
 systemctl stop firewalld
 systemctl disable firewalld
-systemctl enable iptables
-systemctl start iptables
 EOF
 
 # 注意虽然推荐禁用NetworkManager,但是实际情况下宿主的管理网络ip皆nmcli工具
 # 配置,一旦禁用之,网卡配置失效,此处饶过它!
+# cnetos7下提供了好用的服务管理工具 systemctl !
 
 ################################################ NO.2 NTP服务      ##########################################################
+理论部分:
+为了跨机器进行服务同步,你需要安装NTP.在本例中将controller节点作为ntp校时服务器,其他节点参考controller节点对时;
+在各个运行openstack服务的机器上,安装ntp包:
+# yum install ntp
+在主控节点上通过修改 ntp.conf,重启ntp服务,以提供校时服务;
+# service ntpd start
+# chkconfig ntpd on
+建议修改其余节点从主控节点同步时间,而不是从外部网络同步；同上安装ntp服务,修改配置,使用主控节点作为网络时间源;
+
+实践部分:
+
+
+
+
+
 ################################################ NO.3 安全         ##########################################################
 ################################################ NO.4 数据库       ##########################################################
 ################################################ NO.5 Openstack包  ##########################################################
