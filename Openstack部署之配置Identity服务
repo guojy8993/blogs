@@ -1,1 +1,28 @@
 
+ Identity Service concepts
+
+The Identity Service performs the following functions:
+
+User management. Tracks users and their permissions.
+
+Service catalog. Provides a catalog of available services with their API endpoints.
+
+To understand the Identity Service, you must understand the following concepts:
+
+User
+Digital representation of a person, system, or service who uses OpenStack cloud services. The Identity Service validates that incoming requests are made by the user who claims to be making the call. Users have a login and may be assigned tokens to access resources. Users can be directly assigned to a particular tenant and behave as if they are contained in that tenant.
+
+Credentials
+Data that is known only by a user that proves who they are. In the Identity Service, examples are: User name and password, user name and API key, or an authentication token provided by the Identity Service.
+
+Authentication
+The act of confirming the identity of a user. The Identity Service confirms an incoming request by validating a set of credentials supplied by the user.
+
+These credentials are initially a user name and password or a user name and API key. In response to these credentials, the Identity Service issues an authentication token to the user, which the user provides in subsequent requests.
+
+Token
+An arbitrary bit of text that is used to access resources. Each token has a scope which describes which resources are accessible with it. A token may be revoked at any time and is valid for a finite duration.
+
+While the Identity Service supports token-based authentication in this release, the intention is for it to support additional protocols in the future. The intent is for it to be an integration service foremost, and not aspire to be a full-fledged identity store and management solution.
+
+Tenant
