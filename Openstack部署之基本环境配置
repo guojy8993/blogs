@@ -94,6 +94,48 @@ systemctl restart ntpd
 EOF
 
 ################################################ NO.3 安全         ##########################################################
+OpenStack服务支持各种安全方法,包括密码,策略,加密.另外,支持性的服务(包括数据库服务器,消息队列)都支持"密码安全"方法;
+为了简化安装过程,该指导文档仅演示密码安全的应用;你可以通过密码生成工具,e.g:pwgen,手动创建安全密码,命令行如下:
+$ openssl rand -hex 10
+For OpenStack services, this guide uses SERVICE_PASS to reference service account passwords and SERVICE_DBPASS to reference 
+database passwords.
+针对OpenStack服务,本手册使用SERVICE_PASS指代service帐号的密码,而SERVICE_DBPASS指代数据库的密码;
+下面是需要密码的服务一览表:
+PASSWD Name                            Description
+----------------------------------------------------------------------------------------
+Database password (no variable used) 	 Root password for the database
+RABBIT_PASS 	                         Password of user guest of RabbitMQ
+KEYSTONE_DBPASS 	                     Database password of Identity service
+DEMO_PASS 	                           Password of user demo
+ADMIN_PASS 	                           Password of user admin
+GLANCE_DBPASS 	                       Database password for Image Service
+GLANCE_PASS 	                         Password of Image Service user glance
+NOVA_DBPASS 	                         Database password for Compute service
+NOVA_PASS 	                           Password of Compute service user nova
+DASH_DBPASS 	                         Database password for the dashboard
+CINDER_DBPASS                        	 Database password for the Block Storage service
+CINDER_PASS                            Password of Block Storage service user cinder
+NEUTRON_DBPASS 	                       Database password for the Networking service
+NEUTRON_PASS 	                         Password of Networking service user neutron
+HEAT_DBPASS 	                         Database password for the Orchestration service
+HEAT_PASS 	                           Password of Orchestration service user heat
+CEILOMETER_DBPASS 	                   Database password for the Telemetry service
+CEILOMETER_PASS                        Password of Telemetry service user ceilometer
+TROVE_DBPASS 	                         Database password of Database service
+TROVE_PASS 	                           Password of Database Service user trove
+----------------------------------------------------------------------------------------
+
+OpenStack and supporting services require administrative privileges during installation and operation. 
+In some cases, services perform modifications to the host that can interfere with deployment automation 
+tools such as Ansible, Chef, and Puppet. For example, some OpenStack services add a root wrapper to sudo
+that can interfere with security policies. See the Cloud Administrator Guide for more information. Also, the
+Networking service assumes default values for kernel network parameters and modifies firewall rules. To avoid most 
+issues during your initial installation, we recommend using a stock deployment of a supported distribution on your
+hosts. However, if you choose to automate deployment of your hosts, review the configuration and policies applied to 
+them before proceeding further.
+因为 OpenStack 以及支持性的服务在安装、操作过程中或许会需要管理权限;
+
+
 ################################################ NO.4 数据库       ##########################################################
 ################################################ NO.5 Openstack包  ##########################################################
 ################################################ NO.6 消息队列服务 ##########################################################
