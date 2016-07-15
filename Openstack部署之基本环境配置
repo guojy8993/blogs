@@ -238,6 +238,34 @@ openstack-selinux 程序(包含policy files,用以在 OpenStack安装于 RH或Ce
 TODO
 
 ################################################ NO.6 消息队列服务 ##########################################################
+理论部分:
+OpenStack 使用消息队列在诸服务间调度操作与状态信息;消息队列服务通常运行于控制节点;而Openstack对多种消息队列,e.g:rabbitmq,
+qpid,zeromq,提供支持; 可是,大多数的(打包了某Openstack)Linux发行版本只提供对特定消息队列的支持; 本文包含对各消息队列的支持;如
+果你偏爱某消息队列,大可查看相应的文档即可;
+RabbitMQ  # http://www.rabbitmq.com/
+Qpid      # http://qpid.apache.org/
+ZeroMQ    # http://zeromq.org/
+ 
+安装消息队列服务:
+RHEL,CentOS,Scientific Linux,Fedora可安装Qpid
+# yum install qpid-cpp-server
+配置消息队列服务:
+为了简化安装流程,我们建议disable认证,编辑配置文件 /etc/qpidd.conf ,修改如下键值:
+..
+auth=no
+
+注意:
+[ 在生产环境下, 你应该enable认证;如果你想要在生产环境下enable认证,你需要在各个配置使用到消息队列服务的OpenStack服务的
+配置文件中配置qpid_username以及qpid_password ]
+
+结束安装:启动消息队列服务并设置其开机自动启动
+# service qpidd start
+# chkconfig qpidd on
+下面我们正式开始OpenStack各个服务的部署;
+
+实践部分:
+TODO
+
 
 # 参考官方:
 # http://docs.openstack.org/icehouse/install-guide/install/yum/content/basics-prerequisites.html
