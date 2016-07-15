@@ -36,9 +36,38 @@ Compute       CentOS7-X86_64   16       16*1024   100     ens160      internal-n
 # 注意:鉴于工作环境,虚拟宿主外网网络与管理网络均使用data-internal，
 #      而隧道网络使用data-net01标签,后期的存储集群使用 data-net02标签.
 
-
-
 ################################################ NO.1 网络         ##########################################################
+理论部分:
+各个节点安装完操作系统后,需要配置网卡;建议disable任何自启的网络管理工具,根据系统手工配置ip;
+使用如下命令禁用NetworkManager,启用network.service:
+# service NetworkManager stop
+# service network start
+# chkconfig NetworkManager off
+# chkconfig network on
+
+!! 特别注意 !! CentOS以及某些特定版本默认使用严格的防火墙.在安装过程中,某些步骤会因为防火墙问题导致安装失败
+禁用firewalld,使用iptables作为默认防火墙系统:
+# service firewalld stop
+# service iptables start
+# chkconfig firewalld off
+# chkconfig iptables on
+
+实践部分:
+[root@localhost ~]# cat > network_setting  << EOF
+#! /bin/bash
+systemctl disable NetworkManager
+systemctl stop NetworkManager
+systemctl start network.service
+systemctl enable network.service
+systemctl stop firewalld
+systemctl disable firewalld
+systemctl enable iptables
+systemctl start iptables
+EOF
+
+# 注意虽然推荐禁用NetworkManager,但是实际情况下宿主的管理网络ip皆nmcli工具
+# 配置,一旦禁用之,网卡配置失效,此处饶过它!
+
 ################################################ NO.2 NTP服务      ##########################################################
 ################################################ NO.3 安全         ##########################################################
 ################################################ NO.4 数据库       ##########################################################
