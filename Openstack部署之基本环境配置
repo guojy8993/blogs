@@ -133,8 +133,29 @@ Networking service assumes default values for kernel network parameters and modi
 issues during your initial installation, we recommend using a stock deployment of a supported distribution on your
 hosts. However, if you choose to automate deployment of your hosts, review the configuration and policies applied to 
 them before proceeding further.
-因为 OpenStack 以及支持性的服务在安装、操作过程中或许会需要管理权限;
+因为 OpenStack 以及支持性的服务在安装、操作过程中或许会需要管理权限
 
+[root@localhost ~]# for i in {1..19};do openssl rand -hex 10 >> passwords;done
+[root@localhost ~]# cat passwords 
+76e8ea91e09ee96ea847
+3416e5df6efd63a83b2d
+c82dcdeb6a0bd79b7254
+58a0cc5a2fb248027398
+25bbc1c058255215930c
+fd659cbfdc98a28bed5b
+f79719d688c353d0703c
+b3445b99fa075d43a7aa
+a078669d817403330c67
+b5c153284fc7885010ac
+0275aa48b1e0a313bced
+8430e3bff4d000a04085
+597a6caadd8ef75a7745
+c088217738b0a8c913f3
+d65c077ed7332d8aa238
+22eb630cad4785bfdc81
+f9b101949a581ac12dfe
+a02a2a42a9af59b74712
+1428101ae612a0110bb9
 
 ################################################ NO.4 数据库       ##########################################################
 ################################################ NO.5 Openstack包  ##########################################################
