@@ -1,28 +1,57 @@
+### 配置Identity服务 ###
+第0部分:  Identity服务概念
+第1部分:  安装Identity服务
+第2部分:  定义用户,租户,角色
+第3部分:  定义服务与API Endpoint
+第4部分:  Identity服务验收
 
- Identity Service concepts
+################################################ NO.0 Identity服务概念 #######################################################
+Identity服务概念:
+该服务执行如下功能:
+(1) 用户管理.追踪用户及其权限.
+(2) 服务目录.提供可用服务以及对应API Endpoint的目录.
 
-The Identity Service performs the following functions:
+在理解该服务之前,务必弄明白以下概念:
+*用户
+它是任何使用OpenStack云服务的个人,系统,服务的数码呈现; Identity服务验证验证来访请求;用户拥有登陆以及签名过的tokens去获取资
+源. 用户可以直接被分配到一个特定租户下去,好似这些用户本来就是该组户的成员一般。
 
-User management. Tracks users and their permissions.
+*凭据
+仅仅被用户知道以自证身份的数据;在Identity Service中,e.g:用户名/密码,用户名/APIKey或者是被Identity Service认证的Token.
 
-Service catalog. Provides a catalog of available services with their API endpoints.
+*认证
+确认用户身份的举动;Identity Service根据来访发送请求的用户所提供的一组凭据来完成认证.
+这些认证最初是用户名/密码,或用户名/APIKey. 作为对用户提供凭据的回应, Identity Service给用户签发经其认证的token,用户可持之完
+成后续请求;
 
-To understand the Identity Service, you must understand the following concepts:
+*Token(令牌)
+包含任意bit的文本,用以获取资源;每个token包含其范围,该范围描述哪些资源是可以获取的。Token是有有效期的,任意时间都有可能被撤销.
+尽管Identity Service在该版本中支持基于 token的认证, 但是它被期望在未来去支持更多的协议。目的是要整合服务是最重要的，而不是
+仅仅成为一个成熟的身份存储和管理解决方案。
 
-User
-Digital representation of a person, system, or service who uses OpenStack cloud services. The Identity Service validates that incoming requests are made by the user who claims to be making the call. Users have a login and may be assigned tokens to access resources. Users can be directly assigned to a particular tenant and behave as if they are contained in that tenant.
+*Tenant(租户)
+一个用来分组或隔离资源(或/和)身份对象的容器;根据服务操作者，一个租户可以被映射为一个客户,账号,组织或项目.
 
-Credentials
-Data that is known only by a user that proves who they are. In the Identity Service, examples are: User name and password, user name and API key, or an authentication token provided by the Identity Service.
+*Service(服务)
+某项OpenStack服务,例如Compute(Nova),Object Storage(Swift),或Image Service(Glance).它提供至少一个API Endpoint供用户获取资源与
+执行操作.
 
-Authentication
-The act of confirming the identity of a user. The Identity Service confirms an incoming request by validating a set of credentials supplied by the user.
+*Endpoint(端点)
+一个可以通过网络访问的地址,通常是一个URL;该URL向你提供服务;如果使用模板扩展,你也可以创建端点模板，用以展示该区所有可用服务的
+模板;
 
-These credentials are initially a user name and password or a user name and API key. In response to these credentials, the Identity Service issues an authentication token to the user, which the user provides in subsequent requests.
+*Role(角色)
+一个用户扮演可以执行一组特定操作的人物;一个角色包含一组权限。扮演该角色的用户自动继承该角色的所有权限;在 Identity Service, 一
+个token就包含该用户所有可扮演的角色. 服务根据该用户所具有的全部角色以决定它有权限进行哪些操作，可以获取使用哪些资源;
 
-Token
-An arbitrary bit of text that is used to access resources. Each token has a scope which describes which resources are accessible with it. A token may be revoked at any time and is valid for a finite duration.
+最后举例详细说明Identity的工作原理:
 
-While the Identity Service supports token-based authentication in this release, the intention is for it to support additional protocols in the future. The intent is for it to be an integration service foremost, and not aspire to be a full-fledged identity store and management solution.
 
-Tenant
+
+
+################################################ NO.1 安装Identity服务 #######################################################
+
+################################################ NO.2 I定义用户,租户,角色 ####################################################
+
+################################################ NO.3 定义服务与API Endpoint #################################################
+################################################ NO.4 Identity服务验收 #######################################################
