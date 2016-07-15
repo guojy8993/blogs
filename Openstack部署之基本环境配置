@@ -94,6 +94,7 @@ systemctl restart ntpd
 EOF
 
 ################################################ NO.3 安全         ##########################################################
+理论部分:
 OpenStack服务支持各种安全方法,包括密码,策略,加密.另外,支持性的服务(包括数据库服务器,消息队列)都支持"密码安全"方法;
 为了简化安装过程,该指导文档仅演示密码安全的应用;你可以通过密码生成工具,e.g:pwgen,手动创建安全密码,命令行如下:
 $ openssl rand -hex 10
@@ -124,19 +125,12 @@ CEILOMETER_PASS                        Password of Telemetry service user ceilom
 TROVE_DBPASS 	                         Database password of Database service
 TROVE_PASS 	                           Password of Database Service user trove
 ----------------------------------------------------------------------------------------
+因为 OpenStack 以及支持性的服务在安装、操作过程中或许会需要管理权限;
 
-OpenStack and supporting services require administrative privileges during installation and operation. 
-In some cases, services perform modifications to the host that can interfere with deployment automation 
-tools such as Ansible, Chef, and Puppet. For example, some OpenStack services add a root wrapper to sudo
-that can interfere with security policies. See the Cloud Administrator Guide for more information. Also, the
-Networking service assumes default values for kernel network parameters and modifies firewall rules. To avoid most 
-issues during your initial installation, we recommend using a stock deployment of a supported distribution on your
-hosts. However, if you choose to automate deployment of your hosts, review the configuration and policies applied to 
-them before proceeding further.
-因为 OpenStack 以及支持性的服务在安装、操作过程中或许会需要管理权限
-
-[root@localhost ~]# for i in {1..19};do openssl rand -hex 10 >> passwords;done
-[root@localhost ~]# cat passwords 
+实践部分:
+使用openssl生成20个密码,供后续部署服务时使用:
+[root@localhost ~]# for i in {0..19};do openssl rand -hex 10 >> passwords;done
+[root@localhost ~]# cat passwords
 76e8ea91e09ee96ea847
 3416e5df6efd63a83b2d
 c82dcdeb6a0bd79b7254
@@ -156,6 +150,31 @@ d65c077ed7332d8aa238
 f9b101949a581ac12dfe
 a02a2a42a9af59b74712
 1428101ae612a0110bb9
+623a6cccdd8af75a7645
+密码分配如下:
+PASSWD Name                            Value
+----------------------------------------------------------------------------------------
+Database password (no variable used) 	 1428101ae612a0110bb9
+RABBIT_PASS 	                         a02a2a42a9af59b74712
+KEYSTONE_DBPASS 	                     f9b101949a581ac12dfe
+DEMO_PASS 	                           22eb630cad4785bfdc81
+ADMIN_PASS 	                           d65c077ed7332d8aa238
+GLANCE_DBPASS 	                       c088217738b0a8c913f3
+GLANCE_PASS 	                         597a6caadd8ef75a7745
+NOVA_DBPASS 	                         8430e3bff4d000a04085
+NOVA_PASS 	                           0275aa48b1e0a313bced
+DASH_DBPASS 	                         b5c153284fc7885010ac
+CINDER_DBPASS                        	 a078669d817403330c67
+CINDER_PASS                            b3445b99fa075d43a7aa
+NEUTRON_DBPASS 	                       f79719d688c353d0703c
+NEUTRON_PASS 	                         fd659cbfdc98a28bed5b
+HEAT_DBPASS 	                         25bbc1c058255215930c
+HEAT_PASS 	                           58a0cc5a2fb248027398
+CEILOMETER_DBPASS 	                   c82dcdeb6a0bd79b7254
+CEILOMETER_PASS                        76e8ea91e09ee96ea847
+TROVE_DBPASS 	                         3416e5df6efd63a83b2d
+TROVE_PASS 	                           623a6cccdd8af75a7645
+----------------------------------------------------------------------------------------
 
 ################################################ NO.4 数据库       ##########################################################
 ################################################ NO.5 Openstack包  ##########################################################
