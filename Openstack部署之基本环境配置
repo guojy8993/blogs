@@ -102,26 +102,26 @@ $ openssl rand -hex 10
 下面是需要密码的服务一览表:
 PASSWD Name                            Description
 ----------------------------------------------------------------------------------------
-Database password (no variable used) 	 Root password for the database
-RABBIT_PASS 	                         Password of user guest of RabbitMQ
-KEYSTONE_DBPASS 	                     Database password of Identity service
-DEMO_PASS 	                           Password of user demo
-ADMIN_PASS 	                           Password of user admin
-GLANCE_DBPASS 	                       Database password for Image Service
-GLANCE_PASS 	                         Password of Image Service user glance
-NOVA_DBPASS 	                         Database password for Compute service
-NOVA_PASS 	                           Password of Compute service user nova
-DASH_DBPASS 	                         Database password for the dashboard
-CINDER_DBPASS                        	 Database password for the Block Storage service
+Database password (no variable used)   Root password for the database
+RABBIT_PASS                            Password of user guest of RabbitMQ
+KEYSTONE_DBPASS                        Database password of Identity service
+DEMO_PASS                              Password of user demo
+ADMIN_PASS                             Password of user admin
+GLANCE_DBPASS                          Database password for Image Service
+GLANCE_PASS                            Password of Image Service user glance
+NOVA_DBPASS                            Database password for Compute service
+NOVA_PASS                              Password of Compute service user nova
+DASH_DBPASS                            Database password for the dashboard
+CINDER_DBPASS                          Database password for the Block Storage service
 CINDER_PASS                            Password of Block Storage service user cinder
-NEUTRON_DBPASS 	                       Database password for the Networking service
-NEUTRON_PASS 	                         Password of Networking service user neutron
-HEAT_DBPASS 	                         Database password for the Orchestration service
-HEAT_PASS 	                           Password of Orchestration service user heat
-CEILOMETER_DBPASS 	                   Database password for the Telemetry service
+NEUTRON_DBPASS                         Database password for the Networking service
+NEUTRON_PASS                           Password of Networking service user neutron
+HEAT_DBPASS                            Database password for the Orchestration service
+HEAT_PASS                              Password of Orchestration service user heat
+CEILOMETER_DBPASS                      Database password for the Telemetry service
 CEILOMETER_PASS                        Password of Telemetry service user ceilometer
-TROVE_DBPASS 	                         Database password of Database service
-TROVE_PASS 	                           Password of Database Service user trove
+TROVE_DBPASS                           Database password of Database service
+TROVE_PASS                             Password of Database Service user trove
 ----------------------------------------------------------------------------------------
 因为 OpenStack 以及支持性的服务在安装、操作过程中或许会需要管理权限;
 
