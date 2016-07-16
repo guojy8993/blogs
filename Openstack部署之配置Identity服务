@@ -113,70 +113,65 @@ echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-t
 实战部分:
 
 ################################################ NO.2 I定义用户,租户,角色 ####################################################
-Define users, tenants, and roles
-
-After you install the Identity Service, set up users, tenants, and roles to authenticate against. These are used to allow access to services and endpoints, described in the next section.
-
-Typically, you would indicate a user and password to authenticate with the Identity Service. At this point, however, you have not created any users, so you have to use the authorization token created in an earlier step, see the section called “Install the Identity Service” for further details. You can pass this with the --os-token option to the keystone command or set the OS_SERVICE_TOKEN environment variable. Set OS_SERVICE_TOKEN, as well as OS_SERVICE_ENDPOINT to specify where the Identity Service is running. Replace ADMIN_TOKEN with your authorization token.
-
+理论部分:
+在安装 Identity 服务之后,设置用户,租户,角色; 它们用于获取服务&服务的Endpoints;
+通常情况,你会用指定 username/paswd 向Identity 服务获取认证; 而此时,可是,你却未创建任何用户,因此,你不得不使用之前"安装 Indetit
+-y" 时创建的经过认证的token ; 你可以使用 --os-token 选项,或设置 OS_SERVICE_TOKEN 环境变量,以传递给keystone命令.除了 OS_SERVICE
+_TOKEN外,你还需要设置 OS_SERVICE_ENDPOINT以指定 Identity 服务运行于何处. 替换 ADMIN_TOKEN 为你自己的认证 token;
 $ export OS_SERVICE_TOKEN=ADMIN_TOKEN
 $ export OS_SERVICE_ENDPOINT=http://controller:35357/v2.0
- 
-Create an administrative user
+* 注意把当前主控节点机器名字改为 controller,同时,修改 hosts 文件中本机的管理ip与机器名;
 
-Follow these steps to create an administrative user, role, and tenant. You will use this account for administrative interaction with the OpenStack cloud.
+创建管理用户
+按如下步骤创建管理用户,角色,租户. 你后续将使用该挂历账户与openstack cloud 进行交互;
+默认情况下,Identity服务服务创建一个 _member_ 角色; OpenStack dashboard 自动给该具有角色的用户以访问权限(_member_ 角色用户才能
+访问 Dashboard平台); 所以 admin 用户除了admin角色之外还需要 _member_ 角色.
 
-By default, the Identity Service creates a special _member_ role. The OpenStack dashboard automatically grants access to users with this role. You will give the admin user access to this role in addition to the admin role.
+*笔记*
+你创建的任何角色都必须映射到 policy.json 文件中指定的角色上; 而默认的 policy 文件, 都赋予admin角色以管理权限;
 
-[Note]	Note
-Any role that you create must map to roles specified in the policy.json file included with each OpenStack service. The default policy file for most services grants administrative access to the admin role.
-
-Create the admin user:
-
+创建admin用户:
 $ keystone user-create --name=admin --pass=ADMIN_PASS --email=ADMIN_EMAIL
-Replace ADMIN_PASS with a secure password and replace ADMIN_EMAIL with an email address to associate with the account.
+* 替换 ADMIN_PASS 为一个安全的密码,同时替换ADMIN_EMAIL为与account关联的email;
 
-Create the admin role:
-
+创建admin角色:
 $ keystone role-create --name=admin
-Create the admin tenant:
-
+创建admin租户:
 $ keystone tenant-create --name=admin --description="Admin Tenant"
-You must now link the admin user, admin role, and admin tenant together using the user-role-add option:
 
+现在你必须使用user-role-add 将 admin user,admin role,admin tenant联系在一起了;
 $ keystone user-role-add --user=admin --tenant=admin --role=admin
-Link the admin user, _member_ role, and admin tenant:
 
+将 admin user, _member_ role, and admin tenant 使用 user-role-add联系起来;
 $ keystone user-role-add --user=admin --role=_member_ --tenant=admin
  
-Create a normal user
-
-Follow these steps to create a normal user and tenant, and link them to the special _member_ role. You will use this account for daily non-administrative interaction with the OpenStack cloud. You can also repeat this procedure to create additional cloud users with different usernames and passwords. Skip the tenant creation step when creating these users.
-
-Create the demo user:
-
+创建普通用户
+遵循如下步骤创建一个普通用户,租户并将他们与 _member_ 角色联系在一起; 该账号将用于与OpenStack Cloud 的非管理交互; 
+创建 demo 用户:
 $ keystone user-create --name=demo --pass=DEMO_PASS --email=DEMO_EMAIL
 Replace DEMO_PASS with a secure password and replace DEMO_EMAIL with an email address to associate with the account.
+* 替换 DEMO_PASS 为一个安全的密码,同时替换 DEMO_EMAIL 为与account关联的email;
 
-Create the demo tenant:
-
+创建 demo 租户:
 $ keystone tenant-create --name=demo --description="Demo Tenant"
-[Note]	Note
-Do not repeat this step when adding additional users.
+*笔记*
+创建其他用户的时候不要重复该步骤.
 
-Link the demo user, _member_ role, and demo tenant:
-
+通过 user-role-add 将 demo user,_member  role,demo tenant 联系起来
 $ keystone user-role-add --user=demo --role=_member_ --tenant=demo
  
-Create a service tenant
+创建 serice tenant:
+OpenStack诸位服务也需要username,tenant,和role去获取其他OpenStack服务. 在基本安装中, OpenStack services 通常分享单独的
+一个叫做 service 的用户;
 
-OpenStack services also require a username, tenant, and role to access other OpenStack services. In a basic installation, OpenStack services typically share a single tenant named service.
-
-You will create additional usernames and roles under this tenant as you install and configure each service.
-
-Create the service tenant:
-
+当你在安装配置各个服务时,你需要创建额外的 usernames/roles/tenants;
+创建 service 租户:
 $ keystone tenant-create --name=service --description="Service Tenant"
+
+
+
+实践部分:
+TODO
 
 
 ################################################ NO.3 定义服务与API Endpoint #################################################
