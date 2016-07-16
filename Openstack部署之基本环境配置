@@ -206,7 +206,30 @@ character-set-server = utf8
 # yum install MySQL-python
 
 实践部分:
-TODO
+[root@localhost ~]# yum install MySQL-python mariadb* -y
+# 修改配置 /etc/my.cnf: 在 [mysqld] 下添加:
+# bind-address=10.160.0.116
+# default-storage-engine=innodb
+# innodb_file_per_table
+# collation-server=utf8_general_ci
+# init-connect='SET NAMES utf8'
+# character-set-server=utf8
+# ...
+[root@localhost ~]# systemctl start mariadb.service
+[root@localhost ~]# systemctl enable  mariadb.service
+ln -s '/usr/lib/systemd/system/mariadb.service' '/etc/systemd/system/multi-user.target.wants/mariadb.service'
+[root@localhost ~]# systemctl status  mariadb.service
+[root@localhost ~]# mysql
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MariaDB connection id is 3
+Server version: 5.5.47-MariaDB MariaDB Server
+Copyright (c) 2000, 2015, Oracle, MariaDB Corporation Ab and others.
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+MariaDB [(none)]> 
+MariaDB [(none)]> grant all privileges on *.* to root@'localhost' identified by '1428101ae612a0110bb9' with grant option; 
+MariaDB [(none)]> grant all privileges on *.* to root@'%' identified by '1428101ae612a0110bb9' with grant option; 
+MariaDB [(none)]> grant all privileges on *.* to root@'127.0.0.1' identified by '1428101ae612a0110bb9' with grant option;
+MariaDB [(none)]> flush privileges;
 
 ################################################ NO.5 Openstack包  ##########################################################
 理论部分:
