@@ -175,20 +175,17 @@ TODO
 
 
 ################################################ NO.3 定义服务与API Endpoint #################################################
-Define services and API endpoints
+理论部分:
+So that the Identity Service can track which OpenStack services are installed and where they are located on the network, 
+you must register each service in your OpenStack installation. To register a service, run these commands:
+既然 Identity 服务可以跟踪哪些 openstack服务安装了,以及他们在网络上的位置(endpoint),你必须在你安装各个服务时将其注册 ; 如要注
+册一个服务,你需要运行如下命令:
+keystone service-create ...     # Describes the service
+keystone endpoint-create ...    # Associates API endpoints with the service.
 
-So that the Identity Service can track which OpenStack services are installed and where they are located on the network, you must register each service in your OpenStack installation. To register a service, run these commands:
-
-keystone service-create. Describes the service.
-
-keystone endpoint-create. Associates API endpoints with the service.
-
-You must also register the Identity Service itself. Use the OS_SERVICE_TOKEN environment variable, as set previously, for authentication.
-
-Create a service entry for the Identity Service:
-
-$ keystone service-create --name=keystone --type=identity \
-  --description="OpenStack Identity"
+即使 Identity 服务本身也必须进行注册;使用 OS_SERVICE_TOKEN 环境变量去认证;
+为Identity 服务创建一个服务条目:
+$ keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
 +-------------+----------------------------------+
 |   Property  |              Value               |
 +-------------+----------------------------------+
@@ -197,9 +194,11 @@ $ keystone service-create --name=keystone --type=identity \
 | name        | keystone                         |
 | type        | identity                         |
 +-------------+----------------------------------+
-The service ID is randomly generated and is different from the one shown here.
 
-Specify an API endpoint for the Identity Service by using the returned service ID. When you specify an endpoint, you provide URLs for the public API, internal API, and admin API. In this guide, the controller host name is used. Note that the Identity Service uses a different port for the admin API.
+服务的id是随机生成的；不是此处显示的固定值;
+Specify an API endpoint for the Identity Service by using the returned service ID. When you specify an endpoint, 
+you provide URLs for the public API, internal API, and admin API. In this guide, the controller host name is used. Note
+that the Identity Service uses a different port for the admin API.
 
 $ keystone endpoint-create \
   --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
@@ -220,7 +219,8 @@ $ keystone endpoint-create \
 ################################################ NO.4 Identity服务验收 #######################################################
 Verify the Identity Service installation
 
-To verify that the Identity Service is installed and configured correctly, clear the values in the OS_SERVICE_TOKEN and OS_SERVICE_ENDPOINT environment variables:
+To verify that the Identity Service is installed and configured correctly, clear the values in the OS_SERVICE_TOKEN and 
+OS_SERVICE_ENDPOINT environment variables:
 
 $ unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
 These variables, which were used to bootstrap the administrative user and register the Identity Service, are no longer needed.
@@ -231,16 +231,19 @@ Request a authentication token by using the admin user and the password you chos
 
 $ keystone --os-username=admin --os-password=ADMIN_PASS \
   --os-auth-url=http://controller:35357/v2.0 token-get
-In response, you receive a token paired with your user ID. This verifies that the Identity Service is running on the expected endpoint and that your user account is established with the expected credentials.
+In response, you receive a token paired with your user ID. This verifies that the Identity Service is running on the 
+expected endpoint and that your user account is established with the expected credentials.
 
 Verify that authorization behaves as expected. To do so, request authorization on a tenant:
 
 $ keystone --os-username=admin --os-password=ADMIN_PASS \
   --os-tenant-name=admin --os-auth-url=http://controller:35357/v2.0 \
   token-get
-In response, you receive a token that includes the ID of the tenant that you specified. This verifies that your user account has an explicitly defined role on the specified tenant and the tenant exists as expected.
+In response, you receive a token that includes the ID of the tenant that you specified. This verifies that your user 
+account has an explicitly defined role on the specified tenant and the tenant exists as expected.
 
-You can also set your --os-* variables in your environment to simplify command-line usage. Set up a admin-openrc.sh file with the admin credentials and admin endpoint:
+You can also set your --os-* variables in your environment to simplify command-line usage. Set up a admin-openrc.sh file
+with the admin credentials and admin endpoint:
 
 Select Text
 1
@@ -257,7 +260,8 @@ $ source admin-openrc.sh
 Verify that your admin-openrc.sh file is configured correctly. Run the same command without the --os-* arguments:
 
 $ keystone token-get
-The command returns a token and the ID of the specified tenant. This verifies that you have configured your environment variables correctly.
+The command returns a token and the ID of the specified tenant. This verifies that you have configured your environment 
+variables correctly.
 
 Verify that your admin account has authorization to perform administrative commands:
 
@@ -275,7 +279,11 @@ $ keystone user-role-list --user admin --tenant admin
 | 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | afea5bde3be9413dbd60e479fddf9228 | e519b772cb43474582fa303da62559e5 |
 | 5d3b60b66f1f438b80eaae41a77b5951 |  admin   | afea5bde3be9413dbd60e479fddf9228 | e519b772cb43474582fa303da62559e5 |
 +----------------------------------+----------+----------------------------------+----------------------------------+
-Seeing that the id in the output from the keystone user-list command matches the user_id in the keystone user-role-list command, and that the admin role is listed for that user, for the related tenant, this verifies that your user account has the admin role, which matches the role used in the Identity Service policy.json file.
+Seeing that the id in the output from the keystone user-list command matches the user_id in the keystone user-role-list 
+command, and that the admin role is listed for that user, for the related tenant, this verifies that your user account has 
+the admin role, which matches the role used in the Identity Service policy.json file.
 
 [Note]	Note
-As long as you define your credentials and the Identity Service endpoint through the command line or environment variables, you can run all OpenStack client commands from any machine. For details, see Chapter 4, Install and configure the OpenStack clients.
+As long as you define your credentials and the Identity Service endpoint through the command line or environment variables, 
+you can run all OpenStack client commands from any machine. For details, see Chapter 4, Install and configure the OpenStack 
+clients.
