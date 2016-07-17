@@ -112,6 +112,11 @@ echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-t
 
 实战部分:
 
+
+
+
+
+
 ################################################ NO.2 I定义用户,租户,角色 ####################################################
 理论部分:
 在安装 Identity 服务之后,设置用户,租户,角色; 它们用于获取服务&服务的Endpoints;
@@ -195,10 +200,10 @@ $ keystone service-create --name=keystone --type=identity --description="OpenSta
 | type        | identity                         |
 +-------------+----------------------------------+
 
-服务的id是随机生成的；不是此处显示的固定值;
-Specify an API endpoint for the Identity Service by using the returned service ID. When you specify an endpoint, 
-you provide URLs for the public API, internal API, and admin API. In this guide, the controller host name is used. Note
-that the Identity Service uses a different port for the admin API.
+# 注意:服务的id是随机生成的；不是此处显示的固定值;
+通过获取到的返回的 service ID来为Identity服务指定某个API的端点; 当你指定一个端点的时候,你要问为公共API,internal API以及
+admin API提供URLs; 在本篇中,主控节点的名字被使用了; 
+# 注意: Identity服务指定的 admin API 会使用一个不同的端口;
 
 $ keystone endpoint-create \
   --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
@@ -215,6 +220,18 @@ $ keystone endpoint-create \
 | region      | regionOne                         |
 | service_id  | 15c11a23667e427e91bc31335b45f4bd  |
 +-------------+-----------------------------------+
+
+
+实践部分:
+(1)既然注册服务使用到 hostname 代替ip，那么,我们需要修改本地hosts文件，使得hostname解析为对应管理IP
+[root@controller ~]# echo "10.160.0.116   controller" >> /etc/hosts
+[root@controller ~]# echo "10.160.0.117   compute" >> /etc/hosts
+[root@controller ~]# echo "10.160.0.149   network" >> /etc/hosts
+并分发到各个节点上:
+[root@controller ~]# scp /etc/hosts root@network:/etc/hosts
+[root@controller ~]# scp /etc/hosts root@compute:/etc/hosts
+(2)
+
 
 ################################################ NO.4 Identity服务验收 #######################################################
 Verify the Identity Service installation
