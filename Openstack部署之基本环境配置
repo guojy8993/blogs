@@ -296,10 +296,8 @@ Step1: 设置yum,下载安装软件后保留rpm包(方便以后非在线使用)
 [root@localhost ~]# sed -ri "s/(cachedir=).*/\1\/var\/cache\/yum/" /etc/yum.conf
 [root@localhost ~]# sed -ri "s/(keepcache=).*/\1 1/" /etc/yum.conf
 [root@localhost ~]# yum install -y yum-plugin-priorities.noarch
-# 下载epel-release-6-8.noarch.rpm, rdo-release-icehouse-3.noarch.rpm 到本地然后上传到各个
-# 节点进行安装(rdo现在不提供icehouse，使用 rdo-release-mitaka-5.noarch.rpm 代替)
-[root@localhost ~]# rpm -ivh rdo-release-mitaka-5.noarch.rpm
-[root@localhost ~]# rpm -ivh epel-release-6-8.noarch.rpm
+[root@localhost ~]# yum install -y centos-release-openstack-mitaka.noarch
+[root@localhost ~]# yum update -y
 [root@localhost ~]# yum install -y openstack-utils.noarch
 [root@localhost ~]# yum install openstack-selinux
 
