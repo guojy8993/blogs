@@ -329,7 +329,35 @@ $ keystone endpoint-create \
 并分发到各个节点上:
 [root@controller ~]# scp /etc/hosts root@network:/etc/hosts
 [root@controller ~]# scp /etc/hosts root@compute:/etc/hosts
-(2)
+(2) 注册服务以及endpoint
+[root@controller ~]# keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |        OpenStack Identity        |
+|   enabled   |               True               |
+|      id     | 7b23d45116f4412ca3f00bc2cf5e2f48 |
+|     name    |             keystone             |
+|     type    |             identity             |
++-------------+----------------------------------+
+
+[root@controller ~]# keystone endpoint-create --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
+                                    --publicurl=http://controller:5000/v2.0 --internalurl=http://controller:5000/v2.0 \
+                                    --adminurl=http://controller:35357/v2.0
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+|   adminurl  |   http://controller:35357/v2.0   |
+|      id     | 679659ef61364f109b3755388a819910 |
+| internalurl |   http://controller:5000/v2.0    |
+|  publicurl  |   http://controller:5000/v2.0    |
+|    region   |            regionOne             |
+|  service_id | 7b23d45116f4412ca3f00bc2cf5e2f48 |
++-------------+----------------------------------+
+# 此时知道 Identity 服务尚有对tcp:5000端口的监听,特此添加防火墙例外;
+[root@controller ~]# netstat -ano | grep ":5000"
+tcp        0      0 0.0.0.0:5000            0.0.0.0:*               LISTEN      off (0.00/0/0)
+[root@controller ~]# iptables -I INPUT -p tcp --dport 5000 -j ACCEPT
 
 
 ################################################ NO.4 Identity服务验收 #######################################################
