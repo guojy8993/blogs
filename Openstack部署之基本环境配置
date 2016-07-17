@@ -304,7 +304,7 @@ Step1: 设置yum,下载安装软件后保留rpm包(方便以后非在线使用)
 [root@localhost ~]# yum install openstack-selinux
 
 # 如下两步，可选操作:
-# [root@localhost ~]# yum yum upgrade
+# [root@localhost ~]# yum upgrade
 # [root@localhost ~]# reboot
 
 ################################################ NO.6 消息队列服务 ##########################################################
@@ -334,7 +334,7 @@ auth=no
 下面我们正式开始OpenStack各个服务的部署;
 
 实践部分:
-TODO
+[root@controller ~]# yum install -y rabbitmq-server.noarch
 
 
 # 参考官方:
