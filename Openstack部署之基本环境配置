@@ -297,6 +297,7 @@ Step1: 设置yum,下载安装软件后保留rpm包(方便以后非在线使用)
 [root@localhost ~]# sed -ri "s/(keepcache=).*/\1 1/" /etc/yum.conf
 [root@localhost ~]# yum install -y yum-plugin-priorities.noarch
 [root@localhost ~]# yum install -y centos-release-openstack-mitaka.noarch
+# https://www.rdoproject.org/install/quickstart/    Centos7使用rdo的源
 [root@localhost ~]# yum update -y
 [root@localhost ~]# yum install -y openstack-utils.noarch
 [root@localhost ~]# yum install openstack-selinux
