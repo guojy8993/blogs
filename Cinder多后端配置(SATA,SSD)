@@ -1,1 +1,288 @@
+Cinder多后端之高性能pool与普通pool并存
 
+假设ceph高性能pool为ssd,普通pool为volumes。
+
+1.使用ssd pool与volumes pool之前需要首先完成ceph认证，获取client.cinder等操作。 参考:http://ceph.com/docs/master/rbd/rbd-openstack/
+
+2.配置多后端:运行cinder-volume服务的节点的 /etc/cinder/cinder.conf文件，作如下配置:
+
+enabled_backends=ssd,sata
+
+[ssd]
+volume_driver=cinder.volume.drivers.rbd.RBDDriver
+rbd_pool=ssd
+rbd_user=cinder
+rbd_ceph_conf=/etc/ceph/ceph.conf
+rbd_flatten_volume_from_snapshot=false
+rbd_secret_uuid=3f73fdf3-5e06-4145-bf73-aa8b0aafed45
+rbd_max_clone_depth=5
+rbd_store_chunk_size = 4 
+rados_connect_timeout=-1
+glance_api_version = 2
+volume_backend_name=ssd
+
+[sata]
+volume_driver=cinder.volume.drivers.rbd.RBDDriver
+rbd_pool=volumes
+rbd_user=cinder
+rbd_ceph_conf=/etc/ceph/ceph.conf
+rbd_flatten_volume_from_snapshot=false
+rbd_secret_uuid=3f73fdf3-5e06-4145-bf73-aa8b0aafed45
+rbd_max_clone_depth=5
+rbd_store_chunk_size = 4 
+rados_connect_timeout=-1
+glance_api_version = 2
+volume_backend_name=sata
+
+经验之谈
+
+出现在backends group中的选项如volume_driver,rbd_pool等在别处要注释掉。然后重启openstack-cinder-* 操作。
+
+for i in `systemctl -l|grep cinder|awk '{print $1}'`;do systemctl restart $i;done
+
+如果配置不正确那么会出现以下错误信息:
+
+VolumeBackendAPIException: Bad or unexpected response from the storage volume...
+
+那么需要修改配置重新调试.
+原云硬盘的处理
+
+另外要说的是，配置完多后端的话，原已存数据卷的使用要出问题，关于这个问题的解决参考下。 链接:http://www.tuicool.com/articles/jaQZFv 具体使用细节在研究中，此处留白欢迎补充。
+
+此处结合咱公司实际情况来说
+
+现有的客户机的磁盘 在单pool下都是创建在ceph的volumes pool(提供普通性能硬盘)中的,而 在采用多pool的方案之后，之前创建的卷在归属后端上将会引起歧义，导致执行删除操作的时候一 直在deleting，这是配置多后端引起问题的原因所在;而实际上我们知道客户的卷落在volumes池， 应该归sata后端管理的，所以在上述链接中提到需要修改cinder数据表中volumes的host记录，将之 前创建出的卷的 host更新例如 controller -> controller@sata,表明之前的卷现在归sata后端管 理，将解决上述问题.
+
+此处重点说明:
+
+修改数据库谨慎再谨慎!
+
+修改配置文件,要重启cinder服务，这也是需要慎重操作!
+测试
+
+步骤如下:
+
+[root@controller ~(keystone_admin)]# cinder type-create ssd
++--------------------------------------+----------+
+|                  ID                  |   Name   |
++--------------------------------------+----------+
+| a62fca90-6031-4f7d-a810-e869eb46c75d |   ssd    |
++--------------------------------------+----------+
+[root@controller ~(keystone_admin)]# cinder type-key ssd  set volume_backend_name=ssd
+[root@controller ~(keystone_admin)]# cinder type-create iolimit
++--------------------------------------+-----------+
+|                  ID                  |    Name   |
++--------------------------------------+-----------+
+| bb6cb627-57d1-44ab-83a4-73cab9e4b7be |  iolimit  |
++--------------------------------------+-----------+
+
+之前已经存在 iolimit 的卷类型，已经不需要额外创建，只需要执行:
+
+cinder type-key iolimit  set volume_backend_name=sata
+[root@controller ~(keystone_admin)]# cinder extra-specs-list
++--------------------------------------+-----------+-----------------------------------+
+|                  ID                  |    Name   |            extra_specs            |
++--------------------------------------+-----------+-----------------------------------+
+| 038bcfff-3b0b-4880-89e3-5559b607d0ec |   type01  |                 {}                |
+| 74558b33-b7fb-4435-90a7-ada049e9fa86 |  frontio  |                 {}                |
+| a62fca90-6031-4f7d-a810-e869eb46c75d |    ssd    |  {u'volume_backend_name': u'ssd'} |
+| bb6cb627-57d1-44ab-83a4-73cab9e4b7be |  iolimit  | {u'volume_backend_name': u'sata'} |
+| fa6028f6-1582-4d5a-bff9-80fa80b92093 |  backio   |                 {}                |
++--------------------------------------+-----------+-----------------------------------+
+
+创建硬盘
+
+创建两磁盘，分别指定类型为 ssd,iolimit,记录各自uuid
+
+[root@controller cinder(keystone_admin)]# cinder create --display-name \
+SSD_1G --volume-type a62fca90-6031-4f7d-a810-e869eb46c75d 1
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|     attachments     |                  []                  |
+|  availability_zone  |                 nova                 |
+|       bootable      |                false                 |
+|      created_at     |      2015-07-11T05:42:58.848642      |
+| display_description |                 None                 |
+|     display_name    |                SSD_1G                |
+|      encrypted      |                False                 |
+|          id         | 53f0f77e-1803-42ae-ab2e-22c03c0e6f45 |
+|       metadata      |                  {}                  |
+|         size        |                  1                   |
+|     snapshot_id     |                 None                 |
+|     source_volid    |                 None                 |
+|        status       |               creating               |
+|     volume_type     |               ssd                    |
++---------------------+--------------------------------------+
+[root@controller cinder(keystone_admin)]# cinder create --display-name \
+SATA_1G --volume-type bb6cb627-57d1-44ab-83a4-73cab9e4b7be 1
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|     attachments     |                  []                  |
+|  availability_zone  |                 nova                 |
+|       bootable      |                false                 |
+|      created_at     |      2015-07-11T05:41:11.221055      |
+| display_description |                 None                 |
+|     display_name    |               SATA_1G                |
+|      encrypted      |                False                 |
+|          id         | 6a93bb46-49e1-4ca7-a3a6-3c5f7ea19df3 |
+|       metadata      |                  {}                  |
+|         size        |                  1                   |
+|     snapshot_id     |                 None                 |
+|     source_volid    |                 None                 |
+|        status       |               creating               |
+|     volume_type     |              iolimit                 |
++---------------------+--------------------------------------+
+
+验证磁盘位置
+
+在ceph集群中使用 rbd ls --pool={rbd_pool} 查看对应不同后端的磁盘是否已经生成.
+
+[root@controller cinder(keystone_admin)]# ssh ceph-115
+Last login: Fri Jul 10 05:10:03 2015 from controller
+[root@ceph-115 ~]# 
+[root@ceph-115 ~]# rbd ls --pool volumes
+volume-6a93bb46-49e1-4ca7-a3a6-3c5f7ea19df3
+[root@ceph-115 ~]# rbd ls --pool ssd
+volume-53f0f77e-1803-42ae-ab2e-22c03c0e6f45
+
+添加多后端涉及到的配置
+
+    新加的ssd池的ceph auth配置
+
+ceph auth get-or-create client.cinder mon 'allow r' osd 'allow \
+class-read object_prefix rbd_children, allow rwx pool=ssd'
+
+    按上述配置修改cinder.conf
+    重启openstack-cinder-*服务
+    添加 ssd,与sata后端对应的 cinder type (iolimit对应sata后端，不需要为sata再创建卷类型)
+    将上述 ssd,sata后端绑定对应 cinder type
+    更新数据库 cinder库volumes表的 host,在之前的host上添加后端信息: 即{host}-->{host}@{backend} ,而我们这里backend对应sata后端名.
+    之前出于qos考虑创建的iolimit这个卷类型是没明确配置后端的；在单后端时是没有歧义的，为避免多后端配置下不指定后端会引起随机选择后端的问题，此处需要额外给原来的 iolimit 指定后端 sata(默认都是低性能磁盘);
+
+之前已经存在 iolimit 的卷类型，已经不需要额外创建，只需要执行:
+
+cinder type-key iolimit  set volume_backend_name=sata
+
+将iolimit 正式配置sata后端
+生产环境配置多后端
+
+生产环境添加 cinder多后端支持过程
+备份需要改动的配置文件
+
+cp /etc/cinder/cinder.conf /etc/cinder/cinder.conf.2015-8-13
+
+修改配置文件
+
+enabled_backends=ssd,sata
+[ssd]
+volume_driver=cinder.volume.drivers.rbd.RBDDriver
+rbd_pool=volumes-ssd
+rbd_user=cinder
+rbd_ceph_conf=/etc/ceph/ceph.conf
+rbd_flatten_volume_from_snapshot=false
+rbd_secret_uuid=e4ccc744-b960-4fd1-8c9e-42c24541b276
+rbd_max_clone_depth=5
+rbd_store_chunk_size = 4 
+rados_connect_timeout=-1
+glance_api_version = 2
+volume_backend_name=ssd
+[sata]
+volume_driver=cinder.volume.drivers.rbd.RBDDriver
+rbd_pool=volumes
+rbd_user=cinder
+rbd_ceph_conf=/etc/ceph/ceph.conf
+rbd_flatten_volume_from_snapshot=false
+rbd_secret_uuid=e4ccc744-b960-4fd1-8c9e-42c24541b276
+rbd_max_clone_depth=5
+rbd_store_chunk_size = 4 
+rados_connect_timeout=-1
+glance_api_version = 2
+volume_backend_name=sata
+==重启服务==
+<console>
+for i in `systemctl -l|grep cinder|awk '{print $1}'` ;do systemctl restart $i;done;
+
+创建相应的disk-type
+
+cinder type-create ssd
+[root@cs211-03 ~(keystone_admin)]# cinder type-create ssd
++--------------------------------------+------+
+|                  ID                  | Name |
++--------------------------------------+------+
+| 5cafd521-9d3e-4908-92d3-b59d2159fbbf | ssd  |
++--------------------------------------+------+
+<console>
+==给type设置要使用的backend==
+<console>
+//设置新的type的backend名称
+cinder type-key ssd set volume_backend_name=ssd
+//设置原有type的backend名称
+cinder type-key iolimited set volume_backend_name=sata
+//检查设置是否正确
+cinder extra-specs-list
+[root@cs213-21 ~(keystone_admin)]# cinder extra-specs-list
++--------------------------------------+----------+---------------------------------------+
+|                  ID                  |   Name   |              extra_specs              |
++--------------------------------------+----------+---------------------------------------+
+| 4217d2fa-5faf-48f8-a15f-e1ad95a5daf8 |   ssd    | {u'volume_backend_name': u'ssd'}      |
+| 9d68b6d7-159a-4f5d-b58d-f60ef61246e0 |   sata   | {u'volume_backend_name': u'iolimited'}|
++--------------------------------------+----------+---------------------------------------+
+
+测试创建相应type的volume，查看是否成功
+
+//创建
+cinder create --display-name ssd001 --volume-type ssd  10 
+cinder create --display-name sata001 --volume-type iolimited  10
+//验证
+rbd ls --pool volumes-ssd 
+rbd ls --pool volumes	
+//删除
+cinder delete ssd001
+cinder delete sata001
+
+业务测试
+修改数据库相应字段
+
+update volumes set host='cs211-03@sata',display_description='20150813' \
+where deleted=0 and id='21a3bcc4-3300-4349-89d2-6d8244ad4698';
+update volumes set host='cs211-03@sata',display_description='20150813' \
+where deleted=0 and id='48c31ac3-f41a-4bc7-990e-cd10aea87e3f';
+
+业务测试
+
+    进入会员中心进行测试（测试本次修改可能影响到的操作）。本次影响到删除和重装，在会员中心进行系统重装测试。进入管理后台进行删除测试。
+    如果没有通过测试，则需要对数据进行还原
+
+还原数据库
+
+update volumes set host='cs211-03' \
+where deleted=0 and id='21a3bcc4-3300-4349-89d2-6d8244ad4698';
+update volumes set host='cs211-03' \
+where deleted=0 and id='48c31ac3-f41a-4bc7-990e-cd10aea87e3f';
+
+还原原有type
+
+cinder type-key iolimit unset volume_backend_name
+
+还原cinder配置文件
+
+cp /etc/cinder/cinder.conf.2015-8-13 /etc/ceph/ceph.conf
+
+重启服务
+
+for i in `systemctl -l|grep cinder|awk '{print $1}'` ;do systemctl restart $i;done;
+
+如果测试通过，则对现有老业务的数据进行更新
+
+update volumes set host='cs211-03@sata',display_description='20150813' \
+where deleted=0 and host='cs211-03';
+
+注意事项
+
+    在修改开始之前，先将整个修改流程全部列出来，不仅要列出思路，还要列出相应的命令
+    列出命令后，要认真检查，最好经过3个人的分别检查
+    在组织操作命令的时候，需要合理安排命令顺序，使影响系统正常运行的时间缩到最短
+    系统调整后，如果需要对现有数据进行大量调整，最好先找一个数据或一套数据进行修改测试，如果可以再进行大面积修改
+    如果发生不测，尽快恢复
