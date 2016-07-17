@@ -2,7 +2,8 @@ Cinder多后端之高性能pool与普通pool并存
 
 假设ceph高性能pool为ssd,普通pool为volumes。
 
-1.使用ssd pool与volumes pool之前需要首先完成ceph认证，获取client.cinder等操作。 参考:http://ceph.com/docs/master/rbd/rbd-openstack/
+1.使用ssd pool与volumes pool之前需要首先完成ceph认证，获取client.cinder等操作。 
+参考:http://ceph.com/docs/master/rbd/rbd-openstack/
 
 2.配置多后端:运行cinder-volume服务的节点的 /etc/cinder/cinder.conf文件，作如下配置:
 
@@ -47,11 +48,15 @@ VolumeBackendAPIException: Bad or unexpected response from the storage volume...
 那么需要修改配置重新调试.
 原云硬盘的处理
 
-另外要说的是，配置完多后端的话，原已存数据卷的使用要出问题，关于这个问题的解决参考下。 链接:http://www.tuicool.com/articles/jaQZFv 具体使用细节在研究中，此处留白欢迎补充。
+另外要说的是，配置完多后端的话，原已存数据卷的使用要出问题，关于这个问题的解决参考下。
+链接:http://www.tuicool.com/articles/jaQZFv 具体使用细节在研究中，此处留白欢迎补充。
 
 此处结合咱公司实际情况来说
 
-现有的客户机的磁盘 在单pool下都是创建在ceph的volumes pool(提供普通性能硬盘)中的,而 在采用多pool的方案之后，之前创建的卷在归属后端上将会引起歧义，导致执行删除操作的时候一 直在deleting，这是配置多后端引起问题的原因所在;而实际上我们知道客户的卷落在volumes池， 应该归sata后端管理的，所以在上述链接中提到需要修改cinder数据表中volumes的host记录，将之 前创建出的卷的 host更新例如 controller -> controller@sata,表明之前的卷现在归sata后端管 理，将解决上述问题.
+现有的客户机的磁盘 在单pool下都是创建在ceph的volumes pool(提供普通性能硬盘)中的,而 在采用多pool的方案之后，
+之前创建的卷在归属后端上将会引起歧义，导致执行删除操作的时候一 直在deleting，这是配置多后端引起问题的原因所在;
+而实际上我们知道客户的卷落在volumes池， 应该归sata后端管理的，所以在上述链接中提到需要修改cinder数据表中volumes的host记录
+，将之 前创建出的卷的 host更新例如 controller -> controller@sata,表明之前的卷现在归sata后端管 理，将解决上述问题.
 
 此处重点说明:
 
@@ -158,8 +163,10 @@ class-read object_prefix rbd_children, allow rwx pool=ssd'
     重启openstack-cinder-*服务
     添加 ssd,与sata后端对应的 cinder type (iolimit对应sata后端，不需要为sata再创建卷类型)
     将上述 ssd,sata后端绑定对应 cinder type
-    更新数据库 cinder库volumes表的 host,在之前的host上添加后端信息: 即{host}-->{host}@{backend} ,而我们这里backend对应sata后端名.
-    之前出于qos考虑创建的iolimit这个卷类型是没明确配置后端的；在单后端时是没有歧义的，为避免多后端配置下不指定后端会引起随机选择后端的问题，此处需要额外给原来的 iolimit 指定后端 sata(默认都是低性能磁盘);
+    更新数据库 cinder库volumes表的 host,在之前的host上添加后端信息: 即{host}-->{host}@{backend} ,
+    而我们这里backend对应sata后端名. 之前出于qos考虑创建的iolimit这个卷类型是没明确配置后端的；
+    在单后端时是没有歧义的，为避免多后端配置下不指定后端会引起随机选择后端的问题，此处需要额外给原来的 iolimit 
+    指定后端 sata(默认都是低性能磁盘);
 
 之前已经存在 iolimit 的卷类型，已经不需要额外创建，只需要执行:
 
@@ -252,7 +259,8 @@ where deleted=0 and id='48c31ac3-f41a-4bc7-990e-cd10aea87e3f';
 
 业务测试
 
-    进入会员中心进行测试（测试本次修改可能影响到的操作）。本次影响到删除和重装，在会员中心进行系统重装测试。进入管理后台进行删除测试。
+    进入会员中心进行测试（测试本次修改可能影响到的操作）。本次影响到删除和重装，在会员中心进行系统重装测试。
+    进入管理后台进行删除测试。
     如果没有通过测试，则需要对数据进行还原
 
 还原数据库
