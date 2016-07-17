@@ -111,8 +111,18 @@ echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-t
 >> /var/spool/cron/keystone
 
 实战部分:
-
-
+[root@controller ~]# yum install -y openstack-keystone.noarch
+[root@controller ~]# yum install -y python-keystoneclient.noarch
+[root@controller ~]# openstack-config --set /etc/keystone/keystone.conf database \
+                     connection mysql://keystone:f9b101949a581ac12dfe@controller/keystone
+[root@controller ~]# mysql -uroot -p
+Enter password: 1428101ae612a0110bb9
+MariaDB [(none)]> create DATABASE keystone;
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'f9b101949a581ac12dfe';
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'f9b101949a581ac12dfe';
+MariaDB [(none)]> FLUSH PRIVILEGES;
+MariaDB [(none)]> exit
+[root@controller ~]# su -s /bin/sh -c "keystone-manage db_sync" keystone  # keystone数据库建表完成
 
 
 
@@ -176,7 +186,7 @@ $ keystone tenant-create --name=service --description="Service Tenant"
 
 
 实践部分:
-TODO
+
 
 
 ################################################ NO.3 定义服务与API Endpoint #################################################
