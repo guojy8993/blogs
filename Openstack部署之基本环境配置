@@ -334,8 +334,48 @@ auth=no
 下面我们正式开始OpenStack各个服务的部署;
 
 实践部分:
+# 参考"RabbitMQ安装与使用"进行操作
 [root@controller ~]# yum install -y rabbitmq-server.noarch
+[root@controller rabbitmq]# pwd
+/etc/rabbitmq
+[root@controller rabbitmq]# cp rabbitmq.config rabbitmq.config.backup
+[root@controller rabbitmq]# echo '' > rabbitmq.config
+[root@controller rabbitmq]# vi rabbitmq.config
+--------------------------------------------------------------
+% This file managed by Puppet
+% Template Path: rabbitmq/templates/rabbitmq.config
+[
+    {rabbit,
+        [ {loopback_users, []},
+          {tcp_listen_options,
+	            [ binary,
+	              {packet, raw},
+	              {reuseaddr, true},
+	              {backlog, 128},
+	              {nodelay, true},
+	              {exit_on_close, false},
+	              {keepalive, true}
+	            ]
+	       },
+		   {default_user, <<"guest">>},
+		   {default_pass, <<"guest">>}
+	    ]
+    },
+    {kernel,[]}
+].
+% EOF
+--------------------------------------------------------------
+[root@controller rabbitmq]# echo "RABBITMQ_NODE_PORT=5672" > /etc/rabbitmq/rabbitmq-env.conf
+[root@controller rabbitmq]# systemctl enable rabbitmq-server
+[root@controller rabbitmq]# systemctl start rabbitmq-server
+[root@controller rabbitmq]# systemctl status rabbitmq-server
+[root@controller ~]# netstat -ano | grep 5672
+tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      off (0.00/0/0)
+tcp6       0      0 :::5672                 :::*                    LISTEN      off (0.00/0/0)
+[root@controller ~]# iptables -I INPUT -p tcp --dport 5672 -j ACCEPT
 
+# 使用 "RestfulAPI的设计与实现及应用: 搭建 Restful API" 中提供的脚本测试 rabbitmq 是否可用;
+# 注意修改对应的rabbitmq_host
 
 # 参考官方:
 # http://docs.openstack.org/icehouse/install-guide/install/yum/content/basics-prerequisites.html
