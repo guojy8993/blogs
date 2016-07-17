@@ -1,1 +1,30 @@
 
+使用 tc 规则在 openstack的网络节点的 qrouter 命名空间下对指定ip进行带宽限制:
+说明:
+(1) 查找云平台找到 ip 所属的租户的私有路由的 uuid: TENANT_ROUTER_UUID ;
+(2) 在网络节点上找到ip 绑定的 qrouter-TENANT_ROUTER_UUID网络空间下的 qg设备名 qg-XXXXXX ;
+    # ip netns exec qrouter-TENANT_ROUTER_UUID  ip addr
+(3) TC_IP_ID 为 1:{IP后四位数字}
+(4) BAND_WIDTH 带宽，单位Mbit.
+(5) IP 限制带宽的目标IP.
+(6) 按照下述模版组装命令，在网络节点下执行.
+   # ip netns exec {qrouter-TENANT_ROUTER_UUID} \
+           tc qdisc add dev {qg-XXXXXX} root handle 1: cbq avpkt 1000 bandwidth 1024Mbit
+   # ip netns exec {qrouter-TENANT_ROUTER_UUID}  \
+           tc class add dev {qg-XXXXXX}  parent 1: classid {TC_IP_ID} cbq rate  {BAND_WIDTH}Mbit allot 1500 prio 5 bounded isolated
+   # ip netns exec {qrouter-TENANT_ROUTER_UUID} \
+           tc filter add dev {qg-XXXXXX} parent 1: protocol ip prio 16 u32 match ip src {IP} flowid {TC_IP_ID}
+   # ip netns exec {qrouter-TENANT_ROUTER_UUID} tc qdisc add dev {qg-XXXXXX} parent {TC_IP_ID} sfq perturb 10
+
+(7) 下面是个例子:
+   # ip netns exec qrouter-162a2078-12a4-45fb-90dc-e452486f43ff  \
+          tc qdisc add dev qg-59c3ef7c-7e root handle 1: cbq avpkt 1000 bandwidth 1024Mbit
+   # ip netns exec qrouter-162a2078-12a4-45fb-90dc-e452486f43ff  \
+          tc class add dev qg-59c3ef7c-7e  parent 1: classid 1:4227 cbq rate 2Mbit allot 1500 prio 5 bounded isolated 
+   # ip netns exec qrouter-162a2078-12a4-45fb-90dc-e452486f43ff  \
+          tc filter add dev qg-59c3ef7c-7e parent 1: protocol ip prio 16 u32 match ip src 172.24.4.227 flowid 1:4227
+   # ip netns exec qrouter-162a2078-12a4-45fb-90dc-e452486f43ff  \
+          tc qdisc add dev qg-59c3ef7c-7e parent 1:4227 sfq perturb 10 ;
+特别注意,
+1. 步骤(7)给出的是在 openstack 下限制某外网ip带宽的办法,但tc并不局限于openstack,你可以使用(6)的命令模版,灵活运用;
+2. 如果涉及网络空间, "ip netns exec {NETNS}" 前缀略去;
