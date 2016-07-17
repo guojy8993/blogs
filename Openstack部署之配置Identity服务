@@ -197,9 +197,13 @@ OpenStack诸位服务也需要username,tenant,和role去获取其他OpenStack服
 创建 service 租户:
 $ keystone tenant-create --name=service --description="Service Tenant"
 
-
-
 实践部分:
+[root@controller ~]# export OS_SERVICE_TOKEN=ad5cc25d4650fbbe44c9
+[root@controller ~]# export OS_SERVICE_ENDPOINT=http://controller:35357/v2.0
+# 启动服务时发现Identity服务监听 tcp:35357 端口,那么添加防火墙例外:
+[root@controller ~]# netstat -ano | grep 35357
+tcp    0   0 0.0.0.0:35357   0.0.0.0:*     LISTEN   off (0.00/0/0)
+[root@controller ~]# iptables -I INPUT -p tcp --dport 35357 -j ACCEPT
 
 
 
@@ -328,3 +332,7 @@ the admin role, which matches the role used in the Identity Service policy.json 
 As long as you define your credentials and the Identity Service endpoint through the command line or environment variables, 
 you can run all OpenStack client commands from any machine. For details, see Chapter 4, Install and configure the OpenStack 
 clients.
+
+http://docs.openstack.org/mitaka/install-guide-rdo/keystone-install.html
+
+
