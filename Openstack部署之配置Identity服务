@@ -361,54 +361,36 @@ tcp        0      0 0.0.0.0:5000            0.0.0.0:*               LISTEN      
 
 
 ################################################ NO.4 Identity服务验收 #######################################################
-Verify the Identity Service installation
 
-To verify that the Identity Service is installed and configured correctly, clear the values in the OS_SERVICE_TOKEN and 
-OS_SERVICE_ENDPOINT environment variables:
-
+理论部分:
+为了检验 Identity Service 是否已经正确安装与配置,清除环境变量 OS_SERVICE_TOKEN 与 OS_SERVICE_ENDPOINT:
 $ unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
-These variables, which were used to bootstrap the administrative user and register the Identity Service, are no longer needed.
+现在这些引导创建管理用户,注册Indetity服务的环境变量不需要了. 你现在可以使用寻常的基于名称的认证了.
 
-You can now use regular user name-based authentication.
-
-Request a authentication token by using the admin user and the password you chose for that user:
-
+现在通过使用admin用户机器密码向Identity服务申请认证:
 $ keystone --os-username=admin --os-password=ADMIN_PASS \
   --os-auth-url=http://controller:35357/v2.0 token-get
-In response, you receive a token paired with your user ID. This verifies that the Identity Service is running on the 
-expected endpoint and that your user account is established with the expected credentials.
 
-Verify that authorization behaves as expected. To do so, request authorization on a tenant:
+Identity服务向你发放一个与你userid配对的token ; 至此,我们确信Identity服务运行在期望的端点上以及你的用户如预想地建起来了.
+现在确认授权是否正常; 通过为租户申请授权验证;
 
 $ keystone --os-username=admin --os-password=ADMIN_PASS \
-  --os-tenant-name=admin --os-auth-url=http://controller:35357/v2.0 \
-  token-get
-In response, you receive a token that includes the ID of the tenant that you specified. This verifies that your user 
-account has an explicitly defined role on the specified tenant and the tenant exists as expected.
+  --os-tenant-name=admin --os-auth-url=http://controller:35357/v2.0  token-get
+  
+Identity服务向你发放一个与tenantid配对的token; 至此,我们确信你的账户如期地在租户中被显式定义角色以及租户如预想地一样存在 ;
+你可以设置你的admin用户信息作为环境变量:
+1.export OS_USERNAME=admin
+2.export OS_PASSWORD=ADMIN_PASS
+3.export OS_TENANT_NAME=admin
+4.export OS_AUTH_URL=http://controller:35357/v2.0
 
-You can also set your --os-* variables in your environment to simplify command-line usage. Set up a admin-openrc.sh file
-with the admin credentials and admin endpoint:
-
-Select Text
-1
-2
-3
-4
-export OS_USERNAME=admin
-export OS_PASSWORD=ADMIN_PASS
-export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://controller:35357/v2.0
-Source this file to read in the environment variables:
-
+使用 source命令运行该 file以导入环境变量:
 $ source admin-openrc.sh
-Verify that your admin-openrc.sh file is configured correctly. Run the same command without the --os-* arguments:
 
+检验你的 admin-openrc.sh 是否正确:
 $ keystone token-get
-The command returns a token and the ID of the specified tenant. This verifies that you have configured your environment 
-variables correctly.
 
-Verify that your admin account has authorization to perform administrative commands:
-
+检验你的账户的管理权限:
 $ keystone user-list
 +----------------------------------+-------+---------+-------------------+
 |                id                |  name | enabled |    email          |
@@ -423,15 +405,60 @@ $ keystone user-role-list --user admin --tenant admin
 | 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | afea5bde3be9413dbd60e479fddf9228 | e519b772cb43474582fa303da62559e5 |
 | 5d3b60b66f1f438b80eaae41a77b5951 |  admin   | afea5bde3be9413dbd60e479fddf9228 | e519b772cb43474582fa303da62559e5 |
 +----------------------------------+----------+----------------------------------+----------------------------------+
-Seeing that the id in the output from the keystone user-list command matches the user_id in the keystone user-role-list 
-command, and that the admin role is listed for that user, for the related tenant, this verifies that your user account has 
-the admin role, which matches the role used in the Identity Service policy.json file.
 
-[Note]	Note
-As long as you define your credentials and the Identity Service endpoint through the command line or environment variables, 
-you can run all OpenStack client commands from any machine. For details, see Chapter 4, Install and configure the OpenStack 
-clients.
-
-http://docs.openstack.org/mitaka/install-guide-rdo/keystone-install.html
+通过列出user命令的输出, 注意到,其id与 执行 user-role-list中的 user_id 一致,以及该用户/租户 的admin角色被列出 这也说明,你的帐号
+具有admin角色,这与 Identity服务的策略定义一致
+注意: 只要你只要在环境变量中定义好了你的凭据以及Identity服务endpoint,那么你就可以从任何机器上运行 openstack客户端,执行任何命令
 
 
+实践部分:
+unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
+[root@controller ~]# keystone --os-username=admin \
+                              --os-password=d65c077ed7332d8aa238 \
+                              --os-auth-url=http://controller:35357/v2.0 token-get
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+| expires  |       2016-07-17T15:28:16Z       |
+|    id    | ab163038ae55450eb48f40954a357d35 |
+| user_id  | cb219e333530474e91cff19857c117c1 |
++----------+----------------------------------+
+
+[root@controller ~]# keystone --os-username=admin \
+                              --os-password=d65c077ed7332d8aa238 \
+                              --os-tenant-name=admin \
+                              --os-auth-url=http://controller:35357/v2.0 token-get
++-----------+----------------------------------+
+|  Property |              Value               |
++-----------+----------------------------------+
+|  expires  |       2016-07-17T15:34:05Z       |
+|     id    | 99d1550dbc2e4408b922cda48a22fc84 |
+| tenant_id | db3857545f79406fa77320badc6e6771 |
+|  user_id  | cb219e333530474e91cff19857c117c1 |
++-----------+----------------------------------+
+
+[root@controller ~]# echo "export OS_USERNAME=admin" >> admin-openrc
+[root@controller ~]# echo "export OS_PASSWORD=d65c077ed7332d8aa238" >> admin-openrc
+[root@controller ~]# echo "export OS_TENANT_NAME=admin" >> admin-openrc
+[root@controller ~]# echo "export OS_AUTH_URL=http://controller:35357/v2.0" >> admin-openrc
+[root@controller ~]# sh admin-openrc 
+[root@controller ~]# echo $OS_TENANT_NAME
+
+[root@controller ~]# source  admin-openrc   # source 导入环境变量而不是 sh
+[root@controller ~]# echo $OS_TENANT_NAME
+admin
+[root@controller ~]# keystone user-list
++----------------------------------+-------+---------+-----------------+
+|                id                |  name | enabled |      email      |
++----------------------------------+-------+---------+-----------------+
+| cb219e333530474e91cff19857c117c1 | admin |   True  | admin@qqvps.com |
+| 995bc7e378864755a709aaf6dffc98f4 |  demo |   True  |  demo@qqvps.com |
++----------------------------------+-------+---------+-----------------+
+
+[root@controller ~]# keystone user-role-list --user admin --tenant admin
++----------------------------------+----------+----------------------------------+----------------------------------+
+|                id                |   name   |             user_id              |            tenant_id             |
++----------------------------------+----------+----------------------------------+----------------------------------+
+| 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | cb219e333530474e91cff19857c117c1 | db3857545f79406fa77320badc6e6771 |
+| 18b9e23d780d46e0ae9c0bcc5022a551 |  admin   | cb219e333530474e91cff19857c117c1 | db3857545f79406fa77320badc6e6771 |
++----------------------------------+----------+----------------------------------+----------------------------------+
