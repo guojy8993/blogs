@@ -1,20 +1,27 @@
 ## 快速安装配置:
-[root@compute ~]# yum install -y rabbitmq-server.noarch
-[root@compute ~]# 
+[root@controller ~]# yum install -y rabbitmq-server.noarch
+[root@controller ~]# 
 # 编辑 /etc/rabbitmq/rabbitmq.config,修改为如下内容:
 % This file managed by Puppet
 % Template Path: rabbitmq/templates/rabbitmq.config
 [
-  {rabbit,
-    [ {loopback_users, []},
-     {tcp_listen_options,
-        [binary,{packet, raw},{reuseaddr, true},{backlog, 128},
-                {nodelay, true},{exit_on_close, false},{keepalive, true}
-        ]},
-     {default_user, <<"guest">>},
-     {default_pass, <<"guest">>}
-    ]},
-   {kernel, []}
+    {rabbit,
+        [ {loopback_users, []},
+          {tcp_listen_options,
+	            [ binary,
+	              {packet, raw},
+	              {reuseaddr, true},
+	              {backlog, 128},
+	              {nodelay, true},
+	              {exit_on_close, false},
+	              {keepalive, true}
+	            ]
+	       },
+		   {default_user, <<"guest">>},
+		   {default_pass, <<"guest">>}
+	    ]
+    },
+    {kernel,[]}
 ].
 % EOF
 
