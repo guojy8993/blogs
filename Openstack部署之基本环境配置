@@ -258,7 +258,16 @@ openstack-selinux 程序(包含policy files,用以在 OpenStack安装于 RH或Ce
 # reboot
 
 实践部分:
-TODO
+Step1: 设置yum,下载安装软件后保留rpm包(方便以后非在线使用)
+# 参考链接: http://zhangge.net/4222.html
+
+
+[root@localhost ~]# yum install -y yum-plugin-priorities.noarch
+# 下载epel-release-6-8.noarch.rpm, rdo-release-icehouse-3.noarch.rpm 到本地然后上传到各个节点进行安装(rdo现在不提供icehous
+#  -e，使用 rdo-release-mitaka-5.noarch.rpm 代替)
+[root@localhost ~]# rpm -ivh rdo-release-mitaka-5.noarch.rpm
+[root@localhost ~]# rpm -ivh epel-release-6-8.noarch.rpm
+[root@localhost ~]# yum install -y openstack-utils.noarch
 
 ################################################ NO.6 消息队列服务 ##########################################################
 理论部分:
