@@ -123,9 +123,15 @@ MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIE
 MariaDB [(none)]> FLUSH PRIVILEGES;
 MariaDB [(none)]> exit
 [root@controller ~]# su -s /bin/sh -c "keystone-manage db_sync" keystone  # keystone数据库建表完成
+# 生成并设置 admin_token
+[root@controller ~]# openssl rand -hex 10
+ad5cc25d4650fbbe44c9
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token ad5cc25d4650fbbe44c9
+# pki设置
 [root@controller ~]# keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
 [root@controller ~]# chown -R keystone:keystone /etc/keystone/ssl
 [root@controller ~]# chmod -R o-rwx /etc/keystone/ssl
+# 启动服务并制止开机自启
 [root@controller ~]# systemctl start openstack-keystone
 [root@controller ~]# systemctl enable openstack-keystone
 [root@controller ~]# (crontab -l -u keystone 2>&1 | grep -q token_flush) || \
