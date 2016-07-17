@@ -5,16 +5,16 @@
 % This file managed by Puppet
 % Template Path: rabbitmq/templates/rabbitmq.config
 [
-  {rabbit, [
-    {loopback_users, []},
-    {tcp_listen_options, [binary,{packet, raw},{reuseaddr, true},{backlog, 128},{nodelay, true},
-                                 {exit_on_close, false},{keepalive, true}]},
-    {default_user, <<"guest">>},
-    {default_pass, <<"guest">>}
-  ]},
-  {kernel, [
-    
-  ]}
+  {rabbit,
+    [ {loopback_users, []},
+     {tcp_listen_options,
+        [binary,{packet, raw},{reuseaddr, true},{backlog, 128},
+                {nodelay, true},{exit_on_close, false},{keepalive, true}
+        ]},
+     {default_user, <<"guest">>},
+     {default_pass, <<"guest">>}
+    ]},
+   {kernel, []}
 ].
 % EOF
 
