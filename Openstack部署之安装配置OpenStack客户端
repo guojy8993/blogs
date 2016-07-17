@@ -1,1 +1,82 @@
+### 基础环境配置 ###
+第0部分:  总览
+第1部分:  安装OpenStack命令行客户端
+第2部分:  利用OpenStack RC file设置环境变量
+第3部分:  创建OpenStack RC file
+
+################################################ NO.0 总览 ##################################################################
+    你可以使用 openstack 命令行客户端执行简单的 API 调用.你可以使用命令行或自动化脚本执行这些命令行.如果你提供 openstack 凭
+据,那么你可以在任何电脑上运行这些命令行;
+   内部原理是,客户端在MAC OS或linux系统下运行内嵌API请求的curl命令. Openstack APIs 是使用 http 协议的 RESTFUL API,包含(http)
+方法,URIs,media type以及(http)状态码; 开源的python客户端可以运行在 MAC OS与linux上，且简单易上手; 每个 openstack服务拥有自己
+的命令行客户端;甚至一些客户端命令行支持debug模式调用API; 这是个让大家熟悉 OpenStack API调用的好主意;
+  如下表列出了OpenStack各个服务的命令行客户端的包名以及描述信息:
+                                    Table 4.1. OpenStack 服务与客户端
+Service	         Client	    Package	                  Description
+-------------------------------------------------------------------------------------------------------------------
+Block Storage	   cinder	    python-cinderclient	      Create and manage volumes.
+Compute	         nova       python-novaclient	        Create and manage images, instances, and flavors.
+Database         trove	    python-troveclient	      Create and manage databases.
+Identity	       keystone	  python-keystoneclient	    Create and manage users, tenants, roles, endpoints,
+                                                      and credentials.
+Image            glance	    python-glanceclient	      Create and manage images.
+Networking	     neutron	  python-neutronclient	    Configure networks for guest servers. This client was
+                                                      previously called quantum.
+Object Storage	 swift	    python-swiftclient	      Gather statistics, list items, update metadata, and upload,
+                                                      download, and delete files stored by the Object Storage 
+                                                      service. Gain access to an Object Storage installation for
+                                                      ad hoc processing.
+Orchestration	   heat	      python-heatclient	        Launch stacks from templates, view details of running stacks
+                                                      including events and resources, and update and delete stacks.
+Telemetry	       ceilometer	python-ceilometerclient	  Create and collect measurements across OpenStack.
+-------------------------------------------------------------------------------------------------------------------
+
+################################################ NO.1 安装OpenStack命令行客户端 #############################################
+## 理论部分:
+根据你选择系统的类型以及偏爱的软件安装工具进行安装;
+(1) 准备相应的 package downloader
+(2) 了解哪些 openstack 命令行客户端需要安装
+两者都具备之后即可开始安装.
+Step1: 使用 CentOS7，既有 yum 工具
+Step2: 了解OpenStack Service 的所有命令行客户端:如上节Table 4.1所列.
+Step3: 使用yum进行 search以及install ;
+# 注意本部分不做详细说明,仅就 CentoOS7 下使用 yum 安装说明
+# 原文链接: http://docs.openstack.org/icehouse/install-guide/install/apt/content/install_clients.html
+
+## 实践部分:
+TODO
+
+
+################################################ NO.2 利用OpenStack RC file设置环境变量 #####################################
+* 利用OpenStack RC file设置环境变量
+为了设置操作 openstack客户端的必要环境变量,你需要创建创建一个"环境文件",叫做"OpenStack RC"; 在该RC文件中包含着调用所有服务都
+要用到的"凭据";
+当你使用 source 去执行改为拟建时,环境变量被导入到你当前的shell中去; 这些环境变量允许openstack客户端与运行在云端的openstack 服
+务交互;
+# 注意: 注意在window环境下之作RC文件会有点麻烦.
+# 官方如是说,"Defining environment variables using an environment file is not a common practice on Microsoft Windows. Enviro
+# -nment variables are usually defined in the Advanced tab of the System Properties dialog box".
+    
+* 制作RC文件
+在文件中输入以下信息,替换 OS_USERNAME,OS_PASSWORD为真实值.
+export OS_USERNAME=admin
+export OS_PASSWORD=ADMIN_PASS
+export OS_TENANT_NAME=admin
+export OS_AUTH_URL=http://controller:35357/v2.0
+
+使用 source (而不是 sh 或其他)执行文件
+$ source admin-openrc.sh
+测试环境变量是否生效:
+$ keystone --os-password PASSWORD service-list
+
+################################################ NO.3 创建OpenStack RC file #################################################
+理论部分:
+如前所说,使用之前安装配置keystone的脚本,修改为admin信息为demo的信息,则有如下内容:
+export OS_USERNAME=demo
+export OS_PASSWORD=DEMO_PASS
+export OS_TENANT_NAME=demo
+export OS_AUTH_URL=http://controller:35357/v2.0
+
+实践部分:
+如前文已实践,略;
 
