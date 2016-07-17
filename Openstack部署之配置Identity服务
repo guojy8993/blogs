@@ -205,6 +205,77 @@ $ keystone tenant-create --name=service --description="Service Tenant"
 tcp    0   0 0.0.0.0:35357   0.0.0.0:*     LISTEN   off (0.00/0/0)
 [root@controller ~]# iptables -I INPUT -p tcp --dport 35357 -j ACCEPT
 
+# 创建 admin 用户租户
+[root@controller ~]# keystone user-create --name=admin --pass=d65c077ed7332d8aa238 --email=admin@qqvps.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |         admin@qqvps.com          |
+| enabled  |               True               |
+|    id    | cb219e333530474e91cff19857c117c1 |
+|   name   |              admin               |
+| username |              admin               |
++----------+----------------------------------+
+[root@controller ~]# keystone role-create --name=admin
++-----------+----------------------------------+
+|  Property |              Value               |
++-----------+----------------------------------+
+| domain_id |                                  |
+|     id    | 18b9e23d780d46e0ae9c0bcc5022a551 |
+|    name   |              admin               |
++-----------+----------------------------------+
+[root@controller ~]# keystone role-create --name=_member_
++-----------+----------------------------------+
+|  Property |              Value               |
++-----------+----------------------------------+
+| domain_id |                                  |
+|     id    | 9fe2ff9ee4384b1894a90878d3e92bab |
+|    name   |             _member_             |
++-----------+----------------------------------+
+[root@controller ~]# keystone tenant-create --name=admin --description="Admin Tenant"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |           Admin Tenant           |
+|   enabled   |               True               |
+|      id     | db3857545f79406fa77320badc6e6771 |
+|     name    |              admin               |
++-------------+----------------------------------+
+[root@controller ~]# keystone user-role-add --user=admin --tenant=admin --role=admin
+[root@controller ~]# keystone user-role-add --user=admin --tenant=admin --role=_member_
+
+# 创建 demo用户租户
+[root@controller ~]# keystone user-create --name=demo --pass=22eb630cad4785bfdc81 --email=demo@qqvps.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |          demo@qqvps.com          |
+| enabled  |               True               |
+|    id    | 995bc7e378864755a709aaf6dffc98f4 |
+|   name   |               demo               |
+| username |               demo               |
++----------+----------------------------------+
+[root@controller ~]# keystone tenant-create --name=demo --description="Demo Tenant"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |           Demo Tenant            |
+|   enabled   |               True               |
+|      id     | 914a978e32b3450a957b4cb24fe42da3 |
+|     name    |               demo               |
++-------------+----------------------------------+
+[root@controller ~]# keystone user-role-add --user=demo --tenant=demo --role=_member_
+
+# 创建 service 租户
+[root@controller ~]# keystone tenant-create --name=service --description="Service Tenant"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |          Service Tenant          |
+|   enabled   |               True               |
+|      id     | 4f16e8aec8e14a1d85f86506c3e9df2a |
+|     name    |             service              |
++-------------+----------------------------------+
 
 
 ################################################ NO.3 定义服务与API Endpoint #################################################
