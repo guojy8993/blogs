@@ -1,0 +1,84 @@
+共享存储
+
+当前OpenStack平台结构中提供了对块存储服务和对象存储服务的支持，但是目前（IceHouse）并未提供对于共享存储的支持。目前大量企业应用迁移至云平台，对于NAS服务有着强烈的需求，OpenStack平台也在近期版本（Kilo）中发布了共享文件存储组件——Manila。
+目录
+现状
+
+现在对于Ceph应用到OpenStack的共享存储有如下方案（讨论）：
+
+    default driver（默认驱动）：虚拟机使用RBD挂载方式，提供NFS服务。
+    ganesha driver：在虚拟机中通过ganesha FSAL挂载cephfs，提供NFS服务。
+    ceph native driver（ceph本地驱动）：为客户提供secret key，客户机直接挂载。
+        这种方式需要
+            创建ceph安全秘钥
+            在cephfs中创建目录
+        安全和多租户问题
+            cephfs不允许把key的限制指定到子目录上。
+            cephfs只能限制数据路径到rados存储池上，目前我们可以
+                每个用户一个rados池，但是这种解决方式太恶心了。
+                我们可以在ceph_file_layout中添加namespace，将同一个共享存储池中的用户限制到namespace中。
+        客户机需要和ceph通讯，这意味着它们需要在同一个网络中，或者使用路由打通链路。这样威胁到了多租户的环境，
+        可能单租户环境中没什么问题。
+    virtfs to host mounting kernel cephfs：在宿主上挂载cephfs，使用9p/virtfs共享给客户机。
+        不确定qemu是否支持virtfs。
+        在相同情况下，能否使用NFS替代virtfs。
+
+CephFS的应用
+创建CephFS
+
+    修改Ceph配置文件，添加MDS配置
+
+[mds]
+keyring = /etc/ceph/ceph.client.keyring.$name
+[mds.0]
+host = host101
+
+    创建认证keyring
+
+ceph-authtool --create-keyring --gen-key -n mds.0 /etc/ceph/ceph.client.keyring.mds.0
+
+    添加用户授权
+
+ceph auth add mds.0 osd 'allow *' mon 'allow rwx' mds 'allow' \
+-i /etc/ceph/ceph.client.keyring.mds.0
+
+    启动mds.0
+
+/etc/init.d/ceph start mds.0
+
+    查看mds状态
+
+ceph mds stat
+
+挂载CephFS
+
+    创建安全文件
+
+[root@host101 ~]# cat /etc/ceph/ceph.client.admin.keyring 
+[client.admin]
+	key = AQArWxpV+CvwExAA2CUV6sps+QUa35M+P8mRyQ==
+	auid = 0
+	caps mds = "allow"
+	caps mon = "allow *"
+	caps osd = "allow *"
+[root@host101 ~]# echo AQArWxpV+CvwExAA2CUV6sps+QUa35M+P8mRyQ== > /root/admin.secret
+
+    挂载文件系统
+
+mkdir /mnt/cephfs
+mount -t ceph 192.168.1.101:6789:/ /mnt/cephfs/ -o name=admin,secretfile=/root/admin.secret
+
+    查看挂载选项
+
+[root@host101 cephfs(keystone_admin)]# mount -l
+...
+...
+...
+192.168.1.101:6789:/ on /mnt/cephfs type ceph \
+(rw,relatime,name=admin,secret=<hidden>,nodcache)
+[root@host101 cephfs(keystone_admin)]# df -h
+Filesystem               Size  Used Avail Use% Mounted on
+...
+...
+...
+192.168.1.101:6789:/     400G  108G  293G  27% /mnt/cephfs
