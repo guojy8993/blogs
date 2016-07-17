@@ -123,9 +123,17 @@ MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIE
 MariaDB [(none)]> FLUSH PRIVILEGES;
 MariaDB [(none)]> exit
 [root@controller ~]# su -s /bin/sh -c "keystone-manage db_sync" keystone  # keystone数据库建表完成
-
-
-
+[root@controller ~]# keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+[root@controller ~]# chown -R keystone:keystone /etc/keystone/ssl
+[root@controller ~]# chmod -R o-rwx /etc/keystone/ssl
+[root@controller ~]# systemctl start openstack-keystone
+[root@controller ~]# systemctl enable openstack-keystone
+[root@controller ~]# (crontab -l -u keystone 2>&1 | grep -q token_flush) || \
+                     echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1' \
+                     >> /var/spool/cron/keystone
+[root@controller ~]# crontab -l -u keystone
+@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1
+# 查询定时任务: crontab -l -u {user}
 
 ################################################ NO.2 I定义用户,租户,角色 ####################################################
 理论部分:
