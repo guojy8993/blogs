@@ -28,13 +28,44 @@ Controller    CentOS7-X86_64   4        4096      100     ens160      internal-n
 Network       CentOS7-X86_64   4        4096      100     ens160      internal-net                     
                                                           ens160.610  (vlan)           10.160.0.149    # 管理网络
                                                           ens192      internal-net                     # 外网(打vlan,不配置ip)
-                                                          ens224      data-net01       172.172.173.149 # 隧道网络
+                                                          ens224      data-net01       172.172.172.149 # 隧道网络
 ----------------------------------------------------------------------------------------------------------------------------
 Compute       CentOS7-X86_64   16       16*1024   100     ens160      internal-net
                                                           ens160.610  (vlan)           10.160.0.117    # 管理网络
-                                                          ens192      data-net01       172.172.173.117 # 隧道网络
+                                                          ens192      data-net01       172.172.172.117 # 隧道网络
 # 注意:鉴于工作环境,虚拟宿主外网网络与管理网络均使用internal-net，
 #      而隧道网络使用data-net01标签,后期的存储集群使用 data-net02标签.
+
+设置网络:
+(1)主控节点:
+[root@localhost ~]# nmcli c add con-name ens160.610 type vlan id 610 dev ens160 ip4 10.160.0.116/16 gw4 10.160.0.1
+(2)网络节点:
+[root@localhost ~]# nmcli c add con-name ens160.610 type vlan id 610 dev ens160 ip4 10.160.0.149/16 gw4 10.160.0.1
+# 配置隧道网络ip
+[root@localhost ~]# sed -ri "s/(BOOTPROTO=).*/\1static/" /etc/sysconfig/network-scripts/ifcfg-ens224
+[root@localhost ~]# sed -ri "s/(ONBOOT=).*/\1yes/"       /etc/sysconfig/network-scripts/ifcfg-ens224
+[root@localhost ~]# echo "IPADDR=172.172.172.149" >> /etc/sysconfig/network-scripts/ifcfg-ens224
+[root@localhost ~]# echo "PREFIX=24"              >> /etc/sysconfig/network-scripts/ifcfg-ens224
+[root@localhost ~]# service network restart
+# 只打vlan不设ip
+[root@localhost ~]# ip link add link ens192 name ens192.610 type vlan id 610 up
+(3)计算节点:
+[root@localhost ~]# nmcli c add con-name ens160.610 type vlan id 610 dev ens160 ip4 10.160.0.117/16 gw4 10.160.0.1
+# 配置隧道网络ip
+[root@localhost ~]# sed -ri "s/(BOOTPROTO=).*/\1static/" /etc/sysconfig/network-scripts/ifcfg-ens192
+[root@localhost ~]# sed -ri "s/(ONBOOT=).*/\1yes/"       /etc/sysconfig/network-scripts/ifcfg-ens192
+[root@localhost ~]# echo "IPADDR=172.172.172.117" >> /etc/sysconfig/network-scripts/ifcfg-ens192
+[root@localhost ~]# echo "PREFIX=24" >> /etc/sysconfig/network-scripts/ifcfg-ens192
+[root@localhost ~]# service network restart
+各自设置yum代理:
+[root@localhost ~]# echo "proxy=http://10.120.45.67:3128" >> /etc/yum.conf
+各自设置hostname:
+(1)主控节点:
+[root@localhost ~]# echo "controller" >> /etc/hostname
+(2)网络节点:
+[root@localhost ~]# echo "network" >> /etc/hostname
+(3)计算节点:
+[root@localhost ~]# echo "compute" >> /etc/hostname
 
 ################################################ NO.1 网络         ##########################################################
 理论部分:
