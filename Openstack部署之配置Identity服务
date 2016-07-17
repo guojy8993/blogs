@@ -412,7 +412,7 @@ $ keystone user-role-list --user admin --tenant admin
 
 
 实践部分:
-unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
+[root@controller ~]# unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
 [root@controller ~]# keystone --os-username=admin \
                               --os-password=d65c077ed7332d8aa238 \
                               --os-auth-url=http://controller:35357/v2.0 token-get
