@@ -120,6 +120,58 @@ Restart the glance service with its new settings:
 
 # service glance-registry restart
 # service glance-api restart
+
+
+
+实践部分:
+[root@controller ~]# yum search openstack-glance python-glanceclient
+[root@controller ~]# openstack-config --set /etc/glance/glance-api.conf database connection \
+                     mysql://glance:c088217738b0a8c913f3@controller/glance
+[root@controller ~]# openstack-config --set /etc/glance/glance-registry.conf database connection \
+                     mysql://glance:c088217738b0a8c913f3@controller/glance
+[root@controller ~]# mysql -uroot -p
+Enter password: 1428101ae612a0110bb9
+MariaDB [(none)]> create DATABASE glance;
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'c088217738b0a8c913f3';
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'c088217738b0a8c913f3';
+MariaDB [(none)]> FLUSH PRIVILEGES;
+MariaDB [(none)]> quit;
+[root@controller ~]# su -s /bin/sh -c "glance-manage db_sync" glance
+
+[root@controller ~]$ source keystonerc_admin
+[root@controller ~(keystonerc_admin)]$ keystone user-create --name=glance \
+                                         --pass=597a6caadd8ef75a7745 --email=glance@qqvps.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |         glance@qqvps.com         |
+| enabled  |               True               |
+|    id    | 3080b9cdd589470e95accd0575326a52 |
+|   name   |              glance              |
+| username |              glance              |
++----------+----------------------------------+
+[root@controller ~(keystonerc_admin)]$ keystone user-role-add --user=glance --tenant=service --role=admin
+
+# 使用命令修改配置文件:
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  auth_uri http://controller:5000
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  auth_host controller
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  auth_port 35357
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  auth_protocol http
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  admin_tenant_name service
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  admin_user glance
+openstack-config --set /etc/glance/glance-api.conf keystone_authtoken  admin_password 597a6caadd8ef75a7745
+openstack-config --set /etc/glance/glance-api.conf paste_deploy   flavor keystone
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  auth_uri http://controller:5000
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  auth_host controller
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  auth_port 35357
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  auth_protocol http
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  admin_tenant_name service
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  admin_user glance
+openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken  admin_password 597a6caadd8ef75a7745
+openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
+
+
+
 ################################################ NO.2 验收镜像服务 ##############################################################
 Verify the Image Service installation
 
