@@ -63,10 +63,10 @@ export OS_USERNAME=admin
 export OS_PASSWORD=ADMIN_PASS
 export OS_TENANT_NAME=admin
 export OS_AUTH_URL=http://controller:35357/v2.0
-5.export PS1='[\u@\h \W(keystonerc_admin)]\$ '
+export PS1='[\u@\h \W(keystonerc_admin)]\$ '
 
 使用 source (而不是 sh 或其他)执行文件
-$ source admin-openrc.sh
+$ source keystonerc_admin
 测试环境变量是否生效:
 $ keystone --os-password PASSWORD service-list
 
