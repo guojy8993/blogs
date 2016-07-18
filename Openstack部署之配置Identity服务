@@ -20,7 +20,7 @@ Identity服务概念:
 仅仅被用户知道以自证身份的数据;在Identity Service中,e.g:用户名/密码,用户名/APIKey或者是被Identity Service认证的Token.
 
 *认证
-确认用户身份的举动;Identity Service根据来访发送请求的用户所提供的一组凭据来完成认证.
+确认用户身份的举动;Identity Service根据来访发送请求的用户所提供的一组凭据来完成认证.expo
 这些认证最初是用户名/密码,或用户名/APIKey. 作为对用户提供凭据的回应, Identity Service给用户签发经其认证的token,用户可持之完
 成后续请求;
 
@@ -383,6 +383,7 @@ Identity服务向你发放一个与tenantid配对的token; 至此,我们确信�
 2.export OS_PASSWORD=ADMIN_PASS
 3.export OS_TENANT_NAME=admin
 4.export OS_AUTH_URL=http://controller:35357/v2.0
+5.export PS1='[\u@\h \W(keystonerc_admin)]\$ '
 
 使用 source命令运行该 file以导入环境变量:
 $ source admin-openrc.sh
