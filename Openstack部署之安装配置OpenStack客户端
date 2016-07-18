@@ -12,23 +12,23 @@
 的命令行客户端;甚至一些客户端命令行支持debug模式调用API; 这是个让大家熟悉 OpenStack API调用的好主意;
   如下表列出了OpenStack各个服务的命令行客户端的包名以及描述信息:
                                     Table 4.1. OpenStack 服务与客户端
-Service	         Client	    Package	                  Description
+Service          Client     Package                   Description
 -------------------------------------------------------------------------------------------------------------------
-Block Storage	   cinder	    python-cinderclient	      Create and manage volumes.
-Compute	         nova       python-novaclient	        Create and manage images, instances, and flavors.
-Database         trove	    python-troveclient	      Create and manage databases.
-Identity	       keystone	  python-keystoneclient	    Create and manage users, tenants, roles, endpoints,
+Block Storage    cinder     python-cinderclient       Create and manage volumes.
+Compute	         nova       python-novaclient         Create and manage images, instances, and flavors.
+Database         trove	    python-troveclient        Create and manage databases.
+Identity         keystone   python-keystoneclient     Create and manage users, tenants, roles, endpoints,
                                                       and credentials.
-Image            glance	    python-glanceclient	      Create and manage images.
-Networking	     neutron	  python-neutronclient	    Configure networks for guest servers. This client was
+Image            glance	    python-glanceclient       Create and manage images.
+Networking	     neutron    python-neutronclient	    Configure networks for guest servers. This client was
                                                       previously called quantum.
-Object Storage	 swift	    python-swiftclient	      Gather statistics, list items, update metadata, and upload,
+Object Storage	 swift      python-swiftclient        Gather statistics, list items, update metadata, and upload,
                                                       download, and delete files stored by the Object Storage 
                                                       service. Gain access to an Object Storage installation for
                                                       ad hoc processing.
-Orchestration	   heat	      python-heatclient	        Launch stacks from templates, view details of running stacks
+Orchestration    heat       python-heatclient       Launch stacks from templates, view details of running stacks
                                                       including events and resources, and update and delete stacks.
-Telemetry	       ceilometer	python-ceilometerclient	  Create and collect measurements across OpenStack.
+Telemetry        ceilometer python-ceilometerclient Create and collect measurements across OpenStack.
 -------------------------------------------------------------------------------------------------------------------
 
 ################################################ NO.1 安装OpenStack命令行客户端 #############################################
