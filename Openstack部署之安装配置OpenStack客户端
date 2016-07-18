@@ -20,15 +20,15 @@ Database         trove	    python-troveclient        Create and manage databases
 Identity         keystone   python-keystoneclient     Create and manage users, tenants, roles, endpoints,
                                                       and credentials.
 Image            glance     python-glanceclient       Create and manage images.
-Networking       neutron    python-neutronclient	    Configure networks for guest servers. This client was
+Networking       neutron    python-neutronclient	  Configure networks for guest servers. This client was
                                                       previously called quantum.
 Object Storage	 swift      python-swiftclient        Gather statistics, list items, update metadata, and upload,
                                                       download, and delete files stored by the Object Storage 
                                                       service. Gain access to an Object Storage installation for
                                                       ad hoc processing.
-Orchestration    heat       python-heatclient       Launch stacks from templates, view details of running stacks
+Orchestration    heat       python-heatclient         Launch stacks from templates, view details of running stacks
                                                       including events and resources, and update and delete stacks.
-Telemetry        ceilometer python-ceilometerclient Create and collect measurements across OpenStack.
+Telemetry        ceilometer python-ceilometerclient   Create and collect measurements across OpenStack.
 -------------------------------------------------------------------------------------------------------------------
 
 ################################################ NO.1 安装OpenStack命令行客户端 #############################################
