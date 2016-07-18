@@ -19,8 +19,8 @@ Compute	         nova       python-novaclient         Create and manage images, 
 Database         trove	    python-troveclient        Create and manage databases.
 Identity         keystone   python-keystoneclient     Create and manage users, tenants, roles, endpoints,
                                                       and credentials.
-Image            glance	    python-glanceclient       Create and manage images.
-Networking	     neutron    python-neutronclient	    Configure networks for guest servers. This client was
+Image            glance     python-glanceclient       Create and manage images.
+Networking       neutron    python-neutronclient	    Configure networks for guest servers. This client was
                                                       previously called quantum.
 Object Storage	 swift      python-swiftclient        Gather statistics, list items, update metadata, and upload,
                                                       download, and delete files stored by the Object Storage 
