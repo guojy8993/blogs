@@ -203,50 +203,28 @@ openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keys
 
 
 ################################################ NO.2 验收镜像服务 ##############################################################
-Verify the Image Service installation
-
-To test the Image Service installation, download at least one virtual machine image that is known to work with OpenStack. For example, CirrOS is a small test image that is often used for testing OpenStack deployments (CirrOS downloads). This walk through uses the 64-bit CirrOS QCOW2 image.
-
-For more information about how to download and build images, see OpenStack Virtual Machine Image Guide. For information about how to manage images, see the OpenStack User Guide.
-
-Download the image into a dedicated directory using wget or curl:
-
+为了测试镜像服务是否正确安装,下载至少一个可以在Opensatck下工作的镜像;例如,Cirros是一个测试镜像,常被用于测试Openstack的部署.本篇
+使用 64bit的 qcow2镜像.
+使用 wget或curl 下载cirros镜像:
 $ mkdir /tmp/images
 $ cd /tmp/images/
 $ wget http://download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img
-Upload the image to the Image Service:
+使用如下命令模板上传本地文件为镜像:
+$ glance image-create --name=IMAGELABEL  \
+                      --disk-format=FILEFORMAT \ 
+                      --container-format=CONTAINERFORMAT \
+                      --is-public=ACCESSVALUE < IMAGEFILE
+其中:
+IMAGELABEL  是镜像的名字.
+FILEFORMAT  是 镜像文件类型(qcow2, raw, vhd, vmdk, vdi, iso, aki, ari, and ami)
+# 使用 "file"命令检查文件的格式:
+# $ file cirros-0.3.2-x86_64-disk.img
+# cirros-0.3.2-x86_64-disk.img: QEMU QCOW Image (v2), 41126400 bytes
+CONTAINERFORMAT  是容器类型(bare, ovf, aki, ari and ami),"bare"类型意味着该镜像文件属于不包含虚拟机元数据的文件类型 
+ACCESSVALUE      指代该文件是否公有
+IMAGEFILE        指代本地镜像文件
 
-$ glance image-create --name=IMAGELABEL --disk-format=FILEFORMAT \
-  --container-format=CONTAINERFORMAT --is-public=ACCESSVALUE < IMAGEFILE
-Where:
-
-IMAGELABEL
-Arbitrary label. The name by which users refer to the image.
-
-FILEFORMAT
-Specifies the format of the image file. Valid formats include qcow2, raw, vhd, vmdk, vdi, iso, aki, ari, and ami.
-
-You can verify the format using the file command:
-
-$ file cirros-0.3.2-x86_64-disk.img
-cirros-0.3.2-x86_64-disk.img: QEMU QCOW Image (v2), 41126400 bytes
-CONTAINERFORMAT
-Specifies the container format. Valid formats include: bare, ovf, aki, ari and ami.
-
-Specify bare to indicate that the image file is not in a file format that contains metadata about the virtual machine. Although this field is currently required, it is not actually used by any of the OpenStack services and has no effect on system behavior. Because the value is not used anywhere, it is safe to always specify bare as the container format.
-
-ACCESSVALUE
-Specifies image access:
-
-true - All users can view and use the image.
-
-false - Only administrators can view and use the image.
-
-IMAGEFILE
-Specifies the name of your downloaded image file.
-
-For example:
-
+例如:
 $ source admin-openrc.sh
 $ glance image-create --name "cirros-0.3.2-x86_64" --disk-format qcow2 \
   --container-format bare --is-public True --progress < cirros-0.3.2-x86_64-disk.img
@@ -270,27 +248,23 @@ $ glance image-create --name "cirros-0.3.2-x86_64" --disk-format qcow2 \
 | status           | active                               |
 | updated_at       | 2014-01-08T18:59:18                  |
 +------------------+--------------------------------------+
-[Note]	Note
-Because the returned image ID is generated dynamically, your deployment generates a different ID than the one shown in this example.
 
-Confirm that the image was uploaded and display its attributes:
-
+# 查看上传镜像的信息
 $ glance image-list
 +--------------------------------------+---------------------+-------------+------------------+----------+--------+
 | ID                                   | Name                | Disk Format | Container Format | Size     | Status |
 +--------------------------------------+---------------------+-------------+------------------+----------+--------+
 | acafc7c0-40aa-4026-9673-b879898e1fc2 | cirros-0.3.2-x86_64 | qcow2       | bare             | 13167616 | active |
 +--------------------------------------+---------------------+-------------+------------------+----------+--------+
-You can now remove the locally downloaded image, since it is stored and available through the Image Service.
 
+# 删除本地镜像
 $ rm -r /tmp/images
-Alternatively, the upload to the Image Service can be done without having to use local disk space to store the file, by use of the --copy-from parameter.
-
-For example:
-
-$ glance image-create --name="cirros-0.3.2-x86_64" --disk-format=qcow2 \
-  --container-format=bare --is-public=true \
-  --copy-from http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img
+# 另外在允许连接外网的情形下,可以使用--copy-from 参数指定文件源
+例如:
+$ glance image-create --name="cirros-0.3.2-x86_64" \
+                      --disk-format=qcow2  \
+                      --container-format=bare --is-public=true \
+                      --copy-from http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img
 +------------------+--------------------------------------+
 | Property         | Value                                |
 +------------------+--------------------------------------+
@@ -344,7 +318,6 @@ $ glance image-create --name="cirros-0.3.2-x86_64" --disk-format=qcow2 \
 | updated_at       | 2016-07-18T13:43:14                  |
 | virtual_size     | None                                 |
 +------------------+--------------------------------------+
-
 [root@controller ~(keystonerc_admin)]$ glance image-list
 +--------------------------------------+--------+-------------+------------------+----------+--------+
 | ID                                   | Name   | Disk Format | Container Format | Size     | Status |
