@@ -44,7 +44,8 @@ Step3: 使用yum进行 search以及install ;
 # 原文链接: http://docs.openstack.org/icehouse/install-guide/install/apt/content/install_clients.html
 
 ## 实践部分:
-TODO
+[root@controller ~(keystonerc_admin)]$ for project in  {"ceilometer","cinder","glance","heat","keystone","neutron","nova", \
+                                         "trove","swift"};do yum install -y python-${project}client.noarch ;done
 
 
 ################################################ NO.2 利用OpenStack RC file设置环境变量 #####################################
