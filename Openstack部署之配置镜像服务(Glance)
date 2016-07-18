@@ -22,73 +22,37 @@ glance-registry: 存储,处理,抽取镜像元数据. 其中镜像元数据包�
 还可以及囊他的数据存储在对象存储服务中;
 
 ################################################ NO.1 安装镜像服务 ############################################################
-Install the Image Service
+OpenStack服务扮演磁盘镜像的"注册表角色",用户可以添加镜像或者对虚拟机创建快照。使用镜像的快照为模板以启动新的服务器.你可以将注册
+的镜像存储于队形存储中或者其他位置.例如你可以把镜像存放入将但文件系统或者外部的web服务器上.
 
-The OpenStack Image Service acts as a registry for virtual disk images. Users can add new images or take a snapshot of an image 
-from an existing server for immediate storage. Use snapshots for back up and as templates to launch new servers. You can store 
-registered images in Object Storage or in other locations. For example, you can store images in simple file systems or external 
-web servers.
-
-[Note]	Note
-This procedure assumes you set the appropriate environment variables to your credentials as described in the section called 
-“Verify the Identity Service installation”.
-
-Install the Image Service on the controller node:
-
+在主控节点上安装镜像服务:
 # apt-get install glance python-glanceclient
-The Image Service stores information about images in a database. The examples in this guide use the MySQL database that is
-used by other OpenStack services.
+镜像服务将镜像信息存储于数据库中;在本例中,Openstack服务采用了mysql数据库.
 
-Configure the location of the database. The Image Service provides the glance-api and glance-registry services, each with its 
-own configuration file. You must update both configuration files throughout this section. Replace GLANCE_DBPASS with your Image
-Service database password.
-
-Edit /etc/glance/glance-api.conf and /etc/glance/glance-registry.conf and edit the [database] section of each file:
-
-Select Text
-1
-2
-3
-...
+配置数据库位置.镜像服务提供了 glance-api与glance-registry服务,每个服务都有各自的配置文件,你必须更新两个文件的配置,修改其连接
+数据库使用的用户/密码;
+编辑 /etc/glance/glance-api.conf 与 /etc/glance/glance-registry.conf 的 [database] 区域,按如下配置修改信息:
 [database]
 connection = mysql://glance:GLANCE_DBPASS@controller/glance
-By default, the Ubuntu packages create an SQLite database. Delete the glance.sqlite file created in the /var/lib/glance/
-directory so that it does not get used by mistake:
-
+...
 # rm /var/lib/glance/glance.sqlite
-Use the password you created to log in as root and create a glance database user:
-
+使用root用户密码登入数据库,创建glance库,授权 localhost以及'%'(任何ip)访问数据库:
 $ mysql -u root -p
 mysql> CREATE DATABASE glance;
 mysql> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' \
 IDENTIFIED BY 'GLANCE_DBPASS';
 mysql> GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' \
 IDENTIFIED BY 'GLANCE_DBPASS';
-Create the database tables for the Image Service:
 
+使用如下命令初始化 glance数据库,建表:
 # su -s /bin/sh -c "glance-manage db_sync" glance
-Create a glance user that the Image Service can use to authenticate with the Identity service. Choose a password and 
-specify an email address for the glance user. Use the service tenant and give the user the admin role:
 
-$ keystone user-create --name=glance --pass=GLANCE_PASS \
-   --email=glance@example.com
+创建 glance用户,赋角色为admin,租户为tenant
+$ keystone user-create --name=glance --pass=GLANCE_PASS --email=glance@example.com
 $ keystone user-role-add --user=glance --tenant=service --role=admin
-Configure the Image Service to use the Identity Service for authentication.
 
-Edit the /etc/glance/glance-api.conf and /etc/glance/glance-registry.conf files. Replace GLANCE_PASS with the password you 
-chose for the glance user in the Identity service.
-
-Add or modify the following keys under the [keystone_authtoken] section:
-
-Select Text
-1
-2
-3
-4
-5
-6
-7
-8
+编辑 /etc/glance/glance-api.conf 与 /etc/glance/glance-registry.conf 的 [keystone_authtoken] 区域,按如下配置修改信息:
+# 注意替换真实 GLANCE_PASS
 [keystone_authtoken]
 auth_uri = http://controller:5000
 auth_host = controller
@@ -97,27 +61,18 @@ auth_protocol = http
 admin_tenant_name = service
 admin_user = glance
 admin_password = GLANCE_PASS
-Modify the following key under the [paste_deploy] section:
 
-Select Text
-1
-2
-3
+修改个服务各自配置文件的 [paste_deploy] 区域:
 [paste_deploy]
 ...
 flavor = keystone
-Register the Image Service with the Identity service so that other OpenStack services can locate it. Register the service 
-and create the endpoint:
 
-$ keystone service-create --name=glance --type=image \
-  --description="OpenStack Image Service"
-$ keystone endpoint-create \
-  --service-id=$(keystone service-list | awk '/ image / {print $2}') \
-  --publicurl=http://controller:9292 \
-  --internalurl=http://controller:9292 \
-  --adminurl=http://controller:9292
-Restart the glance service with its new settings:
-
+使用keystone创建服务并创建服务的endpoint:
+$ keystone service-create --name=glance --type=image --description="OpenStack Image Service" \
+$ keystone endpoint-create --service-id=$(keystone service-list | awk '/ image / {print $2}') \
+                           --publicurl=http://controller:9292  --internalurl=http://controller:9292 \
+                           --adminurl=http://controller:9292
+重启glance-*服务:
 # service glance-registry restart
 # service glance-api restart
 
