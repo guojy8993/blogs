@@ -1,1 +1,15 @@
+### 计算服务 ###
+第0部分:  计算服务组件介绍
+第1部分:  安装计算服务的主控服务
+第2部分:  配置计算节点
 
+################################################ NO.0 计算服务组件介绍 ######################################################################
+
+计算服务是云计算的基础控制器, 是iass系统的主要组成部分.利用它以创建管理云计算系统. 主要的模块使用python实现;
+Compute interacts with the Identity Service for authentication, Image Service for images, and the Dashboard for the user and administrative 
+interface. Access to images is limited by project and by user; quotas are limited per project (for example, the number of instances). 
+The Compute service scales horizontally on standard hardware, and downloads images to launch instances as required.
+
+The Compute service is made up of the following functional areas and their underlying components:
+################################################ NO.1 安装计算服务的主控服务 ################################################################
+################################################ NO.2 配置计算节点 ##########################################################################
