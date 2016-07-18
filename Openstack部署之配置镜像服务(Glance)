@@ -195,7 +195,10 @@ openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keys
 |  service_id | 1eea502a3be5446fb483db3e163b4e9d |
 +-------------+----------------------------------+
 [root@controller ~(keystonerc_admin)]$ iptables -A INPUT -p tcp -m tcp --dport 9292 -j ACCEPT
-
+[root@controller ~(keystonerc_admin)]$ systemctl enable openstack-glance-registry
+[root@controller ~(keystonerc_admin)]$ systemctl enable openstack-glance-api
+[root@controller ~(keystonerc_admin)]$ systemctl start  openstack-glance-registry
+[root@controller ~(keystonerc_admin)]$ systemctl start  openstack-glance-api
 
 
 
@@ -307,4 +310,6 @@ $ glance image-create --name="cirros-0.3.2-x86_64" --disk-format=qcow2 \
 | status           | active                               |
 | updated_at       | 2014-04-08T06:13:20                  |
 +------------------+--------------------------------------+
+
+
 
