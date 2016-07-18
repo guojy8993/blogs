@@ -63,6 +63,7 @@ export OS_USERNAME=admin
 export OS_PASSWORD=ADMIN_PASS
 export OS_TENANT_NAME=admin
 export OS_AUTH_URL=http://controller:35357/v2.0
+5.export PS1='[\u@\h \W(keystonerc_admin)]\$ '
 
 使用 source (而不是 sh 或其他)执行文件
 $ source admin-openrc.sh
@@ -76,6 +77,7 @@ export OS_USERNAME=demo
 export OS_PASSWORD=DEMO_PASS
 export OS_TENANT_NAME=demo
 export OS_AUTH_URL=http://controller:35357/v2.0
+export PS1='[\u@\h \W(keystonerc_admin)]\$ '
 
 实践部分:
 如前文已实践,略;
