@@ -3,13 +3,70 @@
 第1部分:  安装计算服务的主控服务
 第2部分:  配置计算节点
 
-################################################ NO.0 计算服务组件介绍 ######################################################################
+################################################ NO.0 计算服务组件介绍 ###############################################################
 
 计算服务是云计算的基础控制器, 是iass系统的主要组成部分.利用它以创建管理云计算系统. 主要的模块使用python实现;
-Compute interacts with the Identity Service for authentication, Image Service for images, and the Dashboard for the user and administrative 
-interface. Access to images is limited by project and by user; quotas are limited per project (for example, the number of instances). 
-The Compute service scales horizontally on standard hardware, and downloads images to launch instances as required.
+house -  Icehouse -  Icehouse -  Icehouse -  Icehouse -  Icehouse -  Icehouse -  Icehouse - 
+ Compute service
+
+The Compute service is a cloud computing fabric controller, which is the main part of an IaaS system. Use it to host and manage cloud computing systems. The main modules are implemented in Python.
+
+Compute interacts with the Identity Service for authentication, Image Service for images, and the Dashboard for the user and administrative interface. Access to images is limited by project and by user; quotas are limited per project (for example, the number of instances). The Compute service scales horizontally on standard hardware, and downloads images to launch instances as required.
 
 The Compute service is made up of the following functional areas and their underlying components:
-################################################ NO.1 安装计算服务的主控服务 ################################################################
-################################################ NO.2 配置计算节点 ##########################################################################
+
+API
+
+    nova-api service. Accepts and responds to end user compute API calls. Supports the OpenStack Compute API, the Amazon EC2 API, and a special Admin API for privileged users to perform administrative actions. Also, initiates most orchestration activities, such as running an instance, and enforces some policies.
+
+    nova-api-metadata service. Accepts metadata requests from instances. The nova-api-metadata service is generally only used when you run in multi-host mode with nova-network installations. For details, see Metadata service in the Cloud Administrator Guide.
+
+    On Debian systems, it is included in the nova-api package, and can be selected through debconf.
+
+Compute core
+
+    nova-compute process. A worker daemon that creates and terminates virtual machine instances through hypervisor APIs. For example, XenAPI for XenServer/XCP, libvirt for KVM or QEMU, VMwareAPI for VMware, and so on. The process by which it does so is fairly complex but the basics are simple: Accept actions from the queue and perform a series of system commands, like launching a KVM instance, to carry them out while updating state in the database.
+
+    nova-scheduler process. Conceptually the simplest piece of code in Compute. Takes a virtual machine instance request from the queue and determines on which compute server host it should run.
+
+    nova-conductor module. Mediates interactions between nova-compute and the database. Aims to eliminate direct accesses to the cloud database made by nova-compute. The nova-conductor module scales horizontally. However, do not deploy it on any nodes where nova-compute runs. For more information, see A new Nova service: nova-conductor.
+
+Networking for VMs
+
+    nova-network worker daemon. Similar to nova-compute, it accepts networking tasks from the queue and performs tasks to manipulate the network, such as setting up bridging interfaces or changing iptables rules. This functionality is being migrated to OpenStack Networking, which is a separate OpenStack service.
+
+    nova-dhcpbridge script. Tracks IP address leases and records them in the database by using the dnsmasq dhcp-script facility. This functionality is being migrated to OpenStack Networking. OpenStack Networking provides a different script.
+
+Console interface
+
+    nova-consoleauth daemon. Authorizes tokens for users that console proxies provide. See nova-novncproxy and nova-xvpnvcproxy. This service must be running for console proxies to work. Many proxies of either type can be run against a single nova-consoleauth service in a cluster configuration. For information, see About nova-consoleauth.
+
+    nova-novncproxy daemon. Provides a proxy for accessing running instances through a VNC connection. Supports browser-based novnc clients.
+
+    nova-xvpnvncproxy daemon. A proxy for accessing running instances through a VNC connection. Supports a Java client specifically designed for OpenStack.
+
+    nova-cert daemon. Manages x509 certificates.
+
+Image management (EC2 scenario)
+
+    nova-objectstore daemon. Provides an S3 interface for registering images with the Image Service. Mainly used for installations that must support euca2ools. The euca2ools tools talk to nova-objectstore in S3 language, and nova-objectstore translates S3 requests into Image Service requests.
+
+    euca2ools client. A set of command-line interpreter commands for managing cloud resources. Though not an OpenStack module, you can configure nova-api to support this EC2 interface. For more information, see the Eucalyptus 3.4 Documentation.
+
+Command-line clients and other interfaces
+
+    nova client. Enables users to submit commands as a tenant administrator or end user.
+
+    nova-manage client. Enables cloud administrators to submit commands.
+
+Other components
+
+    The queue. A central hub for passing messages between daemons. Usually implemented with RabbitMQ, but could be any AMQP message queue, such as Apache Qpid or Zero MQ.
+
+    SQL database. Stores most build-time and runtime states for a cloud infrastructure. Includes instance types that are available for use, instances in use, available networks, and projects. Theoretically, OpenStack Compute can support any database that SQL-Alchemy supports, but the only databases widely used are SQLite3 databases (only appropriate for test and development work), MySQL, and PostgreSQL.
+
+The Compute service interacts with other OpenStack services: Identity Service for authentication, Image Service for images, and the OpenStack dashboard for a web interface.
+################################################ NO.1 安装计算服务的主控服务 #########################################################
+
+
+################################################ NO.2 配置计算节点 ###################################################################
