@@ -67,6 +67,109 @@ Other components
 
 The Compute service interacts with other OpenStack services: Identity Service for authentication, Image Service for images, and the OpenStack dashboard for a web interface.
 ################################################ NO.1 安装计算服务的主控服务 #########################################################
+实践部分:
+1.安装 openstack-nova-* 组件
+[root@controller ~]# yum install -y openstack-nova-api
+[root@controller ~]# yum install -y openstack-nova-cert 
+[root@controller ~]# yum install -y openstack-nova-conductor 
+[root@controller ~]# yum install -y openstack-nova-console
+[root@controller ~]# rpm -U /opt/rpms/python-websockify-0.6.0-2.el7.noarch.rpm
+[root@controller ~]# rpm -ivh /opt/rpms/novnc-0.5.1-2.el7.noarch.rpm
+[root@controller ~]# yum install -y openstack-nova-novncproxy
+[root@controller ~]# yum install -y openstack-nova-scheduler 
+[root@controller ~]# yum install -y python-novaclient
 
+2.修改nova.conf 中数据库连接参数
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf database connection \
+                                                          mysql://nova:8430e3bff4d000a04085@controller/nova
+
+3.修改配置nova.conf中rabbitmq消息队列信息
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rpc_backend rabbit
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host 10.160.0.116
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5672
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts  10.160.0.116:5672
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_use_ssl false
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_userid guest
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_password guest
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_virtual_host  /
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues false
+
+4.修改配置文件中vncproxy相关参数
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT my_ip 10.160.0.116
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 10.160.0.116
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address 10.160.0.116
+
+5.使用root用户登录数据库创建nova数据库,赋权
+[root@controller ~(keystonerc_admin)]$ mysql -uroot -p
+Enter password: 1428101ae612a0110bb9
+MariaDB [(none)]> CREATE DATABASE nova;
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '8430e3bff4d000a04085';
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '8430e3bff4d000a04085';
+MariaDB [(none)]> FLUSH PRIVILEGES;
+MariaDB [(none)]> quit
+
+6.初始化nova数据库的各种表
+[root@controller ~(keystonerc_admin)]$ su -s /bin/sh -c "nova-manage db sync" nova
+
+
+7.创建nova用户并添加service租户,admin角色
+[root@controller ~(keystonerc_admin)]$ keystone user-create 
+                        --name=nova --pass=0275aa48b1e0a313bced --email=nova@qqvps.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |          nova@qqvps.com          |
+| enabled  |               True               |
+|    id    | 04aee8b4fb834bcdbb4e8444e559fc8a |
+|   name   |               nova               |
+| username |               nova               |
++----------+----------------------------------+
+[root@controller ~(keystonerc_admin)]$ keystone user-role-add --user=nova --tenant=service --role=admin
+
+
+8.修改配置文件中nova使用的keystone凭据信息
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_uri http://controller:5000
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host controller
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
+[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password 0275aa48b1e0a313bced
+
+9.在keystone中注册nova服以及endpoint
+[root@controller ~(keystonerc_admin)]$ keystone service-create --name=nova 
+--type=compute --description="OpenStack Compute"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |        OpenStack Compute         |
+|   enabled   |               True               |
+|      id     | 0909ef744e014cdcb77a5cb21cda31ea |
+|     name    |               nova               |
+|     type    |             compute              |
++-------------+----------------------------------+
+
+[root@controller ~(keystonerc_admin)]$ keystone endpoint-create --service-id=$(keystone service-list | \
+                                           awk '/ compute / {print $2}') --publicurl=http://controller:8774/v2/%\(tenant_id\)s  \
+                                           --internalurl=http://controller:8774/v2/%\(tenant_id\)s  \
+                                           --adminurl=http://controller:8774/v2/%\(tenant_id\)s
++-------------+-----------------------------------------+
+|   Property  |                  Value                  |
++-------------+-----------------------------------------+
+|   adminurl  | http://controller:8774/v2/%(tenant_id)s |
+|      id     |     61614007562340c1991a452c5ed4ca33    |
+| internalurl | http://controller:8774/v2/%(tenant_id)s |
+|  publicurl  | http://controller:8774/v2/%(tenant_id)s |
+|    region   |                regionOne                |
+|  service_id |     0909ef744e014cdcb77a5cb21cda31ea    |
++-------------+-----------------------------------------+
+
+10.开启各个服务并设置服务的开机启动
+[root@controller ~(keystonerc_admin)]$ for comp in {"api","cert","consoleauth","scheduler","conductor","novncproxy"};  \
+do systemctl enable openstack-nova-${comp};systemctl start openstack-nova-${comp};done
+
+[root@controller ~(keystonerc_admin)]$ for comp in {"api","cert","consoleauth","scheduler","conductor","novncproxy"};  \
+do systemctl status openstack-nova-${comp};done
 
 ################################################ NO.2 配置计算节点 ###################################################################
