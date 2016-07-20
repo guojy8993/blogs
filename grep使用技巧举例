@@ -1,0 +1,23 @@
+1.搜索某目录下包含指定字符串的所有文件:
+  命令模版 grep -rn "{specified_string}" "{directory}"
+  使用案例:
+  [root@kvm-101381104 ~]# grep -rn "virsh destroy"  /opt/scripts/
+  /opt/scripts/disk/attach_disk:59:   virsh destroy ${instance_name}
+  /opt/scripts/disk/detach_disk:29:log "virsh destroy ${instance_name}"
+  /opt/scripts/disk/detach_disk:30:virsh destroy "${instance_name}" 1>>"${disk_log}$(date +%Y%m%d).log" \
+  /opt/scripts/instance/destroy_instance:27:	log "virsh destroy ${instance_name}"
+  /opt/scripts/instance/destroy_instance:28:	virsh destroy "${instance_name}" 1>>"${disk_log}$(date +%Y%m%d).log" \
+  /opt/scripts/instance/destroy_instance_20150127:27:	log "virsh destroy ${instance_name}"
+  /opt/scripts/instance/destroy_instance_20150127:28:	virsh destroy "${instance_name}" 1>>"${instance_log}$(date +%Y%m%d).log" \
+  /opt/scripts/instance/redefine_instance:4:virsh destroy $1 2>/dev/null
+  /opt/scripts/instance/resize_instance:11:virsh destroy ${instance_name} && virsh undefine ${instance_name}
+  /opt/scripts/instance/stop_instance:25:virsh destroy "${instance_name}" 1>>"${instance_log}$(date +%Y%m%d).log"\
+  /opt/scripts/path:50:    stop_domain = "virsh destroy %s" % domain
+  Binary file /opt/scripts/.path.swp matches
+
+2.按名字模糊搜索文件
+  [root@controller ~(keystonerc_admin)]$ find /var/cache/ -name "*.rpm"
+  /var/cache/yum/base/packages/libxslt-1.1.28-5.el7.x86_64.rpm
+  /var/cache/yum/base/packages/python-lxml-3.2.1-4.el7.x86_64.rpm
+  /var/cache/yum/base/packages/jbigkit-libs-2.0-11.el7.x86_64.rpm
+  /var/cache/yum/base/packages/libtiff-4.0.3-14.el7.x86_64.rpm
