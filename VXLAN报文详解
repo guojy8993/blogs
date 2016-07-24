@@ -4,3 +4,4 @@
 1.使用 ip link 创建vxlan设备:https://www.kernel.org/doc/Documentation/networking/vxlan.txt
 2.openstack的ovs flow logic:https://wiki.openstack.org/wiki/Ovs-flow-logic
 3.l3 agent 高可用: https://wiki.openstack.org/wiki/Neutron/L3_High_Availability_VRRP
+4.docker的vxlan网络:http://blog.thestateofme.com/2014/06/08/connecting-docker-containers-between-vms-with-vxlan/
