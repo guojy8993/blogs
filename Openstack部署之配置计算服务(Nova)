@@ -157,4 +157,14 @@ do systemctl enable openstack-nova-${comp};systemctl start openstack-nova-${comp
 [root@controller ~(keystonerc_admin)]$ for comp in {"api","cert","consoleauth","scheduler","conductor","novncproxy"};  \
 do systemctl status openstack-nova-${comp};done
 
+11.测试nova配置
+[root@controller ~(keystonerc_admin)]$ nova image-list
++--------------------------------------+--------+--------+--------+
+| ID                                   | Name   | Status | Server |
++--------------------------------------+--------+--------+--------+
+| ba8251cc-618b-48c1-b15d-583032777f56 | cirros | ACTIVE |        |
++--------------------------------------+--------+--------+--------+
+
 ################################################ NO.2 配置计算节点 ###################################################################
+
+
