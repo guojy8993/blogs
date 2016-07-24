@@ -4,68 +4,53 @@
 第2部分:  配置计算节点
 
 ################################################ NO.0 计算服务组件介绍 ###############################################################
+计算服务是云计算的基础控制器, 是iass系统的主要组成部分.利用它以创建管理云计算系统. 主要的模块使用python实现.
+计算服务与Identity服务交互以获取认证,与镜像服务交互获取镜像,与dashboard交互以产生用户与管理员的操作界面.
+对镜像服务的获取是收到租户与用户限制的,每个租户的配额也是有限的(例如允许创建虚拟机的数量).
+计算服务(nova-compute,部署在计算节点上)在标准硬件上进行横向扩展,下载镜像以启动虚拟机.
+计算服务有以下的功能区域以及组件构成:
+(1)API
+    nova-api服务:接收与响应终端用户的api调用.支持 openstack compute api 以及 amazon的ec2 api,以及管理员用户的特权操作;同时也初始化 orche
+-stration 活动,例如,启动一个虚拟机，执行一些策略.
+    nova-api-metadata服务:接受来自虚拟机的metadata请求.该服务通常用于多租户模式下的 nova-network安装;了解更多请查看 Cloud Administrator 
+Guide的Metadata service.
 
-计算服务是云计算的基础控制器, 是iass系统的主要组成部分.利用它以创建管理云计算系统. 主要的模块使用python实现;
-house -  Icehouse -  Icehouse -  Icehouse -  Icehouse -  Icehouse -  Icehouse -  Icehouse - 
- Compute service
+(2)Compute core
+    nova-compute服务. 一个工作于后台的进程,负责通过hypervisor(kvm,xen等)的api创建与终止虚拟机实例instances. 例如,XenAPI(用于XenServer/XCP),
+libvert(用于KVM或qemu),VMwareAPI(用于VMware)等等;该进程做的工作是相当复杂的,但是基础是简单的:从队列中接受请求,然后执行一系列的系统命令,例如
+启动一个KVM实例,在执行完毕后修改对应数据库状态.
+    nova-scheduler服务. 概念上来说,是计算服务中最简单的部分了:从队列中取出一个虚拟机实例,决定在哪个计算节点上运行这个实例.
+    nova-conductor模块. 居中调度nova-compute与database:旨在消除nova-compute对数据库的直接操作.该模块可以横向扩展.可是,不要把该模块与nova
+    -compute部署在一起.
 
-The Compute service is a cloud computing fabric controller, which is the main part of an IaaS system. Use it to host and manage cloud computing systems. The main modules are implemented in Python.
+(3)Networking for VMs
+    nova-network服务. 与nova-compute类似,它接受来自队列的网络任务并执行网络操作,例如设置linux bridge接口,或改动iptables规则. 现在该功能被迁
+    移到OpenStack Networking组件,成为单独的OpenStack服务. 
+    nova-dhcpbridge 脚本.使用dhcp-script追踪ip租约,并将其记录进数据库.现已经迁移进入OpenStack Networking. OpenStack Networking提供不同的script
 
-Compute interacts with the Identity Service for authentication, Image Service for images, and the Dashboard for the user and administrative interface. Access to images is limited by project and by user; quotas are limited per project (for example, the number of instances). The Compute service scales horizontally on standard hardware, and downloads images to launch instances as required.
+(4)Console interface
+    nova-consoleauth服务.向用户授予tokens(由console proxy提供).参考nova-novncproxy以及nova-xvpnvcproxy.该服务的职责是通过运行以提供 console 
+    proxy 服务.根据nova-consoleauth服务运行对应的proxy.了解更多请参考 nova-consoleauth.
+    nova-novncproxy服务.提供通过VNC连接访问运行实例的代理服务.支持基于浏览器的novnc客户端.
+    nova-xvpnvncproxy 服务. 提供通过VNC连接访问运行实例的代理服务. 支持为openstack定制的java 客户端.
+    nova-cert 服务.管理 x509 认证.
 
-The Compute service is made up of the following functional areas and their underlying components:
+(5)Image management (EC2场景)
+    nova-objectstore 服务.提供向镜像服务注册镜像的S3接口. 应用于支持euca2ools的场合.该euca2ools与该服务通过S3接口交互,该服务则负责将s3请求翻
+    译成镜像服务请求.
+    euca2ools 客户端.一套管理云资源的命令行翻译器.尽管不是OpenStack模块,但是可以通过配置nova-api以支持EC2接口.了解更多请查看Eucalyptus 3.4.
 
-API
+(6)Command-line clients and other interfaces
+    nova 客户端.允许用户以终端用户或者管理员身份提交命令进行云资源管理.
+    nova-manage 客户端. 允许云管理员administrators提交系统配置管理的命令.
 
-    nova-api service. Accepts and responds to end user compute API calls. Supports the OpenStack Compute API, the Amazon EC2 API, and a special Admin API for privileged users to perform administrative actions. Also, initiates most orchestration activities, such as running an instance, and enforces some policies.
+其它组件
+    消息队列.一个中央hub:在daemon之间传递消息.通常用rabbitmq实现;但是可以用任何的AMOP协议的消息队列qpid或zero mq也是OK的.
+    SQL数据库. 为云基础设施存储多数创建时或运行时状态信息. 包含可用虚拟机类型,使用中的虚拟机,可用网络,租户;理论来说,OpenStack支持任何SQL
+    -Alchemy所支持的数据库.但是用得最广泛的还是sqlite3,mysql.postgresql.
 
-    nova-api-metadata service. Accepts metadata requests from instances. The nova-api-metadata service is generally only used when you run in multi-host mode with nova-network installations. For details, see Metadata service in the Cloud Administrator Guide.
+计算服务与其他OpenStack服务交互: (1) Identity Service (2)Image Service (3)OpenStack dashboard.
 
-    On Debian systems, it is included in the nova-api package, and can be selected through debconf.
-
-Compute core
-
-    nova-compute process. A worker daemon that creates and terminates virtual machine instances through hypervisor APIs. For example, XenAPI for XenServer/XCP, libvirt for KVM or QEMU, VMwareAPI for VMware, and so on. The process by which it does so is fairly complex but the basics are simple: Accept actions from the queue and perform a series of system commands, like launching a KVM instance, to carry them out while updating state in the database.
-
-    nova-scheduler process. Conceptually the simplest piece of code in Compute. Takes a virtual machine instance request from the queue and determines on which compute server host it should run.
-
-    nova-conductor module. Mediates interactions between nova-compute and the database. Aims to eliminate direct accesses to the cloud database made by nova-compute. The nova-conductor module scales horizontally. However, do not deploy it on any nodes where nova-compute runs. For more information, see A new Nova service: nova-conductor.
-
-Networking for VMs
-
-    nova-network worker daemon. Similar to nova-compute, it accepts networking tasks from the queue and performs tasks to manipulate the network, such as setting up bridging interfaces or changing iptables rules. This functionality is being migrated to OpenStack Networking, which is a separate OpenStack service.
-
-    nova-dhcpbridge script. Tracks IP address leases and records them in the database by using the dnsmasq dhcp-script facility. This functionality is being migrated to OpenStack Networking. OpenStack Networking provides a different script.
-
-Console interface
-
-    nova-consoleauth daemon. Authorizes tokens for users that console proxies provide. See nova-novncproxy and nova-xvpnvcproxy. This service must be running for console proxies to work. Many proxies of either type can be run against a single nova-consoleauth service in a cluster configuration. For information, see About nova-consoleauth.
-
-    nova-novncproxy daemon. Provides a proxy for accessing running instances through a VNC connection. Supports browser-based novnc clients.
-
-    nova-xvpnvncproxy daemon. A proxy for accessing running instances through a VNC connection. Supports a Java client specifically designed for OpenStack.
-
-    nova-cert daemon. Manages x509 certificates.
-
-Image management (EC2 scenario)
-
-    nova-objectstore daemon. Provides an S3 interface for registering images with the Image Service. Mainly used for installations that must support euca2ools. The euca2ools tools talk to nova-objectstore in S3 language, and nova-objectstore translates S3 requests into Image Service requests.
-
-    euca2ools client. A set of command-line interpreter commands for managing cloud resources. Though not an OpenStack module, you can configure nova-api to support this EC2 interface. For more information, see the Eucalyptus 3.4 Documentation.
-
-Command-line clients and other interfaces
-
-    nova client. Enables users to submit commands as a tenant administrator or end user.
-
-    nova-manage client. Enables cloud administrators to submit commands.
-
-Other components
-
-    The queue. A central hub for passing messages between daemons. Usually implemented with RabbitMQ, but could be any AMQP message queue, such as Apache Qpid or Zero MQ.
-
-    SQL database. Stores most build-time and runtime states for a cloud infrastructure. Includes instance types that are available for use, instances in use, available networks, and projects. Theoretically, OpenStack Compute can support any database that SQL-Alchemy supports, but the only databases widely used are SQLite3 databases (only appropriate for test and development work), MySQL, and PostgreSQL.
-
-The Compute service interacts with other OpenStack services: Identity Service for authentication, Image Service for images, and the OpenStack dashboard for a web interface.
 ################################################ NO.1 安装计算服务的主控服务 #########################################################
 实践部分:
 1.安装 openstack-nova-* 组件
