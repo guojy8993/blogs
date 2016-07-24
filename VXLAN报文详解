@@ -6,4 +6,5 @@
                             http://www.opencloudblog.com/?p=300
 3.l3 agent 高可用: https://wiki.openstack.org/wiki/Neutron/L3_High_Availability_VRRP
 4.docker的vxlan网络:http://blog.thestateofme.com/2014/06/08/connecting-docker-containers-between-vms-with-vxlan/
+                    https://docs.docker.com/engine/userguide/networking/dockernetworks/
 5.kilo network guide:http://docs.openstack.org/kilo/networking-guide/scenario_legacy_lb.html
