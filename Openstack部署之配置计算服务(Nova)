@@ -167,4 +167,92 @@ do systemctl status openstack-nova-${comp};done
 
 ################################################ NO.2 配置计算节点 ###################################################################
 
+实践部分;
+1.安装openstack-nova-compute组件
+[root@compute ~]# yum search openstack-nova-compute
+Loaded plugins: fastestmirror
+Loading mirror speeds from cached hostfile
+ * base: centos.ustc.edu.cn
+ * extras: ftp.sjtu.edu.cn
+ * updates: centos.ustc.edu.cn
+=========================================== N/S matched: openstack-nova-compute =======================================================
+openstack-nova-compute.noarch : OpenStack Nova Virtual Machine control service
+[root@compute ~]# yum install -y openstack-nova-compute.noarch
+
+2.编辑 /etc/nova/nova.conf配置
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf database connection mysql://nova:8430e3bff4d000a04085@controller/nova
+[root@compute ~]# cat /etc/nova/nova.conf | grep connection | grep -v "^#"
+connection = mysql://nova:8430e3bff4d000a04085@controller/nova
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+[root@compute ~]# cat /etc/nova/nova.conf | grep auth_strategy | grep -v "^#"
+auth_strategy = keystone
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_uri http://controller:5000
+[root@compute ~]# cat /etc/nova/nova.conf | grep auth_uri | grep -v "^#"
+auth_uri = http://controller:5000
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host controller
+[root@compute ~]# cat /etc/nova/nova.conf | grep auth_host | grep -v "^#"
+auth_host = controller
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
+[root@compute ~]# cat /etc/nova/nova.conf | grep auth_protocol | grep -v "^#"
+auth_protocol = http
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
+[root@compute ~]# cat /etc/nova/nova.conf | grep auth_port | grep -v "^#"
+auth_port = 35357
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
+[root@compute ~]# cat /etc/nova/nova.conf | grep admin_user | grep -v "^#"
+admin_user = nova
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
+[root@compute ~]# cat /etc/nova/nova.conf | grep admin_tenant_name | grep -v "^#"
+admin_tenant_name = service
+
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password 0275aa48b1e0a313bced
+[root@compute ~]# cat /etc/nova/nova.conf | grep admin_password | grep -v "^#"
+admin_password = 0275aa48b1e0a313bced
+
+3.配置计算服务使用rabbit消息队列
+首先查看配置文件中关于消息队列配置项的keys:
+[root@compute ~]# cat /etc/nova/nova.conf | grep rpc_backend
+# configuration. If not set, we fall back to the rpc_backend
+#rpc_backend=rabbit
+[root@compute yum.repos.d]# cat /etc/nova/nova.conf | grep rabbit
+# Deprecated group;name - DEFAULT;rabbit_durable_queues
+#rabbit_host=localhost
+#rabbit_port=5672
+#rabbit_hosts=$rabbit_host:$rabbit_port
+#rabbit_use_ssl=false
+#rabbit_userid=guest
+#rabbit_password=guest
+#rabbit_login_method=AMQPLAIN
+#rabbit_virtual_host=/
+#rabbit_retry_interval=1
+#rabbit_retry_backoff=2
+#rabbit_max_retries=0
+#rabbit_ha_queues=false
+#fake_rabbit=false
+# The messaging driver to use, defaults to rabbit. Other
+#rpc_backend=rabbit
+其次按照实际情况逐个修改配置:
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rpc_backend rabbit
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host 10.160.0.116
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port   5672
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts  10.160.0.116:5672
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_use_ssl  False
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_userid guest
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_password guest
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_virtual_host /
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues False
+
+
+
+
+
+
+
 
