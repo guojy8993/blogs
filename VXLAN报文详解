@@ -1,1 +1,6 @@
 
+
+参考链接:
+1.使用 ip link 创建vxlan设备:https://www.kernel.org/doc/Documentation/networking/vxlan.txt
+2.openstack的ovs flow logic:https://wiki.openstack.org/wiki/Ovs-flow-logic
+3.l3 agent 高可用 
