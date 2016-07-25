@@ -264,9 +264,10 @@ admin_password = 0275aa48b1e0a313bced
 
 6.查看硬件配置是否支持对虚拟机的硬件加速,确定使用的virt类型
 [root@compute ~]# egrep -c '(vmx|svm)' /proc/cpuinfo
-# 如果返回值为 0:
+# 如果返回值为 0,则进行如下设置;如果返回值为 >=1: 使用默认配置即可
 [root@compute ~]# openstack-config --set /etc/nova/nova.conf libvirt virt_type qemu
-# 如果返回值为 >=1: 使用默认配置即可
+# 设置 compute_driver
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver nova.virt.libvirt.LibvirtDriver
 
 7.启动计算服务以及他的依赖.并设置开机启动
 [root@compute ~]# systemctl start libvirtd
