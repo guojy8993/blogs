@@ -1,6 +1,7 @@
 ### 配置网络服务 ###
 第0部分:  网络概念
 第1部分:  网络2层插件
+第2部分:  测试:创建虚拟机
 
 ########################################################## NO.0 网络概念 ###################################################################
 OpenStack Networking (neutron) manages all of the networking facets for the Virtual Networking Infrastructure (VNI) and the access layer 
@@ -36,3 +37,5 @@ set up Networking. All Networking installations use a core plug-in and a securit
 Additionally, Firewall-as-a-service (FWaaS) and Load-balancing-as-a-service (LBaaS) plug-ins are available.
 
 ########################################################## NO.0 网络2层插件 ################################################################
+
+########################################################## NO.0 测试:创建虚拟机 ############################################################
