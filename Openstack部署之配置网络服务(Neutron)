@@ -157,12 +157,23 @@ MariaDB [(none)]> quit
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://controller:35357/v2.0
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT linuxnet_interface_driver \
                                                                      nova.network.linux_net.LinuxOVSInterfaceDriver
-[root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver \
-                                                                     nova.virt.libvirt.firewall.IptablesFirewallDriver
+# 使用neutron的fwaas,通过NoopFirewallDriver禁用nova的防火墙服务
+[root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api neutron
 
 7.最后的安装
-
+    a.创建ml2_conf.ini 到 /etc/neutron/plugin.ini 的软链接:
+    [root@controller ~]# ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+    [root@controller ~]# ll /etc/neutron/plugin.ini 
+    lrwxrwxrwx. 1 root root 37 Jul 25 15:46 /etc/neutron/plugin.ini -> /etc/neutron/plugins/ml2/ml2_conf.ini
+    
+    b.重启计算服务:
+    [root@controller ~]# for service in {api,conductor,scheduler};do systemctl restart openstack-nova-${service} ;done
+    [root@controller ~]# for service in {api,conductor,scheduler};do systemctl status openstack-nova-${service} ;done
+    c.启动 neutron server,并设置开机启动:
+    [root@controller ~]# systemctl start   neutron-server
+    [root@controller ~]# systemctl status  neutron-server
+    [root@controller ~]# systemctl enable  neutron-server
 
 Part03: 配置网络节点
 Part03: 配置计算节点
