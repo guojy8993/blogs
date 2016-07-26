@@ -176,7 +176,7 @@ MariaDB [(none)]> quit
     [root@controller ~]# systemctl status  neutron-server
     [root@controller ~]# systemctl enable  neutron-server
 
-Part03: 配置网络节点
+Part02: 配置网络节点
 1.开启特定的内核网络功能
 [root@network ~]# sysctl -w net.ipv4.ip_forward=1
 [root@network ~]# sysctl -w net.ipv4.conf.all.rp_filter=0
@@ -282,9 +282,20 @@ Part03: 配置网络节点
 9.结束安装
     a.创建到 ml2_conf.ini 的软链接
     [root@network ~]# ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+    # 并替换服务启动脚本中的 plugin.ini
+    # 默认使用 
+    # 如下: ExecStart=/usr/bin/neutron-openvswitch-agent --config-file /usr/share/neutron/neutron-dist.conf 
+    #                    --config-file /etc/neutron/neutron.conf 
+    #                    --config-file /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini 
+    #                    --log-file /var/log/neutron/openvswitch-agent.log
+    # 使用 sed 替换掉 ovs_neutron_plugin.ini
+    # 注意: 使用 systemd 管理的服务,脚本路径在 /usr/lib/systemd/system/ 下
+    [root@network ~]# sed -i 's,plugins/openvswitch/ovs_neutron_plugin.ini,plugin.ini,g'  \
+                                           /usr/lib/systemd/system/neutron-openvswitch-agent.service
     b.启动各个服务并设置开机启动
-    [root@network ~]# systemctl start neutron-openvswitch-agent
+    # 在修改systemctl管理neutron-openvswitch-agent的脚本之后,请显式地enable该service,然后允许其创建对应软链接 
     [root@network ~]# systemctl enable neutron-openvswitch-agent
+    [root@network ~]# systemctl start neutron-openvswitch-agent
     [root@network ~]# systemctl status neutron-l3-agent
     [root@network ~]# systemctl enable neutron-l3-agent
     [root@network ~]# systemctl start  neutron-dhcp-agent
