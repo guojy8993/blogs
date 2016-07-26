@@ -451,3 +451,161 @@ Created a new subnet:
 
 
 ########################################################## NO.2 测试:创建虚拟机 ##########################################################
+Part01:生成key pair
+1.切换到系统用户demo
+[root@controller ~]# cat keystonerc_demo 
+export OS_USERNAME=demo
+export OS_TENANT_NAME=demo
+export OS_AUTH_URL=http://controller:35357/v2.0
+export PS1='[\u@\h \W(keystonerc_demo)]$ '
+export OS_PASSWORD=22eb630cad4785bfdc81
+[root@controller ~]# source keystonerc_demo
+
+2.生成sshkey
+[root@controller ~(keystonerc_demo)]$ ssh-keygen 
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /root/.ssh/id_rsa.
+Your public key has been saved in /root/.ssh/id_rsa.pub.
+The key fingerprint is:
+99:95:09:56:eb:ad:c7:b0:85:26:f6:e1:20:2c:a9:e0 root@controller
+The key's randomart image is:
++--[ RSA 2048]----+
+|        o..      |
+|       . . +     |
+|          =      |
+|     o   = o     |
+|.   o o S * o    |
+|.. . . o * B     |
+| E.       = o    |
+|           .     |
+|                 |
++-----------------+
+
+3.添加ssh key公钥到openstack环境
+[root@controller ~(keystonerc_demo)]$ nova keypair-add --pub-key /root/.ssh/id_rsa.pub demo-key
+
+4.查看公钥
+[root@controller ~(keystonerc_demo)]$ nova keypair-list
++----------+-------------------------------------------------+
+| Name     | Fingerprint                                     |
++----------+-------------------------------------------------+
+| demo-key | 99:95:09:56:eb:ad:c7:b0:85:26:f6:e1:20:2c:a9:e0 |
++----------+-------------------------------------------------+
+
+Part02:启动实例
+1.创建套餐
+# 系统初始化时已经默认添加5种套餐
+[root@controller ~(keystonerc_demo)]$ nova flavor-list
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| 1  | m1.tiny   | 512       | 1    | 0         |      | 1     | 1.0         | True      |
+| 2  | m1.small  | 2048      | 20   | 0         |      | 1     | 1.0         | True      |
+| 3  | m1.medium | 4096      | 40   | 0         |      | 2     | 1.0         | True      |
+| 4  | m1.large  | 8192      | 80   | 0         |      | 4     | 1.0         | True      |
+| 5  | m1.xlarge | 16384     | 160  | 0         |      | 8     | 1.0         | True      |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+
+2.上传或查询现有可用镜像
+# 部署镜像服务后测试阶段上传cirros
+[root@controller ~(keystonerc_demo)]$ glance image-list
++--------------------------------------+--------+-------------+------------------+----------+--------+
+| ID                                   | Name   | Disk Format | Container Format | Size     | Status |
++--------------------------------------+--------+-------------+------------------+----------+--------+
+| ba8251cc-618b-48c1-b15d-583032777f56 | cirros | qcow2       | bare             | 13167616 | active |
++--------------------------------------+--------+-------------+------------------+----------+--------+
+
+3.创建租户网络,子网
+[root@controller ~(keystonerc_demo)]$ neutron net-create net-demo 
+Created a new network:
++----------------+--------------------------------------+
+| Field          | Value                                |
++----------------+--------------------------------------+
+| admin_state_up | True                                 |
+| id             | aed5bdd3-b89c-443b-a83d-8aa09fb77e0b |
+| name           | net-demo                             |
+| shared         | False                                |
+| status         | ACTIVE                               |
+| subnets        |                                      |
+| tenant_id      | ce0b702330f74917a4f864af3df4b322     |
++----------------+--------------------------------------+
+
+[root@controller ~(keystonerc_demo)]$ neutron subnet-create net-demo --name subnet-demo \
+                                              --disable-dhcp --allocation-pool start=172.172.172.100,end=172.172.172.100 \
+                                              --gateway 172.172.172.1 172.172.172.0/24
+Created a new subnet:
++------------------+--------------------------------------------------------+
+| Field            | Value                                                  |
++------------------+--------------------------------------------------------+
+| allocation_pools | {"start": "172.172.172.100", "end": "172.172.172.100"} |
+| cidr             | 172.172.172.0/24                                       |
+| dns_nameservers  |                                                        |
+| enable_dhcp      | False                                                  |
+| gateway_ip       | 172.172.172.1                                          |
+| host_routes      |                                                        |
+| id               | 39052935-e31e-4979-bcda-d98dd8091c49                   |
+| ip_version       | 4                                                      |
+| name             | subnet-demo                                            |
+| network_id       | aed5bdd3-b89c-443b-a83d-8aa09fb77e0b                   |
+| tenant_id        | ce0b702330f74917a4f864af3df4b322                       |
++------------------+--------------------------------------------------------+
+
+4.创建安全组
+# 使用系统初始安全组
+[root@controller ~(keystonerc_demo)]$ nova secgroup-list
++--------------------------------------+---------+-------------+
+| Id                                   | Name    | Description |
++--------------------------------------+---------+-------------+
+| 9e24d93b-e894-433b-8446-03b44c171ba7 | default | default     |
++--------------------------------------+---------+-------------+
+
+# 添加安全组规则允许远程访问
+# http://docs.openstack.org/icehouse/install-guide/install/yum/content/launch-instance-nova.html#launch-instance-nova-remoteaccess
+(TODO)
+
+5.启动实例
+[root@controller ~(keystonerc_demo)]$ nova boot --flavor m1.small --image ba8251cc-618b-48c1-b15d-583032777f56 \
+                               --nic net-id=aed5bdd3-b89c-443b-a83d-8aa09fb77e0b --security-group 9e24d93b-e894-433b-8446-03b44c171ba7 \
+                               --key-name demo-key demo-instance
++--------------------------------------+-----------------------------------------------+
+| Property                             | Value                                         |
++--------------------------------------+-----------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                        |
+| OS-EXT-AZ:availability_zone          | nova                                          |
+| OS-EXT-STS:power_state               | 0                                             |
+| OS-EXT-STS:task_state                | scheduling                                    |
+| OS-EXT-STS:vm_state                  | building                                      |
+| OS-SRV-USG:launched_at               | -                                             |
+| OS-SRV-USG:terminated_at             | -                                             |
+| accessIPv4                           |                                               |
+| accessIPv6                           |                                               |
+| adminPass                            | WEreEMP3zWaq                                  |
+| config_drive                         |                                               |
+| created                              | 2016-07-26T10:36:10Z                          |
+| flavor                               | m1.small (2)                                  |
+| hostId                               |                                               |
+| id                                   | e2905f73-45e3-4fcd-a478-a1d6b6ba5f36          |
+| image                                | cirros (ba8251cc-618b-48c1-b15d-583032777f56) |
+| key_name                             | demo-key                                      |
+| metadata                             | {}                                            |
+| name                                 | demo-instance                                 |
+| os-extended-volumes:volumes_attached | []                                            |
+| progress                             | 0                                             |
+| security_groups                      | 9e24d93b-e894-433b-8446-03b44c171ba7          |
+| status                               | BUILD                                         |
+| tenant_id                            | ce0b702330f74917a4f864af3df4b322              |
+| updated                              | 2016-07-26T10:36:10Z                          |
+| user_id                              | be2ccbd63de7460dbd556c5b5f99e9d7              |
++--------------------------------------+-----------------------------------------------+
+
+
+
+
+
+
+
+
+
