@@ -52,6 +52,74 @@ libvert(用于KVM或qemu),VMwareAPI(用于VMware)等等;该进程做的工作是
 计算服务与其他OpenStack服务交互: (1) Identity Service (2)Image Service (3)OpenStack dashboard.
 
 ################################################ NO.1 安装计算服务的主控服务 #########################################################
+理论部分:
+    计算服务是提供你启动虚拟机能力的一组服务.你可以配置这些服务运行在或相同或不同的节点上. 在本篇中,大多数服务运行在主控节点上,
+且负责启动虚拟机的服务择运行在专用的计算节点上.在这一部分将展示如何在主控节点上安装配置相关服务.
+1.在主控节点为计算服务安装的必须软件包
+# yum install openstack-nova-api openstack-nova-cert openstack-nova-conductor openstack-nova-console \
+      openstack-nova-novncproxy openstack-nova-scheduler python-novaclient
+2.计算服务将信息存储入数据库中.在本篇中,我们在主控节点上安装mysql数据库.为计算服务配置数据库位置以及凭据.请将下列命令行中的关键
+参数 NOVA_DBPASS 替换成真实值.
+# openstack-config --set /etc/nova/nova.conf database connection mysql://nova:NOVA_DBPASS@controller/nova
+3.设置消息队列参数(本篇指导用qpid,后续实践我们使用rabbitmq,参数也很丰富)
+# openstack-config --set /etc/nova/nova.conf DEFAULT rpc_backend qpid
+# openstack-config --set /etc/nova/nova.conf DEFAULT qpid_hostname controller
+4.设置novnc代理配置:其中 {my_ip},{vncserver_listen},{vncserver_proxyclient_address} 设置为本主控节点管理ip
+# openstack-config --set /etc/nova/nova.conf DEFAULT my_ip 10.0.0.11
+# openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 10.0.0.11
+# openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address 10.0.0.11
+5.使用mysql数据库的root用户进行登陆,创建nova数据库,赋权限
+$ mysql -u root -p
+mysql> CREATE DATABASE nova;
+mysql> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY 'NOVA_DBPASS';
+mysql> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY 'NOVA_DBPASS';
+6.初始化nova数据库
+# su -s /bin/sh -c "nova-manage db sync" nova
+
+7.创建nova用户,计算服务凭借该用户从Identity服务获取认证.使用service租户并为该用户赋admin角色
+$ keystone user-create --name=nova --pass=NOVA_PASS --email=nova@example.com
+$ keystone user-role-add --user=nova --tenant=service --role=admin
+
+8.配置计算服务从Identity认证的凭据,将关键参数 NOVA_PASS 替换为对应密码
+# openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_uri http://controller:5000
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host controller
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password NOVA_PASS
+
+9.必须在Indetuty服务中注册以允许其他Openstack服务定位之.注册服务及其端点.
+$ keystone service-create --name=nova --type=compute --description="OpenStack Compute"
+$ keystone endpoint-create \
+          --service-id=$(keystone service-list | awk '/ compute / {print $2}') \
+          --publicurl=http://controller:8774/v2/%\(tenant_id\)s \
+          --internalurl=http://controller:8774/v2/%\(tenant_id\)s \
+          --adminurl=http://controller:8774/v2/%\(tenant_id\)s
+
+10.启动i计算服务并设置其为开机启动
+# service openstack-nova-api start
+# service openstack-nova-cert start
+# service openstack-nova-consoleauth start
+# service openstack-nova-scheduler start
+# service openstack-nova-conductor start
+# service openstack-nova-novncproxy start
+# chkconfig openstack-nova-api on
+# chkconfig openstack-nova-cert on
+# chkconfig openstack-nova-consoleauth on
+# chkconfig openstack-nova-scheduler on
+# chkconfig openstack-nova-conductor on
+# chkconfig openstack-nova-novncproxy on
+
+11.检验你的配置是否正确,可以执行如下命令测试:
+$ nova image-list
++--------------------------------------+---------------------+--------+--------+
+| ID                                   | Name                | Status | Server |
++--------------------------------------+---------------------+--------+--------+
+| acafc7c0-40aa-4026-9673-b879898e1fc2 | cirros-0.3.2-x86_64 | ACTIVE |        |
++--------------------------------------+---------------------+--------+--------+
+
 实践部分:
 1.安装 openstack-nova-* 组件
 [root@controller ~]# yum install -y openstack-nova-api
@@ -166,6 +234,54 @@ do systemctl status openstack-nova-${comp};done
 +--------------------------------------+--------+--------+--------+
 
 ################################################ NO.2 配置计算节点 ###################################################################
+理论部分:
+    在为主控节点配置了相关计算服务之后,你需要配置另外的节点作为计算节点.计算节点负责接受主控节点请求,运行虚拟机.你可以在单个节点上运行
+所有服务,可是本篇使用不同的节点(按角色使用不同节点). 这样可以很容易地通过本文添加计算节横向扩展集群.
+    计算服务依赖于hypervisor(lxc,kvm,xen)运行虚拟机.Openstack可以使用形形色色的hypervisor,但是本篇使用KVM.
+
+1.安装计算服务相关安装包
+# yum install openstack-nova-compute
+2.编辑 nova.conf 配置计算服务
+# openstack-config --set /etc/nova/nova.conf database connection mysql://nova:NOVA_DBPASS@controller/nova
+# openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_uri http://controller:5000
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host controller
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
+# openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password NOVA_PASS
+3.配置计算服务使用消息队列
+# openstack-config --set /etc/nova/nova.conf DEFAULT rpc_backend qpid
+# openstack-config --set /etc/nova/nova.conf DEFAULT qpid_hostname controller
+4.配置计算服务novnc代理服务
+# openstack-config --set /etc/nova/nova.conf DEFAULT my_ip 10.0.0.31
+# openstack-config --set /etc/nova/nova.conf DEFAULT vnc_enabled True
+# openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0
+# openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address 10.0.0.31
+# openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://controller:6080/vnc_auto.html
+5.配置镜像服务器
+# openstack-config --set /etc/nova/nova.conf DEFAULT glance_host controller
+6.检查计算节点是否支持硬件加速,确定使用的 virt_type
+$ egrep -c '(vmx|svm)' /proc/cpuinfo
+# 如果返回值大于0,那表示支持,使用默认配置即可;
+# 如果等于0,表示不支持,则virt_type需要设置为qemu，表示全虚拟化
+# openstack-config --set /etc/nova/nova.conf libvirt virt_type qemu
+7.启动计算服务及其依赖服务,设置开机启动
+# ** For RHEL or CentOS **
+# service libvirtd start
+# service messagebus start
+# service openstack-nova-compute start
+# chkconfig libvirtd on
+# chkconfig messagebus on
+# chkconfig openstack-nova-compute on
+# ** For Fedora **
+# service libvirtd start
+# service dbus start
+# service openstack-nova-compute start
+# chkconfig libvirtd on
+# chkconfig dbus on
+# chkconfig openstack-nova-compute on
 
 实践部分;
 1.安装openstack-nova-compute组件
