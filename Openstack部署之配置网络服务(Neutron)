@@ -408,7 +408,46 @@ Part03: 配置计算节点
     [root@compute ~]# systemctl restart neutron-openvswitch-agent
 
 Part04: 创建初始网络
+1.创建公网资源池
+[root@controller ~]# source keystonerc_admin
+[root@controller ~(keystonerc_admin)]$ neutron net-create ext-net --shared --router:external=true
+Created a new network:
++---------------------------+--------------------------------------+
+| Field                     | Value                                |
++---------------------------+--------------------------------------+
+| admin_state_up            | True                                 |
+| id                        | 14a198f8-133d-40be-bbc0-865b0c66a908 |
+| name                      | ext-net                              |
+| provider:network_type     | vxlan                                |
+| provider:physical_network |                                      |
+| provider:segmentation_id  | 1                                    |
+| router:external           | True                                 |
+| shared                    | True                                 |
+| status                    | ACTIVE                               |
+| subnets                   |                                      |
+| tenant_id                 | e068b28f4d09487a91df3f1e02aa645f     |
++---------------------------+--------------------------------------+
 
+2.为公共网络创建子网
+[root@controller ~(keystonerc_admin)]$ neutron subnet-create ext-net --name ext-subnet --disable-dhcp \
+                                            --allocation-pool start=10.160.0.151,end=10.160.0.161 \
+                                            --gateway 10.160.0.1 10.160.0.0/16
+Created a new subnet:
++------------------+--------------------------------------------------+
+| Field            | Value                                            |
++------------------+--------------------------------------------------+
+| allocation_pools | {"start": "10.160.0.151", "end": "10.160.0.161"} |
+| cidr             | 10.160.0.0/16                                    |
+| dns_nameservers  |                                                  |
+| enable_dhcp      | False                                            |
+| gateway_ip       | 10.160.0.1                                       |
+| host_routes      |                                                  |
+| id               | ee927adf-7a4e-4a9a-844f-5f3f850b33dd             |
+| ip_version       | 4                                                |
+| name             | ext-subnet                                       |
+| network_id       | 14a198f8-133d-40be-bbc0-865b0c66a908             |
+| tenant_id        | e068b28f4d09487a91df3f1e02aa645f                 |
++------------------+--------------------------------------------------+
 
 
 ########################################################## NO.2 测试:创建虚拟机 ##########################################################
