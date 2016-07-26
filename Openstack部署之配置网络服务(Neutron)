@@ -158,6 +158,9 @@ MariaDB [(none)]> quit
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://controller:35357/v2.0
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT linuxnet_interface_driver \
                                                                      nova.network.linux_net.LinuxOVSInterfaceDriver
+[root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+[root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api neutron
+
 # 使用neutron的fwaas,通过NoopFirewallDriver禁用nova的防火墙服务
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api neutron
@@ -178,12 +181,12 @@ MariaDB [(none)]> quit
 
 Part02: 配置网络节点
 1.开启特定的内核网络功能
-[root@network ~]# sysctl -w net.ipv4.ip_forward=1
-[root@network ~]# sysctl -w net.ipv4.conf.all.rp_filter=0
-[root@network ~]# sysctl -w net.ipv4.conf.default.rp_filter=0
-[root@network ~]# sysctl -w net.bridge.bridge-nf-call-arptables=1
-[root@network ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1
-[root@network ~]# sysctl -w net.bridge.bridge-nf-call-ip6tables=1
+[root@network ~]# sysctl -w net.ipv4.ip_forward=1 && echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+[root@network ~]# sysctl -w net.ipv4.conf.all.rp_filter=0 && echo "net.ipv4.conf.all.rp_filter=0" >> /etc/sysctl.conf
+[root@network ~]# sysctl -w net.ipv4.conf.default.rp_filter=0 && echo "net.ipv4.conf.default.rp_filter=0" >> /etc/sysctl.conf
+[root@network ~]# sysctl -w net.bridge.bridge-nf-call-arptables=1 && echo "net.bridge.bridge-nf-call-arptables=1" >> /etc/sysctl.conf
+[root@network ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1 && echo "net.bridge.bridge-nf-call-iptables=1" >> /etc/sysctl.conf
+[root@network ~]# sysctl -w net.bridge.bridge-nf-call-ip6tables=1 && echo "net.bridge.bridge-nf-call-ip6tables=1" >> /etc/sysctl.conf
 # note:?参数详解(TODO)?
 
 2.立即启用上述参数修改
@@ -263,6 +266,15 @@ Part02: 配置网络节点
 [root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup firewall_driver \
                                                               neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
 [root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
+# 如下设置官方没提但是却是自动创建 vxlan 隧道必须的
+# 参考文档:http://www.qlogic.com/solutions/Documents/UsersGuide_OpenStack_VXLAN.pdf
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tenant_network_type vxlan
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tunnel_bridge br-tun
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs integration_bridge br-int
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tunnel_id_ranges 65535:69999
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini agent tunnel_types vxlan
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini agent vxlan_udp_port 4789
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini agent l2_population False
 
 8.配置ovs服务
     a.启动openvswitch并设置开机启动
@@ -304,7 +316,96 @@ Part02: 配置网络节点
     [root@network ~]# systemctl enable neutron-metadata-agent
     
 Part03: 配置计算节点
+1.设置网络内核参数并持久化入配置文件
+[root@compute ~]# sysctl -w net.ipv4.ip_forward=1 && echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+[root@compute ~]# sysctl -w net.ipv4.conf.all.rp_filter=0 && echo "net.ipv4.conf.all.rp_filter=0" >> /etc/sysctl.conf
+[root@compute ~]# sysctl -w net.ipv4.conf.default.rp_filter=0 && echo "net.ipv4.conf.default.rp_filter=0" >> /etc/sysctl.conf
+[root@compute ~]# sysctl -w net.bridge.bridge-nf-call-arptables=1 && echo "net.bridge.bridge-nf-call-arptables=1" >> /etc/sysctl.conf
+[root@compute ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1 && echo "net.bridge.bridge-nf-call-iptables=1" >> /etc/sysctl.conf
+[root@compute ~]# sysctl -w net.bridge.bridge-nf-call-ip6tables=1 && echo "net.bridge.bridge-nf-call-ip6tables=1" >> /etc/sysctl.conf
+# 立即应用内核参数
+[root@compute ~]# sysctl -p
 
+2.安装网络组件
+[root@compute ~]# yum install -y openstack-neutron-ml2 openstack-neutron-openvswitch
+
+3.配置网络通用组件
+    a.配置网络服务采用Identity服务认证
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri http://controller:5000
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host controller
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_protocol http
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_port 35357
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name service
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password fd659cbfdc98a28bed5b
+    
+    b.配置网络服务使用rabbitmq消息队列
+    [root@compute ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT rpc_backend neutron.openstack.common.rpc.impl_kombu
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host 10.160.0.116
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_password guest
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_port 5672
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts 10.160.0.116:5672
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_userid guest
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_virtual_host /
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues False
+    [root@compute ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_use_ssl False
+    
+    c.配置网络服务使用ml2组件及其相关组件
+    [root@compute ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin ml2
+    [root@compute ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router
+    
+4.配置ML2组件
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers vxlan
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs enable_tunneling True
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tunnel_type vxlan
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs local_ip 172.172.172.117
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup firewall_driver \
+                                                              neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
+# 如下设置官方没提但是却是自动创建 vxlan 隧道必须的
+# 参考文档:http://www.qlogic.com/solutions/Documents/UsersGuide_OpenStack_VXLAN.pdf
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tenant_network_type vxlan
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tunnel_bridge br-tun
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs integration_bridge br-int
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tunnel_id_ranges 65535:69999
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini agent tunnel_types vxlan
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini agent vxlan_udp_port 4789
+[root@compute ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini agent l2_population False
+
+
+5.配置openvswitch服务
+    a.启动openvswitch并设置开机启动
+    [root@compute ~]# systemctl start openvswitch && systemctl enable openvswitch
+    b.添加集成网桥
+    [root@compute ~]# ovs-vsctl add-br br-int
+    
+6.配置计算服务使用网络服务
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_url http://controller:9696
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name service
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_username neutron
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_password fd659cbfdc98a28bed5b
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://controller:35357/v2.0
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT linuxnet_interface_driver \
+                                                                     nova.network.linux_net.LinuxOVSInterfaceDriver
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+[root@compute ~]# openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api neutron
+    
+7.结束安装
+    a.创建ml2_conf.ini到 /etc/neutron.plugin.ini的软链接
+    [root@compute ~]# ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+    b.替换(neutron-openvswitch-agent)服务启动脚本中应用的插件文件
+    [root@compute ~]# sed -i 's,plugins/openvswitch/ovs_neutron_plugin.ini,plugin.ini,g' \
+                                                    /usr/lib/systemd/system/neutron-openvswitch-agent.service
+    c.重启openstack-nova-compute服务
+    [root@compute ~]# systemctl restart openstack-nova-compute
+    d.设置开机启动neutron-openvswitch-agent,并启动之
+    [root@compute ~]# systemctl restart neutron-openvswitch-agent
 
 Part04: 创建初始网络
 
