@@ -113,18 +113,18 @@ MariaDB [(none)]> quit
     
     c.配置网络服务使用rabbitmq消息队列:
     [root@controller ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT rpc_backend neutron.openstack.common.rpc.impl_kombu
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host 10.160.0.116
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_password guest
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_port 5672
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts 10.160.0.116:5672
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_userid guest
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_virtual_host /
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues False
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_use_ssl False
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host 10.160.0.116
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_password guest
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_port 5672
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts 10.160.0.116:5672
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_userid guest
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_virtual_host /
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues False
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_use_ssl False
     
     d.配置neutron通知nova关于网络拓扑变动:
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes True
-    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes True
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes True
+    [root@controller ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes True
     [root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://controller:8774/v2
     [root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username nova
     [root@controller ~(keystonerc_admin)]$ keystone tenant-list | awk '/ service / { print $2 }'
@@ -141,12 +141,13 @@ MariaDB [(none)]> quit
     [root@controller ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT verbose  True
     
 5.配置ml2插件
-[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers vxlan
-[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
-[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
-[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000
-[root@controller ~(keystonerc_admin)]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
-
+[root@controller ~]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers vxlan
+[root@controller ~]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+[root@controller ~]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+[root@controller ~]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000
+[root@controller ~]$ openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
+[root@controller ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup firewall_driver \
+                                                         neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
 6.配置计算服务使用网络组件
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_url http://controller:9696
@@ -176,7 +177,126 @@ MariaDB [(none)]> quit
     [root@controller ~]# systemctl enable  neutron-server
 
 Part03: 配置网络节点
+1.开启特定的内核网络功能
+[root@network ~]# sysctl -w net.ipv4.ip_forward=1
+[root@network ~]# sysctl -w net.ipv4.conf.all.rp_filter=0
+[root@network ~]# sysctl -w net.ipv4.conf.default.rp_filter=0
+[root@network ~]# sysctl -w net.bridge.bridge-nf-call-arptables=1
+[root@network ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1
+[root@network ~]# sysctl -w net.bridge.bridge-nf-call-ip6tables=1
+# note:?参数详解(TODO)?
+
+2.立即启用上述参数修改
+[root@network ~]# sysctl -p
+
+3.安装网络节点的网络服务组件
+[root@network ~]# yum install -y openstack-neutron openstack-neutron-ml2 openstack-neutron-openvswitch
+
+4.配置网络通用组件
+    a.配置neutron使用Identity服务认证:
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_uri http://controller:5000
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_host controller
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_protocol http
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken auth_port 35357
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_tenant_name service
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_user neutron
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf keystone_authtoken admin_password fd659cbfdc98a28bed5b
+    b.配置网络服务使用rabbitmq消息队列:
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT rpc_backend neutron.openstack.common.rpc.impl_kombu
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host 10.160.0.116
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_password guest
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_port 5672
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts 10.160.0.116:5672
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_userid guest
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_virtual_host /
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues False
+    [root@network ~]# openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_use_ssl False
+    c.配置使用ml2组件以及相关服务
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin ml2
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router
+    d.开启调试模式以辅助troubleshooting
+    [root@network ~]$ openstack-config --set /etc/neutron/neutron.conf DEFAULT verbose  True
+    
+5.配置L3 Agent组件
+[root@network ~]# openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver \
+                                                                               neutron.agent.linux.interface.OVSInterfaceDriver
+[root@network ~]# openstack-config --set /etc/neutron/l3_agent.ini DEFAULT use_namespaces True
+
+6.配置DHCP Agent组件
+    a.配置dhcp agent的 interface_driver,dhcp_driver,以及use_namespaces与否
+    [root@network ~]# openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver \
+                                                                                 neutron.agent.linux.interface.OVSInterfaceDriver
+    [root@network ~]# openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
+    [root@network ~]# openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT use_namespaces True
+    b.调整 dnsmasq服务的MTU特性
+    [root@network ~]# openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dnsmasq_config_file /etc/neutron/dnsmasq-neutron.conf
+    # mtu1454使用于大多数系统
+    [root@network ~]# echo "dhcp-option-force=26,1454" >> /etc/neutron/dnsmasq-neutron.conf
+    [root@network ~]# for dnsmasq_pid in `ps aux | grep dnsmasq |awk '{print $2}'`;do kill -9 $dnsmasq_pid;done
+    
+6.配置Metadata Agent组件
+    a.在网络节点上执行:
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_url http://controller:5000/v2.0
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_region regionOne
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_tenant_name service
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_user neutron
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_password fd659cbfdc98a28bed5b
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_ip controller
+    # 生成 METADATA_SHARED_SECRET
+    [root@network ~]# openssl rand -hex 10
+    370be9b49a4dd9878b37
+    [root@network ~]# openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret 370be9b49a4dd9878b37
+    b.在主控节点上执行
+    [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT service_neutron_metadata_proxy true
+    [root@controller ~]# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_metadata_proxy_shared_secret 370be9b49a4dd9878b37
+    [root@controller ~]# systemctl restart openstack-nova-api
+
+7.配置ml2插件
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers vxlan
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types vxlan
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges 1:1000
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs enable_tunneling True
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs tunnel_type vxlan
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ovs local_ip 172.172.172.149
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup firewall_driver \
+                                                              neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+[root@network ~]# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
+
+8.配置ovs服务
+    a.启动openvswitch并设置开机启动
+    [root@network ~]# systemctl status openvswitch
+    [root@network ~]# systemctl enable  openvswitch
+    b.创建br-int
+    [root@network ~]# ovs-vsctl add-br br-int
+    c.创建br-ex
+    [root@network ~]# ovs-vsctl add-br br-ex
+    d.将br-ex连接到打vlan而不配置ip的网络设备
+    [root@network ~]# ip link add link ens192 name ens192.610 type vlan id 610  
+    [root@network ~]# ip link set ens192.610 up
+    [root@network ~]# ovs-vsctl add-port br-ex ens192.610
+    e.测试关闭GRO
+    [root@network ~]# ethtool -K ens192.610 gro off
+
+9.结束安装
+    a.创建到 ml2_conf.ini 的软链接
+    [root@network ~]# ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+    b.启动各个服务并设置开机启动
+    [root@network ~]# systemctl start neutron-openvswitch-agent
+    [root@network ~]# systemctl enable neutron-openvswitch-agent
+    [root@network ~]# systemctl status neutron-l3-agent
+    [root@network ~]# systemctl enable neutron-l3-agent
+    [root@network ~]# systemctl start  neutron-dhcp-agent
+    [root@network ~]# systemctl enable neutron-dhcp-agent
+    [root@network ~]# systemctl start neutron-metadata-agent
+    [root@network ~]# systemctl enable neutron-metadata-agent
+    
 Part03: 配置计算节点
+
+
 Part04: 创建初始网络
 
-########################################################## NO.2 测试:创建虚拟机 ############################################################
+
+
+########################################################## NO.2 测试:创建虚拟机 ##########################################################
