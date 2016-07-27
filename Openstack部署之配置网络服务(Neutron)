@@ -379,6 +379,8 @@ Part02: 配置网络节点
     d.将br-ex连接到打vlan而不配置ip的网络设备
     [root@network ~]# ip link add link ens192 name ens192.610 type vlan id 610  
     [root@network ~]# ip link set ens192.610 up
+    [root@network ~]# echo "ip link add link ens192 name ens192.610 type vlan id 610 up" >> /etc/rc.d/rc.local
+    [root@network ~]# chmod +x /etc/rc.d/rc.local
     [root@network ~]# ovs-vsctl add-port br-ex ens192.610
     e.测试关闭GRO
     [root@network ~]# ethtool -K ens192.610 gro off
