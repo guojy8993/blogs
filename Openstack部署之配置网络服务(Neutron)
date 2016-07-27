@@ -642,37 +642,37 @@ Part02:启动实例
 +--------------------------------------+---------+-------------+------------------+------------+--------+
 
 3.创建租户网络,子网
-[root@controller ~(keystonerc_demo)]$ neutron net-create net-demo 
+[root@controller ~(keystonerc_demo)]$ neutron net-create net-test
 Created a new network:
 +----------------+--------------------------------------+
 | Field          | Value                                |
 +----------------+--------------------------------------+
 | admin_state_up | True                                 |
-| id             | aed5bdd3-b89c-443b-a83d-8aa09fb77e0b |
-| name           | net-demo                             |
+| id             | 4d24fa6e-d0fa-4e4d-a032-d791069efab9 |
+| name           | net-test                             |
 | shared         | False                                |
 | status         | ACTIVE                               |
 | subnets        |                                      |
 | tenant_id      | ce0b702330f74917a4f864af3df4b322     |
 +----------------+--------------------------------------+
 
-[root@controller ~(keystonerc_demo)]$ neutron subnet-create net-demo --name subnet-demo \
-                                              --disable-dhcp --allocation-pool start=172.172.172.100,end=172.172.172.100 \
-                                              --gateway 172.172.172.1 172.172.172.0/24
+[root@controller ~(keystonerc_demo)]$ neutron subnet-create net-test --name subnet-test \
+                                                --allocation-pool start=172.172.173.100,end=172.172.173.110 
+                                                --gateway 172.172.173.1 172.172.173.0/24
 Created a new subnet:
 +------------------+--------------------------------------------------------+
 | Field            | Value                                                  |
 +------------------+--------------------------------------------------------+
-| allocation_pools | {"start": "172.172.172.100", "end": "172.172.172.100"} |
-| cidr             | 172.172.172.0/24                                       |
+| allocation_pools | {"start": "172.172.173.100", "end": "172.172.173.110"} |
+| cidr             | 172.172.173.0/24                                       |
 | dns_nameservers  |                                                        |
 | enable_dhcp      | False                                                  |
-| gateway_ip       | 172.172.172.1                                          |
+| gateway_ip       | 172.172.173.1                                          |
 | host_routes      |                                                        |
-| id               | 39052935-e31e-4979-bcda-d98dd8091c49                   |
+| id               | 582b8c21-cf67-4b33-83af-8493b33a05ee                   |
 | ip_version       | 4                                                      |
-| name             | subnet-demo                                            |
-| network_id       | aed5bdd3-b89c-443b-a83d-8aa09fb77e0b                   |
+| name             | subnet-test                                            |
+| network_id       | 4d24fa6e-d0fa-4e4d-a032-d791069efab9                   |
 | tenant_id        | ce0b702330f74917a4f864af3df4b322                       |
 +------------------+--------------------------------------------------------+
 
@@ -691,7 +691,7 @@ Created a new subnet:
 
 5.启动实例
 [root@controller ~(keystonerc_demo)]$ nova boot --flavor m1.medium --image c75e2e21-cbff-409c-a44c-d8cb2ed8af57  \
-                                                --nic net-id=aed5bdd3-b89c-443b-a83d-8aa09fb77e0b   \
+                                                --nic net-id=4d24fa6e-d0fa-4e4d-a032-d791069efab9   \
                                                 --security-group 9e24d93b-e894-433b-8446-03b44c171ba7  \ 
                                                 --key-name demo-key demo-instance
 +--------------------------------------+------------------------------------------------+
@@ -706,12 +706,12 @@ Created a new subnet:
 | OS-SRV-USG:terminated_at             | -                                              |
 | accessIPv4                           |                                                |
 | accessIPv6                           |                                                |
-| adminPass                            | NLuna2ZhEbub                                   |
+| adminPass                            | 6qTuESBzF79L                                   |
 | config_drive                         |                                                |
-| created                              | 2016-07-27T02:35:56Z                           |
+| created                              | 2016-07-27T12:45:31Z                           |
 | flavor                               | m1.medium (3)                                  |
 | hostId                               |                                                |
-| id                                   | 37e0d5d7-7a14-40b3-882c-9a56848220ea           |
+| id                                   | 924394a5-c880-4ca5-9abd-d45ad017f5af           |
 | image                                | centos7 (c75e2e21-cbff-409c-a44c-d8cb2ed8af57) |
 | key_name                             | demo-key                                       |
 | metadata                             | {}                                             |
@@ -721,7 +721,7 @@ Created a new subnet:
 | security_groups                      | 9e24d93b-e894-433b-8446-03b44c171ba7           |
 | status                               | BUILD                                          |
 | tenant_id                            | ce0b702330f74917a4f864af3df4b322               |
-| updated                              | 2016-07-27T02:35:56Z                           |
+| updated                              | 2016-07-27T12:45:31Z                           |
 | user_id                              | be2ccbd63de7460dbd556c5b5f99e9d7               |
 +--------------------------------------+------------------------------------------------+
 
@@ -729,19 +729,19 @@ Created a new subnet:
 +--------------------------------------+---------------+--------+------------+-------------+--------------------------+
 | ID                                   | Name          | Status | Task State | Power State | Networks                 |
 +--------------------------------------+---------------+--------+------------+-------------+--------------------------+
-| 37e0d5d7-7a14-40b3-882c-9a56848220ea | demo-instance | ACTIVE | -          | Running     | net-demo=172.172.172.100 |
+| 924394a5-c880-4ca5-9abd-d45ad017f5af | demo-instance | ACTIVE | -          | Running     | net-test=172.172.173.100 |
 +--------------------------------------+---------------+--------+------------+-------------+--------------------------+
 
 6.创建租户的路由,并通过设置网关将其连接带公共网络
-[root@controller ~(keystonerc_demo)]$ neutron router-create router-demo
+[root@controller ~(keystonerc_demo)]$ neutron router-create router-test
 Created a new router:
 +-----------------------+--------------------------------------+
 | Field                 | Value                                |
 +-----------------------+--------------------------------------+
 | admin_state_up        | True                                 |
 | external_gateway_info |                                      |
-| id                    | 2d84d5c1-a1af-4b55-a38e-fcce703be544 |
-| name                  | router-demo                          |
+| id                    | df2973c6-ee0a-41ad-a854-65e10f0b9974 |
+| name                  | router-test                          |
 | status                | ACTIVE                               |
 | tenant_id             | ce0b702330f74917a4f864af3df4b322     |
 +-----------------------+--------------------------------------+
@@ -760,7 +760,7 @@ Set gateway for router 2d84d5c1-a1af-4b55-a38e-fcce703be544
 +--------------------------------------+----------+-------------------------------------------------------+
 | id                                   | name     | subnets                                               |
 +--------------------------------------+----------+-------------------------------------------------------+
-| aed5bdd3-b89c-443b-a83d-8aa09fb77e0b | net-demo | 39052935-e31e-4979-bcda-d98dd8091c49 172.172.172.0/24 |
+| 4d24fa6e-d0fa-4e4d-a032-d791069efab9 | net-test | 582b8c21-cf67-4b33-83af-8493b33a05ee 172.172.173.0/24 |
 | 14a198f8-133d-40be-bbc0-865b0c66a908 | ext-net  | ee927adf-7a4e-4a9a-844f-5f3f850b33dd 10.160.0.0/16    |
 +--------------------------------------+----------+-------------------------------------------------------+
 [root@controller ~(keystonerc_demo)]$ neutron floatingip-create  14a198f8-133d-40be-bbc0-865b0c66a908
@@ -769,14 +769,26 @@ Created a new floatingip:
 | Field               | Value                                |
 +---------------------+--------------------------------------+
 | fixed_ip_address    |                                      |
-| floating_ip_address | 10.160.0.152                         |
+| floating_ip_address | 10.160.0.154                         |
 | floating_network_id | 14a198f8-133d-40be-bbc0-865b0c66a908 |
-| id                  | 2b3a689a-7ced-4ca3-88b3-da6397991e0a |
+| id                  | 0ccac106-f3fe-4626-aa2e-edcd9102842f |
 | port_id             |                                      |
 | router_id           |                                      |
 | status              | DOWN                                 |
 | tenant_id           | ce0b702330f74917a4f864af3df4b322     |
 +---------------------+--------------------------------------+
+
+[root@controller ~(keystonerc_demo)]$ neutron port-list -c id -c fixed_ips
++--------------------------------------+----------------------------------------------------------------------------------------+
+| id                                   | fixed_ips                                                                              |
++--------------------------------------+----------------------------------------------------------------------------------------+
+| 249b93cd-5c22-4e1d-b5a0-94cbdeb5af88 | {"subnet_id": "582b8c21-cf67-4b33-83af-8493b33a05ee", "ip_address": "172.172.173.1"}   |
+| a58500fc-1c55-406c-b7e0-827bceb4c46b | {"subnet_id": "582b8c21-cf67-4b33-83af-8493b33a05ee", "ip_address": "172.172.173.100"} |
++--------------------------------------+----------------------------------------------------------------------------------------+
+[root@controller ~(keystonerc_demo)]$ neutron  floatingip-associate  \
+                                                0ccac106-f3fe-4626-aa2e-edcd9102842f  a58500fc-1c55-406c-b7e0-827bceb4c46b
+Associated floatingip 0ccac106-f3fe-4626-aa2e-edcd9102842f
+
 
 
 
