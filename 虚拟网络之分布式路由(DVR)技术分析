@@ -1,1 +1,12 @@
+[root@controller ~(keystonerc_demo)]$ neutron help router-create
+usage: neutron router-create [-h] [-f {json,shell,table,value,yaml}]
+                             [-c COLUMN] [--max-width <integer>] [--noindent]
+                             [--prefix PREFIX] [--request-format {json,xml}]
+                             [--tenant-id TENANT_ID] [--admin-state-down]
+                             NAME
 
+Create a router for a given tenant.
+
+positional arguments:
+  NAME                  Name of router to create
+  distributed           Create a distributed router ("""" VMware NSX plugin only """")
