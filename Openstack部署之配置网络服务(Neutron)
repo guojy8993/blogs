@@ -84,59 +84,37 @@ IDENTIFIED BY 'NEUTRON_DBPASS';
     # openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins router
 
 5.配置ML2插件
-The ML2 plug-in uses the Open vSwitch (OVS) mechanism (agent) to build the virtual networking framework for instances. 
-However, the controller node does not need the OVS agent or service because it does not handle instance network traffic.
-
-Run the following commands:
-
-# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 \
-  type_drivers gre
-# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 \
-  tenant_network_types gre
-# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 \
-  mechanism_drivers openvswitch
-# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_gre \
-  tunnel_id_ranges 1:1000
+    ML2插件使用OVS机制创建虚拟机的网络框架.主控节点用不到该代理或服务,因为它不负责处理虚拟机流量.
+# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 type_drivers gre
+# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types gre
+# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers openvswitch
+# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_gre tunnel_id_ranges 1:1000
 # openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup \
-  firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup \
-  enable_security_group True
- 
-To configure Compute to use Networking
+                         firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+# openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
 
-By default, most distributions configure Compute to use legacy networking. You must reconfigure Compute to manage networks through Networking.
+6.配置计算服务使用网络
+    默认情况下,多说发行版配置计算服务使用传统网络.你需要重新配置计算使之通过Neutron管理网络. 运行如下命令,并将NEUTRON_PASS替换为真实
+信息,使得Neutron可以从Identity服务获取认证服务.
+# openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_url http://controller:9696
+# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
+# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_tenant_name service
+# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_username neutron
+# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_password NEUTRON_PASS
+# openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://controller:35357/v2.0
+# openstack-config --set /etc/nova/nova.conf DEFAULT \
+                                             linuxnet_interface_driver nova.network.linux_net.LinuxOVSInterfaceDriver
+# openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+# openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api neutron
+# 特别注意:
+# 默认情况下,计算服务使用内部防火请服务.但是因为Neutron现已包含防火墙服务,你需要为计算服务配置空的防火墙驱动以disable计算服务的防火墙服务.
 
-Run the following commands:
 
-Replace NEUTRON_PASS with the password you chose for the neutron user in the Identity service.
-
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  network_api_class nova.network.neutronv2.api.API
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  neutron_url http://controller:9696
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  neutron_auth_strategy keystone
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  neutron_admin_tenant_name service
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  neutron_admin_username neutron
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  neutron_admin_password NEUTRON_PASS
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  neutron_admin_auth_url http://controller:35357/v2.0
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  linuxnet_interface_driver nova.network.linux_net.LinuxOVSInterfaceDriver
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  firewall_driver nova.virt.firewall.NoopFirewallDriver
-# openstack-config --set /etc/nova/nova.conf DEFAULT \
-  security_group_api neutron
-[Note]	Note
-By default, Compute uses an internal firewall service. Since Networking includes a firewall service, you must disable the Compute firewall service by using the nova.virt.firewall.NoopFirewallDriver firewall driver.
-
- 
-To finalize installation
-
-The Networking service initialization scripts expect a symbolic link /etc/neutron/plugin.ini pointing to the configuration file associated with your chosen plug-in. Using ML2, for example, the symbolic link must point to /etc/neutron/plugins/ml2/ml2_conf.ini. If this symbolic link does not exist, create it using the following commands:
+7.最后的安装
+网络服务的初始化脚本需要一个软连接,以使得/etc/neutron/plugin.ini关联你所实际选择的插件的配置文件. 
+Using ML2, for example, the symbolic link must point to /etc/neutron/plugins/ml2/ml2_conf.ini.
+If this symbolic link does not exist, create it using the following commands:
 
 # ln -s plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
 Restart the Compute services:
@@ -625,12 +603,41 @@ Part02:启动实例
 
 2.上传或查询现有可用镜像
 # 部署镜像服务后测试阶段上传cirros
-[root@controller ~(keystonerc_demo)]$ glance image-list
-+--------------------------------------+--------+-------------+------------------+----------+--------+
-| ID                                   | Name   | Disk Format | Container Format | Size     | Status |
-+--------------------------------------+--------+-------------+------------------+----------+--------+
-| ba8251cc-618b-48c1-b15d-583032777f56 | cirros | qcow2       | bare             | 13167616 | active |
-+--------------------------------------+--------+-------------+------------------+----------+--------+
+[root@controller home(keystonerc_demo)]$ glance image-create --name centos7 --disk-format qcow2 
+                                                             --container-format bare --min-disk 40 
+                                                             --min-ram 1024 --file  /home/centos7.qcow2 
+                                                             --is-public True --is-protected True 
+                                                             --human-readable 
+                                                             --progress
+[=============================>] 100%
++------------------+--------------------------------------+
+| Property         | Value                                |
++------------------+--------------------------------------+
+| checksum         | b40755d2113c65f361cbac65440f5944     |
+| container_format | bare                                 |
+| created_at       | 2016-07-27T02:12:31                  |
+| deleted          | False                                |
+| deleted_at       | None                                 |
+| disk_format      | qcow2                                |
+| id               | c75e2e21-cbff-409c-a44c-d8cb2ed8af57 |
+| is_public        | True                                 |
+| min_disk         | 40                                   |
+| min_ram          | 1024                                 |
+| name             | centos7                              |
+| owner            | ce0b702330f74917a4f864af3df4b322     |
+| protected        | True                                 |
+| size             | 1.1GB                                |
+| status           | active                               |
+| updated_at       | 2016-07-27T02:12:41                  |
+| virtual_size     | None                                 |
++------------------+--------------------------------------+
+[root@controller home(keystonerc_demo)]$ glance image-list
++--------------------------------------+---------+-------------+------------------+------------+--------+
+| ID                                   | Name    | Disk Format | Container Format | Size       | Status |
++--------------------------------------+---------+-------------+------------------+------------+--------+
+| c75e2e21-cbff-409c-a44c-d8cb2ed8af57 | centos7 | qcow2       | bare             | 1185480704 | active |
+| ba8251cc-618b-48c1-b15d-583032777f56 | cirros  | qcow2       | bare             | 13167616   | active |
++--------------------------------------+---------+-------------+------------------+------------+--------+
 
 3.创建租户网络,子网
 [root@controller ~(keystonerc_demo)]$ neutron net-create net-demo 
@@ -681,46 +688,96 @@ Created a new subnet:
 (TODO)
 
 5.启动实例
-[root@controller ~(keystonerc_demo)]$ nova boot --flavor m1.small --image ba8251cc-618b-48c1-b15d-583032777f56 \
-                               --nic net-id=aed5bdd3-b89c-443b-a83d-8aa09fb77e0b --security-group 9e24d93b-e894-433b-8446-03b44c171ba7 \
-                               --key-name demo-key demo-instance
-+--------------------------------------+-----------------------------------------------+
-| Property                             | Value                                         |
-+--------------------------------------+-----------------------------------------------+
-| OS-DCF:diskConfig                    | MANUAL                                        |
-| OS-EXT-AZ:availability_zone          | nova                                          |
-| OS-EXT-STS:power_state               | 0                                             |
-| OS-EXT-STS:task_state                | scheduling                                    |
-| OS-EXT-STS:vm_state                  | building                                      |
-| OS-SRV-USG:launched_at               | -                                             |
-| OS-SRV-USG:terminated_at             | -                                             |
-| accessIPv4                           |                                               |
-| accessIPv6                           |                                               |
-| adminPass                            | WEreEMP3zWaq                                  |
-| config_drive                         |                                               |
-| created                              | 2016-07-26T10:36:10Z                          |
-| flavor                               | m1.small (2)                                  |
-| hostId                               |                                               |
-| id                                   | e2905f73-45e3-4fcd-a478-a1d6b6ba5f36          |
-| image                                | cirros (ba8251cc-618b-48c1-b15d-583032777f56) |
-| key_name                             | demo-key                                      |
-| metadata                             | {}                                            |
-| name                                 | demo-instance                                 |
-| os-extended-volumes:volumes_attached | []                                            |
-| progress                             | 0                                             |
-| security_groups                      | 9e24d93b-e894-433b-8446-03b44c171ba7          |
-| status                               | BUILD                                         |
-| tenant_id                            | ce0b702330f74917a4f864af3df4b322              |
-| updated                              | 2016-07-26T10:36:10Z                          |
-| user_id                              | be2ccbd63de7460dbd556c5b5f99e9d7              |
-+--------------------------------------+-----------------------------------------------+
+[root@controller ~(keystonerc_demo)]$ nova boot --flavor m1.medium --image c75e2e21-cbff-409c-a44c-d8cb2ed8af57  \
+                                                --nic net-id=aed5bdd3-b89c-443b-a83d-8aa09fb77e0b   \
+                                                --security-group 9e24d93b-e894-433b-8446-03b44c171ba7  \ 
+                                                --key-name demo-key demo-instance
++--------------------------------------+------------------------------------------------+
+| Property                             | Value                                          |
++--------------------------------------+------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                         |
+| OS-EXT-AZ:availability_zone          | nova                                           |
+| OS-EXT-STS:power_state               | 0                                              |
+| OS-EXT-STS:task_state                | scheduling                                     |
+| OS-EXT-STS:vm_state                  | building                                       |
+| OS-SRV-USG:launched_at               | -                                              |
+| OS-SRV-USG:terminated_at             | -                                              |
+| accessIPv4                           |                                                |
+| accessIPv6                           |                                                |
+| adminPass                            | NLuna2ZhEbub                                   |
+| config_drive                         |                                                |
+| created                              | 2016-07-27T02:35:56Z                           |
+| flavor                               | m1.medium (3)                                  |
+| hostId                               |                                                |
+| id                                   | 37e0d5d7-7a14-40b3-882c-9a56848220ea           |
+| image                                | centos7 (c75e2e21-cbff-409c-a44c-d8cb2ed8af57) |
+| key_name                             | demo-key                                       |
+| metadata                             | {}                                             |
+| name                                 | demo-instance                                  |
+| os-extended-volumes:volumes_attached | []                                             |
+| progress                             | 0                                              |
+| security_groups                      | 9e24d93b-e894-433b-8446-03b44c171ba7           |
+| status                               | BUILD                                          |
+| tenant_id                            | ce0b702330f74917a4f864af3df4b322               |
+| updated                              | 2016-07-27T02:35:56Z                           |
+| user_id                              | be2ccbd63de7460dbd556c5b5f99e9d7               |
++--------------------------------------+------------------------------------------------+
 
 [root@controller ~(keystonerc_demo)]$ nova list
 +--------------------------------------+---------------+--------+------------+-------------+--------------------------+
 | ID                                   | Name          | Status | Task State | Power State | Networks                 |
 +--------------------------------------+---------------+--------+------------+-------------+--------------------------+
-| e2905f73-45e3-4fcd-a478-a1d6b6ba5f36 | demo-instance | ACTIVE | -          | Running     | net-demo=172.172.172.100 |
+| 37e0d5d7-7a14-40b3-882c-9a56848220ea | demo-instance | ACTIVE | -          | Running     | net-demo=172.172.172.100 |
 +--------------------------------------+---------------+--------+------------+-------------+--------------------------+
+
+6.创建租户的路由,并通过设置网关将其连接带公共网络
+[root@controller ~(keystonerc_demo)]$ neutron router-create router-demo
+Created a new router:
++-----------------------+--------------------------------------+
+| Field                 | Value                                |
++-----------------------+--------------------------------------+
+| admin_state_up        | True                                 |
+| external_gateway_info |                                      |
+| id                    | 2d84d5c1-a1af-4b55-a38e-fcce703be544 |
+| name                  | router-demo                          |
+| status                | ACTIVE                               |
+| tenant_id             | ce0b702330f74917a4f864af3df4b322     |
++-----------------------+--------------------------------------+
+[root@controller ~(keystonerc_demo)]$ neutron net-list
++--------------------------------------+----------+-------------------------------------------------------+
+| id                                   | name     | subnets                                               |
++--------------------------------------+----------+-------------------------------------------------------+
+| aed5bdd3-b89c-443b-a83d-8aa09fb77e0b | net-demo | 39052935-e31e-4979-bcda-d98dd8091c49 172.172.172.0/24 |
+| 14a198f8-133d-40be-bbc0-865b0c66a908 | ext-net  | ee927adf-7a4e-4a9a-844f-5f3f850b33dd 10.160.0.0/16    |
++--------------------------------------+----------+-------------------------------------------------------+
+[root@controller ~(keystonerc_demo)]$ neutron router-gateway-set 2d84d5c1-a1af-4b55-a38e-fcce703be544 14a198f8-133d-40be-bbc0-865b0c66a908
+Set gateway for router 2d84d5c1-a1af-4b55-a38e-fcce703be544
+
+7.为demo租户分配浮动ip并将其与虚拟机内网ip绑定
+[root@controller ~(keystonerc_demo)]$ neutron net-list
++--------------------------------------+----------+-------------------------------------------------------+
+| id                                   | name     | subnets                                               |
++--------------------------------------+----------+-------------------------------------------------------+
+| aed5bdd3-b89c-443b-a83d-8aa09fb77e0b | net-demo | 39052935-e31e-4979-bcda-d98dd8091c49 172.172.172.0/24 |
+| 14a198f8-133d-40be-bbc0-865b0c66a908 | ext-net  | ee927adf-7a4e-4a9a-844f-5f3f850b33dd 10.160.0.0/16    |
++--------------------------------------+----------+-------------------------------------------------------+
+[root@controller ~(keystonerc_demo)]$ neutron floatingip-create  14a198f8-133d-40be-bbc0-865b0c66a908
+Created a new floatingip:
++---------------------+--------------------------------------+
+| Field               | Value                                |
++---------------------+--------------------------------------+
+| fixed_ip_address    |                                      |
+| floating_ip_address | 10.160.0.152                         |
+| floating_network_id | 14a198f8-133d-40be-bbc0-865b0c66a908 |
+| id                  | 2b3a689a-7ced-4ca3-88b3-da6397991e0a |
+| port_id             |                                      |
+| router_id           |                                      |
+| status              | DOWN                                 |
+| tenant_id           | ce0b702330f74917a4f864af3df4b322     |
++---------------------+--------------------------------------+
+
+
+
 
 
 
