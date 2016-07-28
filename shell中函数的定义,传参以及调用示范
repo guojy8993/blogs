@@ -1,8 +1,10 @@
 #!/bin/bash
-# desc: download iso file from remote to 
-#       localhost and attach it to our kvm machines
-# author: guojy
-# email: guojy8993@163.com
+# Description: Download iso file from remote to localhost 
+#              and attach it to our kvm machine
+# Author: guojingyu
+# Email: guojy8993@163.com
+# Date: 2016-05-15
+# Version: v1.0
 
 iso_dir="/data/iso/"
 instance_name=$1
