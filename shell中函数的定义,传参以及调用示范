@@ -1,0 +1,91 @@
+#!/bin/bash
+# desc: download iso file from remote to 
+#       localhost and attach it to our kvm machines
+# author: guojy
+# email: guojy8993@163.com
+
+iso_dir="/data/iso/"
+instance_name=$1
+iso_ftp=$2
+iso_file=$3
+success_code=0
+
+if [ ! -d "$iso_dir" ];then
+	mkdir -p $iso_dir
+fi
+dst="$iso_dir$iso_file"
+wget $iso_ftp -O $dst
+
+if [ $? -gt $success_code ];then
+	code=$?
+	rm -rf $dst
+	exit $code
+fi
+
+function check_iso_exists(){
+    if [ $# -lt 1 ];then
+        echo "Instance name needs to be specified!"
+        return -1
+    else
+        return $(virsh domblklist $1 | grep iso | wc -l)
+    fi
+}
+
+function isRunning(){
+    if [ $# -lt 1 ];then
+        echo "Instance name needs to be specified!"
+        return -1
+    else
+        return $(virsh list --all | grep $1 | grep running | wc -l)
+    fi
+}
+
+function attach(){
+   if [ $# -ne 2 ];then
+       echo "Instance name and iso fil path needed !"
+       return -1
+   else
+       isRunning $1
+       if [ $? -gt 0 ];then
+           virsh change-media --domain $1 --path hda --source $2 --insert --live --config && return 0 || return -1
+       else
+           virsh change-media --domain $1 --path hda --source $2 --insert --config && return 0 || return -1
+       fi
+   fi
+}
+
+function detach(){
+    if [ $# -lt 1 ];then
+        echo "Instance name needs to be specified!"
+        return -1
+    else
+        check_iso_exists $1
+        if [ $? -gt 0 ];then
+            isRunning $1
+            if [ $? -gt 0 ];then
+                virsh change-media $1 hda --eject --live --config 2>> /var/log/err_detaching.log
+                if [ $? -ne 0 ];then
+                    virsh destroy $1
+                    virsh change-media $1 hda --eject --config 2>> /var/log/err_detaching.log
+                    virsh start $1
+                    return 0
+                else
+                    return 0
+                fi
+            else
+                virsh change-media $1 hda --eject --config 2>> /var/log/err_detaching.log
+                return 0
+            fi
+        else
+            return 0
+        fi       
+    fi
+}
+
+detach ${instance_name}
+if [ $? -eq 0 ];then
+    attach ${instance_name} ${dst}
+    exit $?
+else
+    exit $?
+fi
