@@ -20,7 +20,7 @@
 
 # 为dhcp设备配置ip
 # 注意 dnsmasq 对监听设备有无ip地址不关心
-[root@network ~]# ip netns exec Q ip addr add 192.168.0.5/24 dev qdhcp
+[root@network ~]# ip netns exec Q ip addr add 172.172.172.2/24 dev qdhcp
 
 # 创建 dnsmasq进程stat目录
 [root@network ~]# mkdir -p /var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/
@@ -41,5 +41,17 @@
 
 # 注意: 此处dhcp-range选项耍了个小把戏,保证示例虚拟机只能分配到 172.172.172.3;
 # 正儿八经地使用方式是 --dhcp-range=set:tag{N},{IP_POOL_START},{IP_POOL_END},{LEASE_MAX}{TIME_UNIT}
+# 又注意: (经测试知道)qdhcp设备如果配置ip,那么应该与dhcp-range保持一致;
+
+
+# 虚拟机中重启网卡
+[root@my-pc ~]# ifdown eth0
+[root@my-pc ~]# ifup eth0
+Determining IP Information for eth0... done.
+# 此时虚拟机分配到内网ip: 172.172.172.3
+# 而虚拟路由已经为 172.172.172.3 绑定了外网 ip
+
+
+
 
 
