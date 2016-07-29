@@ -25,7 +25,7 @@
 # 创建 dnsmasq进程stat目录
 [root@network ~]# mkdir -p /var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/
 
-# 
+# 在Q网络空间下启动dnsmasq进程,提供服务
 [root@network ~]# ip netns exec Q dnsmasq --no-hosts \
                                           --no-resolv   \
                                           --strict-order  \
@@ -37,6 +37,9 @@
                                           --addn-hosts=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/addn_hosts   \
                                           --dhcp-optsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/opts  \
                                           --dhcp-leasefile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/leases  \
-                                          --dhcp-range=set:tag1,192.168.0.11,192.168.0.12,86400s --domain=qq
+                                          --dhcp-range=set:tag1,172.172.172.3,172.172.172.3,86400s --domain=qq
+
+# 注意: 此处dhcp-range选项耍了个小把戏,保证示例虚拟机只能分配到 172.172.172.3;
+# 正儿八经地使用方式是 --dhcp-range=set:tag{N},{IP_POOL_START},{IP_POOL_END},{LEASE_MAX}{TIME_UNIT}
 
 
