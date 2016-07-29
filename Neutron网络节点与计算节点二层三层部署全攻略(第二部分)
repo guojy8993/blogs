@@ -1,1 +1,42 @@
+本篇目标:实现租户网络的dhcp,客户机dhcp方式自动获取ip
+# 创建 dnsmasq 服务监听端口设备
+[root@network ~]# ovs-vsctl -- --if-exists del-port qdhcp \
+                               -- add-port br-int qdhcp       \
+                               -- set Interface qdhcp type=internal \  
+                               -- set Interface qdhcp external-ids:iface-id=733431fe-567a-44ab-a29e-5fb94aa36a4d \ 
+                               -- set Interface qdhcp  external-ids:iface-status=active  \
+                               -- set Interface qdhcp external-ids:attached-mac=fa:16:00:4c:56:89
+
+# 创建qdhcp命名空间(e.g:Q),并将dhcp设备放入Q中
+[root@network ~]# ip netns add Q
+[root@network ~]# ip link set qdhcp netns Q
+
+# 启动Q网络空间下的lo,qdhcp设备,设置state,qlen参数
+[root@network ~]# ip netns exec Q ip link set qdhcp up
+[root@network ~]# ip netns exec Q ip link set qdhcp state up
+[root@network ~]# ip netns exec Q ip link set qdhcp qlen 1000
+[root@network ~]# ip netns exec Q ip link set lo up
+[root@network ~]# ip netns exec Q ip link set lo state up
+
+# 为dhcp设备配置ip
+# 注意 dnsmasq 对监听设备有无ip地址不关心
+[root@network ~]# ip netns exec Q ip addr add 192.168.0.5/24 dev qdhcp
+
+# 创建 dnsmasq进程stat目录
+[root@network ~]# mkdir -p /var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/
+
+# 
+[root@network ~]# ip netns exec Q dnsmasq --no-hosts \
+                                          --no-resolv   \
+                                          --strict-order  \
+                                          --bind-interfaces  \
+                                          --interface=qdhcp \
+                                          --except-interface=lo    \
+                                          --pid-file=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/pid   \ 
+                                          --dhcp-hostsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/host  \
+                                          --addn-hosts=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/addn_hosts   \
+                                          --dhcp-optsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/opts  \
+                                          --dhcp-leasefile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/leases  \
+                                          --dhcp-range=set:tag1,192.168.0.11,192.168.0.12,86400s --domain=qq
+
 
