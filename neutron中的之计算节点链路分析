@@ -39,3 +39,41 @@ qbr9b3f4311-42 8000.9ea9c59ddd0b no           qvb9b3f4311-42  tap9b3f4311-42
             tag: 2
             Interface "qvo0620d5f8-02"
     ovs_version: "2.4.0"
+
+# 这里举例说明如何创建对等设备,linux网桥,开启,并设置属主(add-port/addif to ovs/bridge)
+# ip link add qvb0620d5f8-02 type veth peer name qvob0620d5f8-02
+# brctl add-br qbr0620d5f8-02
+# ip link set qbr0620d5f8-02 up
+# ip link set qvob0620d5f8-02 up
+# ovs-vsctl add-port br-int qvob0620d5f8-02 -- set Port qvob0620d5f8-02 tag=2
+# ovs-vsctl add-port qbr0620d5f8-02 qvb0620d5f8-02
+这样就实现ovs虚拟交换机br-int与linux bridge - qbr 之间的链路互通.
+在linux bridge(安全组网桥),br-int交换机,以及两者之间的链路建立之后我们把注意力放在br-int对 虚拟机(liyang-vm,
+tap0620d5f8-02网卡的属主)inbound/outbound流量的处理上.
+我们已经知道,在br-int上:
+Port "qvo0620d5f8-02"
+    tag: 2
+    Interface "qvo0620d5f8-02"
+那么这些信息作何解释? tag=2 是什么? tag 指的是 vlan tag,经此端口的流量,出则mod_vlan_vid,入则 strip_vlan.但是VLAN
+ID为什么是2? 此处vlan tag 是本地vlan(在当前计算节点),而不是全局的(即整个集群).
+liyang-vm 连接的是私有网络 net-liyang0993
+[root@controller ~(keystone_admin)]# neutron net-list | grep liyang
+| 6a169cca-282d-4bea-a99e-d725ac1721b9|net-liyang0993|1a7ed44b-e61d-4f98-aa47-d9123827acc2
+192.168.100.0/24|
+
+[root@controller ~(keystone_admin)]# neutron net-show 6a169cca-282d-4bea-a99e-d725ac1721b9
++---------------------------+--------------------------------------+
+| Field                     | Value                                |
++---------------------------+--------------------------------------+
+| admin_state_up            | True                                 |
+| id                        | 6a169cca-282d-4bea-a99e-d725ac1721b9 |
+| name                      | net-liyang0993                       |
+| provider:network_type     | vxlan                                |
+| provider:physical_network |                                      |
+| provider:segmentation_id  | 10                                   |
+| router:external           | False                                |
+| shared                    | False                                |
+| status                    | ACTIVE                               |
+| subnets                   | 1a7ed44b-e61d-4f98-aa47-d9123827acc2 |
+| tenant_id                 | c9baab896503480b80919a4f0762dcf8     |
++---------------------------+--------------------------------------+
