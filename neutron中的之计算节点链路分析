@@ -77,3 +77,58 @@ liyang-vm 连接的是私有网络 net-liyang0993
 | subnets                   | 1a7ed44b-e61d-4f98-aa47-d9123827acc2 |
 | tenant_id                 | c9baab896503480b80919a4f0762dcf8     |
 +---------------------------+--------------------------------------+
+我们知道该私有网络VLANTag是根据配置的VNI范围(参考/etc/neutron/plugin.ini:vni_ranges=10:100)选取的最小的可用值.
+那么我猜想链路中必须有br-int port的vlan-tag以及后续的br-tun tunnel_id以及provider:segmentation_id之间的转换处理,
+留待后续探究.
+
+4.OVS交换机br-int上的flow rules.
+[root@compute ~]# ovs-ofctl dump-flows br-int
+NXST_FLOW reply (xid=0x4):
+cookie=0x0, duration=145733.004s, table=0, n_packets=238070, n_bytes=37626893, 
+idle_age=0, hard_age=65534, priority=1 actions=NORMAL
+cookie=0x0, duration=145732.923s, table=22, n_packets=0, n_bytes=0, idle_age=65534,
+hard_age=65534, priority=0 actions=drop
+很平常的两条流表规则:
+(1)根据优先级,优先对流量执行Normal转发.
+(2)table的数值不同代表当前规则属于不同的流表,处理不同的流量[流量归类,按表批量处理] ;
+然后我们在看看br-int上的patch-tun,br-tun上的patch-int端口.
+ovs虚拟交换机之间的会连是通过patch ports来实现的,下面举例说明br-int与br-tun如何实现链路互通.
+[root@compute ~]#ovs-vsctl -- --if-exists del-port patch-tun -- add-port br-int \
+                 patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
+[root@compute ~]#ovs-vsctl -- --if-exists del-port patch-int -- add-port br-tun \
+                 patch-int -- set Interface patch-int type=patch options:peer=patch-tun
+# 参考: http://blog.scottlowe.org/2012/11/27/connecting-ovs-bridges-with-patch-ports/
+# 此处两ovs交换机互添patch ports将br-int与br-tun连接到一起
+
+5.OVS交换机br-tun上的ofports与flow rules
+    br-tun上的ofport信息如下:
+    [root@compute home]# ovs-ofctl show br-tun
+    OFPT_FEATURES_REPLY (xid=0x2): dpid:000056bb20081443
+    n_tables:254, n_buffers:256
+    capabilities: FLOW_STATS TABLE_STATS PORT_STATS QUEUE_STATS ARP_MATCH_IP
+    actions: output enqueue set_vlan_vid set_vlan_pcp strip_vlan mod_dl_src 
+    mod_dl_dst mod_nw_src mod_nw_dst mod_nw_tos mod_tp_src mod_tp_dst
+     1(patch-int): addr:12:cc:14:b8:9a:67
+         config:     0
+         state:      0
+         speed: 0 Mbps now, 0 Mbps max
+     2(vxlan-0aa0006b): addr:42:9e:52:f8:0c:9a
+         config:     0
+         state:      0
+         speed: 0 Mbps now, 0 Mbps max
+     LOCAL(br-tun): addr:56:bb:20:08:14:43
+         config:     PORT_DOWN
+         state:      LINK_DOWN
+         speed: 0 Mbps now, 0 Mbps max
+    OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0
+
+其次 , 需要了解, br-tun流表规则中不同的table 编号表示当前规则所属的表,表示不同的作用.
+具体详见源码(neutron/plugins/openvswitch/common/constants.py)说明:
+
+PATCH_LV_TO_TUN = 1
+GRE_TUN_TO_LV = 2
+VXLAN_TUN_TO_LV = 3
+LEARN_FROM_TUN = 10
+UCAST_TO_TUN = 20
+FLOOD_TO_TUN = 21
+CANARY_TABLE = 22
