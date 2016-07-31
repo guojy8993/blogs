@@ -101,7 +101,7 @@ ovs虚拟交换机之间的会连是通过patch ports来实现的,下面举例�
 # 此处两ovs交换机互添patch ports将br-int与br-tun连接到一起
 
 5.OVS交换机br-tun上的ofports与flow rules
-    br-tun上的ofport信息如下:
+(1) br-tun上的ofport信息如下:
     [root@compute home]# ovs-ofctl show br-tun
     OFPT_FEATURES_REPLY (xid=0x2): dpid:000056bb20081443
     n_tables:254, n_buffers:256
@@ -121,14 +121,128 @@ ovs虚拟交换机之间的会连是通过patch ports来实现的,下面举例�
          state:      LINK_DOWN
          speed: 0 Mbps now, 0 Mbps max
     OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0
+(2) br-tun流表规则中不同的table编号表示当前规则所属的表,不同的表有不同的作用.参考源码(neutron/plugins/openvswitch
+    /common/constants.py)中关于表的定义:
+    PATCH_LV_TO_TUN = 1
+    GRE_TUN_TO_LV = 2
+    VXLAN_TUN_TO_LV = 3
+    LEARN_FROM_TUN = 10
+    UCAST_TO_TUN = 20
+    FLOOD_TO_TUN = 21
+    CANARY_TABLE = 22
+(3) 所有的流表规则以及规则说明
+    TABLE 0(Entry , default table)
+    -----------------------------------------------------------------------------------------
+    # table=0,priority=1,in_port=1 actions=resubmit(,1)
+    * tips: 如果是priority=1,table 0,且从ofport=1的端口进入的流量,重新提交到table 1处理
+    # table=0,priority=1,in_port=2 actions=resubmit(,3)
+    * tips: 如果是priority=1,table 0,且从ofport=1 的端口进入的流量 重新提交到table 3处理
+    # table=0,priority=0 actions=drop
+    * tips: 为table 0设置默认流表规则:DROP
 
-其次 , 需要了解, br-tun流表规则中不同的table 编号表示当前规则所属的表,表示不同的作用.
-具体详见源码(neutron/plugins/openvswitch/common/constants.py)说明:
+    TABLE 1 (PATCH_LV_TO_TUN)
+    -----------------------------------------------------------------------------------------
+    # table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,20)
+    * tips: 如果是priority=1的单播(unicast)流量,那么重新提交到 table 20处理.
+    # table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,21)
+    * tips: 如果是广播流量那么重新提交到table 21处理
+    * tips: dl_dst=01:00:00:00:00:00/01:00:00:00:00:00   匹配多播(含广播) Ethernet帧
+    * tips: dl_dst=00:00:00:00:00:00/01:00:00:00:00:00   匹配单播 Ethernet帧
+    
+    TABLE 2/3 (*_TUN_TO_LV)
+    -----------------------------------------------------------------------------------------
+    # table=2,priority=0 actions=drop
+    * tips: 为table 2设置默认流表规则:DROP(使用gre隧道模式会用到,vxlan模式下使用VXLAN_TUN_TO_LV表)
+    
+    # table=3,priority=1,tun_id=0xa actions=mod_vlan_vid:1,resubmit(,10)
+    * tips: 如果是从网络节点经vxlan隧道(隧道编号 0xa)传到当前计算节点的流量,将其vlan修改为1，重提给
+    * table 10处理.
+    * 特别说明:此处建立了tunnel_id与本地vlan间的转换关系即tunnel 0xa对应local vlan(LV) 1
 
-PATCH_LV_TO_TUN = 1
-GRE_TUN_TO_LV = 2
-VXLAN_TUN_TO_LV = 3
-LEARN_FROM_TUN = 10
-UCAST_TO_TUN = 20
-FLOOD_TO_TUN = 21
-CANARY_TABLE = 22
+    # table=3,priority=1,tun_id=0xb actions=mod_vlan_vid:2,resubmit(,10)
+    * 同上
+
+    # table=3,priority=0 actions=drop
+    * tips: 为table 3设置默认流表规则:DROP
+
+    TABLE 10 (LEARN_FROM_TUN)
+    -----------------------------------------------------------------------------------------
+    # table=10,priority=1 actions=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11
+    # ],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_T
+    # UN_ID[],output:NXM_OF_IN_PORT[]),output:1
+    * tips: 此处开篇幅讲解ovs的`learn` action:
+    * ovs-ofctl man手册的说法是 将learn(**) 里面的**作为一条流规则添加/修改
+    * 个人看法: 用以模仿物理交换机的学习功能,物理交换机的的经过学习知道对特定特征的流量怎么处理;
+    * 而对应地ovs这个虚拟交换机则是一条流表规则(匹配特定特征的流量,并规定一个处理动作) ; 因此 **
+    * 部分参数,至少包含一个匹配规则与一个action ;
+    * learn 中匹配规则说明 示例:
+    * NXM_OF_VLAN_TCI[0..11] 表示匹配 TCI信息的低12位,即VLAN ID域.
+    * NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[] 表示学习当前数据包的mac地址.
+    * output:NXM_OF_IN_PORT[] 表示 新加流表规则的处理出包的操作(将其再次从入口`ovs port`返回)
+    * load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[] 表示新加流表规则 处理出流量时会将其 tunnel id修改为当前流表的 tunnel id.
+    * hard_timeout 表示交换机entry过期时间,一般 learn 必须要加选项,保证定时更新 entry;
+    * 如前所示,learn是在table 20(mac学习表)中动态添加flow,因此在table=20的所有flows中,符合格式"table=20,
+    * hard_timeout=300,priority=1,vlan_tci={tci}/{mask},dl_dst={mac} actions=load:0->NXM_OF_VLAN_TCI[],load:0xa->
+    * NXM_NX_TUN_ID[],output:{port}"的流表都是通过学习动态添加的流表规则;不符合该格式的流表是br-tun/table-20创建之
+    * 初添加的初始流表,这是需要注意的地方
+    * 参考资料:
+    * http://www.tuicool.com/articles/am6n2iB
+    * http://www.cnblogs.com/CasonChan/p/4754486.html
+    * http://www.cnblogs.com/popsuper1982/p/3810271.html
+    * http://blog.csdn.net/gaopeiliang/article/details/45720785
+    * http://m.blog.csdn.net/blog/canxinghen/46761591
+    
+    TABLE 20 (UCAST_TO_TUN)
+    -----------------------------------------------------------------------------------------
+    # table=20,priority=1,vlan_tci=0x0001/0x0fff,dl_dst=fa:16:3e:c3:23:47 
+    # actions=load:0->NXM_OF_VLAN_TCI[],load:0xa->NXM_NX_TUN_ID[],output:2
+    # table=20,priority=1,vlan_tci=0x0002/0x0fff,dl_dst=fa:16:3e:11:3f:0f 
+    # actions=load:0->NXM_OF_VLAN_TCI[],load:0xb->NXM_NX_TUN_ID[],output:2
+    * tips: 匹配 table=20,priority=1,vlan id=2 且访问私有网络网关(虚拟路由 qrouter-e0014375-0cb7-44b1-84cb-f7f49dd5
+    * 9344下内网网关 qr-f7f87f9f-54 mac fa:16:3e:11:3f:0f )的流量
+    * `load` 是什么处理?
+    * load:src[start:end]->dst[start:end]或load:value->dst[start:end],作用就是将 load后的第一个参数(->前)或参数按
+    * (start1:end1)位取出的部分 加载入 第二个参数的start2:end2 (赋值操作);
+    * 下面说两个Ethernet帧中的特殊域:
+    * NXM_OF_VLAN_TCI:VLAN帧的tci域,2字节,见下文;此处load:0->NXM_OF_VLAN_TCI[]表示清空(priority,cfi,vlan-id),即strip_vlan;
+    * NXM_NX_TUN_ID:Ethernet网帧的tunnel-id域;此处load:0xb->NXM_NX_TUN_ID[]表示设置tunnel id为0xb,跟后文set_tunnel:0xb一
+    * 样,个人猜想应该是ovs版本历史变更问题导致的两种形式并存;
+    * 此处开篇幅细说 vlan_tci:
+    * 首先什么是vlan tci? 参考 http://blog.csdn.net/kulung/article/details/6442804
+    * VLAN-TAG包含2字节的TPID(标签协议标识)以及2字节的TCI(标签控制信息)
+    * TPID标识IEEE类型,常见的格式是:802.1Q,802.{N}{A..Z};
+    * TCI信息又包含子域信息:
+    * priority :3bit,表示0-7优先级
+    * cfi即 Canonical Format Indicator占1bit,0表示规范,1表示不规范
+    * vlan id:12bit,表示 0~4095,这就是vlan最多4096个的原因
+    * 此处vlan_tci表示的是{tci}/{mask}格式,那这是什么意思呢? 
+    * ovs-ofctl man手册解释说:tci与mask位数同(16bit)且 mask的每bit控制流表匹配tci对应bit时使用的的匹配机制:精准匹配
+    * 或模糊匹配(wildcast,等于*);此处0x0002/0x0fff表示精确匹配VlanId=2(0x0fff:后12位,即fff),不限制格式(0x0fff:中间的一
+    * 位是0表示不限格式,0x0fff高3位全0,表示0-7优先级的帧皆可匹配)的vlan帧.
+    
+    # table=20,priority=0 actions=resubmit(,21)
+    * 为table 20设置默认流表规则:重新提交到table 21处理
+    
+    TABLE 21 (FLOOD_TO_TUN)
+    -----------------------------------------------------------------------------------------
+    # table=21,dl_vlan=1 actions=strip_vlan,set_tunnel:0xa,output:2
+    * 如果是从br-int送入br-tun的流量,vlan tag=1那么去vlan-tag且设置tunnel_id为0xa并输出到ofport=2的端口(即隧道端口 )
+    # table=21,dl_vlan=2 actions=strip_vlan,set_tunnel:0xb,output:2
+    * 如果是从br-int送入br-tun的流量,vlan tag=2那么去vlan-tag且设置tunnel_id为0xb输出到ofport=2的端口(即隧道端口)
+    # table=21,priority=0 actions=drop
+    * 为table 21设置默认流表规则:DROP
+   
+    # br-tun流表至此讲解完毕,那么br-tun的流表规则表达的是一套怎样的网络流量处理系统呢?
+    # 可以参考如图: https://pan.baidu.com/s/1nvaXm4L
+
+6.计算节点与网络节点之间vxlan隧道的建立
+[root@compute neutron]# ovs-vsctl -- --if-exists del-port vxlan-0aa0006b -- add-port \
+                        br-tun vxlan-0aa0006b -- set Interface vxlan-0aa0006b type=vxlan \ 
+                        options:remote_ip=10.160.0.107 options:in_key=flow  \ 
+                        options:out_key=flow    options:local_ip=10.160.0.106
+[root@network neutron]# ovs-vsctl -- --if-exists del-port vxlan-0aa0006a -- add-port \
+                        br-tun vxlan-0aa0006a -- set Interface vxlan-0aa0006a type=vxlan \
+                        options:remote_ip=10.160.0.106 options:in_key=flow  \
+                        options:out_key=flow    options:local_ip=10.160.0.107
+
+# 注: 其中,compute/10.160.0.106 network/10.160.0.107 皆为相关节点的管理ip.
