@@ -1,13 +1,14 @@
+
 计算节点虚拟机实例信息如下:
 
-NAME       NETWORK(fixed_ip,floating_ip)                fixed_ip_mac       device   
-hyp-vm1    net-hyp=192.168.66.2          122.114.124.21 fa:16:3e:23:91:7b  tap156d4a84-8f
-hyp-vm2    net-hyp=192.168.66.4          -              fa:16:3e:61:d8:b7  tap9b3f4311-42
-liyang-vm  net-liyang0993=192.168.100.3  122.114.124.45 fa:16:3e:6c:c9:bb  tap0620d5f8-02
+NAME       NETWORK(fixed_ip,floating_ip)        fixed_ip_mac               device
+hyp-vm1    net-hyp=192.168.66.2          122.114.124.21 fa:16:3e:23:91:7b  tap156d4a84-8f
+hyp-vm2    net-hyp=192.168.66.4          -              fa:16:3e:61:d8:b7  tap9b3f4311-42
+liyang-vm  net-liyang0993=192.168.100.3  122.114.124.45 fa:16:3e:6c:c9:bb  tap0620d5f8-02
 
 (虚拟机ip与网卡信息可以从 dashboard 以及 计算节点的virsh管理工具 收集,此处略)
 
-[root@compute home]# brctl show
+[root@compute home]# brctl show
 bridge name    bridge id         STP enabled  interfaces
 qbr0620d5f8-02 8000.e2ac0a53cb2b no           qvb0620d5f8-02  tap0620d5f8-02
 qbr156d4a84-8f 8000.62f2e45acb48 no           qvb156d4a84-8f  tap156d4a84-8f
