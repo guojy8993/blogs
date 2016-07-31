@@ -26,5 +26,5 @@
 # ip netns exec qrouter-162a2078-12a4-45fb-90dc-e452486f43ff  \
       tc qdisc add dev qg-59c3ef7c-7e parent 1:4227 sfq perturb 10
 # 特别注意,
-# 步骤(7)给出的是在openstack下限制某外网ip带宽的办法,但tc并不局限于openstack,你可以使用(6)的命令模版,灵活运用;
+# 应用示范给出的是在openstack下限制某外网ip带宽的办法,但tc并不局限于openstack,你可以使用(6)的命令模版,灵活运用;
 # 如果不涉及网络空间,"ip netns exec {NETNS}"前缀略去;
