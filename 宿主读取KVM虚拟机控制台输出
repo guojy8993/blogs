@@ -26,5 +26,6 @@
 
 ##扩展部分##
 # 如何读取windows系统的控制台输出?
-# 
-# 
+# 解答: 启动windows虚拟机的步骤同上,只不过需要在windows虚拟机中将输出输出给 "com1:",示例如下
+# c:\Documents and Settings\Administrator> echo hello > com1:
+# 在宿主下 tail -f /path/to/console.log 即可观察到结果
