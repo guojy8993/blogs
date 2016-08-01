@@ -1,0 +1,6 @@
+
+http://libvirt.org/cgroups.html
+https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Manageme\
+      nt_Guide/sec-Implications_for_Resource_Management.html
+# [root@agent144 ~]# virt-install --help | grep resource
+#  --resource RESOURCE   Configure VM resource partitioning (cgroups)
