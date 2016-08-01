@@ -1,0 +1,25 @@
+1.启动虚拟机时指定虚拟机的串口设备(用宿主下的某文件来模拟)
+# 此处虚拟机的串口设备: --serial file,path=/data/instance/C/console.log
+[root@agent144 ~]# virt-install -n C \
+                        --description C   \
+                        --ram 2048  \
+                        --vcpus 2 \
+                        --cpu host-model \
+                        --accelerate \
+                        --hvm \
+                        --network bridge:br-vxlan,virtualport_type=openvswitch,model=virtio \
+                        --disk /data/instance/C/system,bus=virtio,cache=writeback,driver_type=qcow2,size=10 \
+                        --boot hd,cdrom \
+                        --graphics vnc,listen=0.0.0.0  \
+                        --input tablet,bus=usb \
+                        --noautoconsole  \
+                        --cdrom /data/iso/welcome.iso   \
+                        --serial file,path=/data/instance/C/console.log   #重点
+
+2.使用上述命令行启动一个linux虚拟机并在宿主下使用tail命令监视客户机控制台输出
+[root@agent144 ~]# tail -f /data/instance/C/console.log
+
+3.在虚拟机中向tty设备输出信息
+# 因为尚不知道上述串口设备对应虚拟机下/dev/tty? 故而进行遍历测试!
+[root@test ~]# for i in `ll /dev/ | grep tty | awk '{print $10}' | grep tty`;echo $i;do echo hello > /dev/$i;sleep 3;done
+并观察上述 tail 输出,经实践可知虚拟机下的/dev/ttyS0 即对应宿主下的 console.log
