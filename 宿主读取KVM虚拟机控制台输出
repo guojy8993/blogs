@@ -23,3 +23,8 @@
 # 因为尚不知道上述串口设备对应虚拟机下/dev/tty? 故而进行遍历测试!
 [root@test ~]# for i in `ll /dev/ | grep tty | awk '{print $10}' | grep tty`;echo $i;do echo hello > /dev/$i;sleep 3;done
 并观察上述 tail 输出,经实践可知虚拟机下的/dev/ttyS0 即对应宿主下的 console.log
+
+##扩展部分##
+# 如何读取windows系统的控制台输出?
+# 
+# 
