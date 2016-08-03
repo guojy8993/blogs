@@ -1,0 +1,54 @@
+[root@my-pc ~]# target="123@go:go:go*123"
+[root@my-pc ~]# sub="123"
+
+# 统计字符串长度
+[root@my-pc ~]# echo ${#target}
+16
+[root@my-pc ~]# echo ${#sub}
+3
+
+# 后向截取字符串(类似 python 中 array[N:])
+[root@my-pc ~]# echo ${target:0}
+123@go:go:go*123
+[root@my-pc ~]# echo ${target:3}
+@go:go:go*123
+
+# 从指定位置后向截取N长度字符串
+[root@my-pc ~]# echo ${target:3:9}
+@go:go:go
+
+# 从指定字符串开头删除最短匹配substr
+[root@my-pc ~]# echo ${target#sub}
+123@go:go:go*123
+[root@my-pc ~]# echo ${target#"123"}
+@go:go:go*123
+[root@my-pc ~]# echo ${target#${sub}}
+@go:go:go*123
+
+# 从指定字符串开头删除最长匹配substr
+[root@my-pc ~]# echo ${target##${sub}}
+@go:go:go*123
+
+# 从指定字符串尾部删除最短匹配substr
+[root@my-pc ~]# echo ${target%${sub}}
+123@go:go:go*
+
+# 从指定字符串尾部删除最长匹配substr
+[root@my-pc ~]# echo ${target%%${sub}}
+123@go:go:go*
+
+# 匹配并替换第一个
+[root@my-pc ~]# echo ${target/${sub}/"XXX"}
+XXX@go:go:go*123
+
+# 匹配并替换所有
+[root@my-pc ~]# echo ${target//${sub}/"XXX"}
+XXX@go:go:go*XXX
+
+# 匹配前缀,并替换
+[root@my-pc ~]# echo ${target/#${sub}/"XXX"}
+XXX@go:go:go*123
+
+# 匹配后缀,并替换
+[root@my-pc ~]# echo ${target/%${sub}/"XXX"}
+123@go:go:go*XXX
