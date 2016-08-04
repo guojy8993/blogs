@@ -49,266 +49,110 @@ Table 4: Output processing(输出处理).
  
 (2)Table 0设计与测试:
    该表是packet进入交换机的入口.我们使用该表来过滤并丢弃符合这样或那样条件的packets.
+   
    例如,包含多播源地址的packet不合法, 我们就在交换机入端口添加一条流表以匹配并丢弃多播包.
-   # note:
-   # 多播包:
-   # 广播包:
    [root@my-pc ~]# ovs-ofctl add-flow  ovs-guide "table=0, dl_src=01:00:00:00:00:00/01:00:00:00:00:00, actions=drop"
+   # NOTE:
+   # 01:00:00:00:00:00/01:00:00:00:00:00    匹配多播(含广播) Ethernet帧
+   # 00:00:00:00:00:00/01:00:00:00:00:00    匹配单播 Ethernet帧
+   # man ovs-ofctl 了解更多
    
+   又例如,交换机不应该转发 IEEE802.1D 生成树协议(STP)包,我们可以添加流表规则匹配并丢弃之
+   [root@my-pc ~]# ovs-ofctl add-flow  ovs-guide "table=0, dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0, actions=drop"
+   # 参考 "常见协议与mac地址":http://anonsvn.wireshark.org/wireshark/trunk-1.4/wka.tmpl
+   # 说明:在该表中可以添加更多的过滤规则以丢弃不允许进入的数据包,而这正是该表扮演的角色.
    
+   最后,一条默认流表规则(较低的优先级)是必须的,用以将经过"准入管理"清洗后的流量导入pipeline的下一个表.
+   [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=0, priority=0, actions=resubmit(,1)"
+   
+   使用专业工具(ofproto/trace)测试table 0效果:
+   *使用生成树协议多播包测试
+   [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=01:80:c2:00:00:05
+   Bridge: ovs-guide
+   Flow: metadata=0,in_port=1,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=01:80:c2:00:00:05,dl_type=0x0000 # 输入流
+   Rule: table=0 cookie=0 dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0    # 匹配到的流规则
+   OpenFlow actions=drop    # 采取drop处理
+   Final flow: unchanged
+   Relevant fields: skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=01:80:c2:00:00:00
+                    /ff:ff:ff:ff:ff:f0,dl_type=0x0000
+   Datapath actions: drop
+   
+   *使用 dl_dst=01:80:c2:00:00:10(在01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0范围之外)的包测试
+   [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=01:80:c2:00:00:10
+   Bridge: ovs-guide
+   Flow: metadata=0,in_port=1,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=01:80:c2:00:00:10,dl_type=0x0000
+   Rule: table=0 cookie=0 priority=0
+   OpenFlow actions=resubmit(,1)     # 没有匹配到任何一条drop流规则,使用默认流表规则处理(交给table 1处理)
+	Resubmitted flow: unchanged
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop       # 不匹配 table 1的任何流规则,drop
+	No match
+  Final flow: unchanged
+  Relevant fields: skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=01:80:c2:00:00:10
+                   /ff:ff:ff:ff:ff:f0,dl_type=0x0000
+  Datapath actions: drop
+
 (3)Table 1设计与测试:
+  能进入table 1的包都是经过table 0基本验证的.该表的目标是根据端口的vlan配置验证包的vlan tag. 我们会为到达access端口的包
+  添加 vlan header,方便稍后的依赖vlan处理的工作,消除特例.
+  添加一条默认规则,drop所有匹配不到规则的流
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=1, priority=0, actions=drop"
+  针对p1: 接受任何不包含vlan header或任意vlan的包,可以添加一条规则:从p1进入的包一律交给table2处理
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=1, priority=99, in_port=1, actions=resubmit(,2)"
+  针对access端口的p2,p3,p4: 接受包,并依据端口vlan配置打上对应 vlan tag
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=1, priority=99, in_port=2, vlan_tci=0, \
+                                                actions=mod_vlan_vid:20, resubmit(,2)"
+  [root@my-pc ~]# ovs-ofctl add-flow  ovs-guide "table=1, priority=99, in_port=3, vlan_tci=0, \
+                                                actions=mod_vlan_vid:30, resubmit(,2)"
+  [root@my-pc ~]# ovs-ofctl add-flow  ovs-guide "table=1, priority=99, in_port=4, vlan_tci=0, \
+                                                actions=mod_vlan_vid:30, resubmit(,2)"                                              
+  # 我们并未匹配并处理任何从access端口进入的802.1q(vlan协议)包,故而使用默认规则处理(Drop)
+  # 而事实上这正是access端口处理这类包的正确方式
+  
+  使用专业工具(ofproto/trace)测试table 1效果:
+  *使用valn_tci=5的包测试trunk端口p1:
+  ...
+  Resubmitted flow: unchanged
+  Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+  Resubmitted  odp: drop
+  Rule: table=1 cookie=0 priority=99,in_port=1
+  OpenFlow actions=resubmit(,2)         # 从p1端口进入的流量直接交给table2处理
+	Resubmitted flow: unchanged
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
+	No match
+  ...
+  
+  *测试access端口p2(数据包不带vlan header):
+  ...
+  Resubmitted flow: unchanged
+  Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+  Resubmitted  odp: drop
+  Rule: table=1 cookie=0 priority=99,in_port=2,vlan_tci=0x0000
+  OpenFlow actions=mod_vlan_vid:20,resubmit(,2)    # 从p1端口进入的流量先加vlan header,再交给table2处理
+	Resubmitted flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
+	No match
+  ...
+  
+  *测试access端口(使用不合法数据,带vlan header)
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide  in_port=2,vlan_tci=5
+  ...
+  Resubmitted flow: unchanged
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
+	Rule: table=1 cookie=0 priority=0
+	OpenFlow actions=drop              # 使用默认规则处理
+  ...
+  
 (4)Table 2设计与测试:
+  该表允许交换机学习包的源MAC,交换机端口(配置有vlan). 该表是个很好的例子来说明为什么交换机需要给进入access端口
+  的包添加 vlan tag. 我们想要将交换机端口与(MAC+VLAN)关联起来,而不必关心vlan是数据包的原始部分抑或是access端口
+  关联的vlan值.
+    
 (5)Table 3设计与测试:
 (6)Table 4设计与测试:
-Implementing Table 0: Admission control
----------------------------------------
-
-Table 0 is where packets enter the switch.  We use this stage to
-discard packets that for one reason or another are invalid.  For
-example, packets with a multicast source address are not valid, so we
-can add a flow to drop them at ingress to the switch with:
-
-    ovs-ofctl add-flow br0 \
-        "table=0, dl_src=01:00:00:00:00:00/01:00:00:00:00:00, actions=drop"
-
-A switch should also not forward IEEE 802.1D Spanning Tree Protocol
-(STP) packets, so we can also add a flow to drop those and other
-packets with reserved multicast protocols:
-
-    ovs-ofctl add-flow br0 \
-        "table=0, dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0, actions=drop"
-
-We could add flows to drop other protocols, but these demonstrate the
-pattern.
-
-We need one more flow, with a priority lower than the default, so that
-flows that don't match either of the "drop" flows we added above go on
-to pipeline stage 1 in OpenFlow table 1:
-
-    ovs-ofctl add-flow br0 "table=0, priority=0, actions=resubmit(,1)"
-
-(The "resubmit" action is an Open vSwitch extension to OpenFlow.)
-
-
-### Testing Table 0
-
-If we were using Open vSwitch to set up a physical or a virtual
-switch, then we would naturally test it by sending packets through it
-one way or another, perhaps with common network testing tools like
-`ping` and `tcpdump` or more specialized tools like Scapy.  That's
-difficult with our simulated switch, since it's not visible to the
-operating system.
-
-But our simulated switch has a few specialized testing tools.  The
-most powerful of these tools is `ofproto/trace`.  Given a switch and
-the specification of a flow, `ofproto/trace` shows, step-by-step, how
-such a flow would be treated as it goes through the switch.
-
-
-### EXAMPLE 1
-
-Try this command:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=01:80:c2:00:00:05
-
-The output should look something like this:
-
-    Flow: metadata=0,in_port=1,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=01:80:c2:00:00:05,dl_type=0x0000
-    Rule: table=0 cookie=0 dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0
-    OpenFlow actions=drop
-
-    Final flow: unchanged
-    Datapath actions: drop
-
-The first block of lines describes an OpenFlow table lookup.  The
-first line shows the fields used for the table lookup (which is mostly
-zeros because that's the default if we don't specify everything).  The
-second line gives the OpenFlow flow that the fields matched (called a
-"rule" because that is the name used inside Open vSwitch for an
-OpenFlow flow).  In this case, we see that this packet that has a
-reserved multicast destination address matches the rule that drops
-those packets.  The third line gives the rule's OpenFlow actions.
-
-The second block of lines summarizes the results, which are not very
-interesting here.
-
-
-### EXAMPLE 2
-
-Try another command:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=01:80:c2:00:00:10
-
-The output should be:
-
-    Flow: metadata=0,in_port=1,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=01:80:c2:00:00:10,dl_type=0x0000
-    Rule: table=0 cookie=0 priority=0
-    OpenFlow actions=resubmit(,1)
-
-	    Resubmitted flow: unchanged
-	    Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	    Resubmitted  odp: drop
-	    No match
-
-    Final flow: unchanged
-    Datapath actions: drop
-
-This time the flow we handed to `ofproto/trace` doesn't match any of
-our "drop" rules, so it falls through to the low-priority "resubmit"
-rule, which we see in the rule and the actions selected in the first
-block.  The "resubmit" causes a second lookup in OpenFlow table 1,
-described by the additional block of indented text in the output.  We
-haven't yet added any flows to OpenFlow table 1, so no flow actually
-matches in the second lookup.  Therefore, the packet is still actually
-dropped, which means that the externally observable results would be
-identical to our first example.
-
-
-Implementing Table 1: VLAN Input Processing
--------------------------------------------
-
-A packet that enters table 1 has already passed basic validation in
-table 0.  The purpose of table 1 is validate the packet's VLAN, based
-on the VLAN configuration of the switch port through which the packet
-entered the switch.  We will also use it to attach a VLAN header to
-packets that arrive on an access port, which allows later processing
-stages to rely on the packet's VLAN always being part of the VLAN
-header, reducing special cases.
-
-Let's start by adding a low-priority flow that drops all packets,
-before we add flows that pass through acceptable packets.  You can
-think of this as a "default drop" rule:
-
-    ovs-ofctl add-flow br0 "table=1, priority=0, actions=drop"
-
-Our trunk port p1, on OpenFlow port 1, is an easy case.  p1 accepts
-any packet regardless of whether it has a VLAN header or what the VLAN
-was, so we can add a flow that resubmits everything on input port 1 to
-the next table:
-
-    ovs-ofctl add-flow br0 \
-        "table=1, priority=99, in_port=1, actions=resubmit(,2)"
-
-On the access ports, we want to accept any packet that has no VLAN
-header, tag it with the access port's VLAN number, and then pass it
-along to the next stage:
-
-    ovs-ofctl add-flows br0 - <<'EOF'
-	  table=1, priority=99, in_port=2, vlan_tci=0, actions=mod_vlan_vid:20, resubmit(,2)
-	  table=1, priority=99, in_port=3, vlan_tci=0, actions=mod_vlan_vid:30, resubmit(,2)
-	  table=1, priority=99, in_port=4, vlan_tci=0, actions=mod_vlan_vid:30, resubmit(,2)
-    EOF
-
-We don't write any rules that match packets with 802.1Q that enter
-this stage on any of the access ports, so the "default drop" rule we
-added earlier causes them to be dropped, which is ordinarily what we
-want for access ports.
-
-> Another variation of access ports allows ingress of packets tagged
-> with VLAN 0 (aka 802.1p priority tagged packets).  To allow such
-> packets, replace "vlan_tci=0" by "vlan_tci=0/0xfff" above.
-
-
-### Testing Table 1
-
-`ofproto/trace` allows us to test the ingress VLAN rules that we added
-above.
-
-
-### EXAMPLE 1: Packet on Trunk Port
-
-Here's a test of a packet coming in on the trunk port:
-
-    ovs-appctl ofproto/trace br0 in_port=1,vlan_tci=5
-
-The output shows the lookup in table 0, the resubmit to table 1, and
-the resubmit to table 2 (which does nothing because we haven't put
-anything there yet):
-
-    Flow: metadata=0,in_port=1,vlan_tci=0x0005,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-    Rule: table=0 cookie=0 priority=0
-    OpenFlow actions=resubmit(,1)
-
-	    Resubmitted flow: unchanged
-	    Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	    Resubmitted  odp: drop
-	    Rule: table=1 cookie=0 priority=99,in_port=1
-	    OpenFlow actions=resubmit(,2)
-
-		    Resubmitted flow: unchanged
-		    Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-		    Resubmitted  odp: drop
-		    No match
-
-    Final flow: unchanged
-    Datapath actions: drop
-
-
-### EXAMPLE 2: Valid Packet on Access Port
-
-Here's a test of a valid packet (a packet without an 802.1Q header)
-coming in on access port p2:
-
-    ovs-appctl ofproto/trace br0 in_port=2
-
-The output is similar to that for the previous case, except that it
-additionally tags the packet with p2's VLAN 20 before it passes it
-along to table 2:
-
-    Flow: metadata=0,in_port=2,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-    Rule: table=0 cookie=0 priority=0
-    OpenFlow actions=resubmit(,1)
-
-	    Resubmitted flow: unchanged
-	    Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	    Resubmitted  odp: drop
-	    Rule: table=1 cookie=0 priority=99,in_port=2,vlan_tci=0x0000
-	    OpenFlow actions=mod_vlan_vid:20,resubmit(,2)
-
-		    Resubmitted flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-		    Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-		    Resubmitted  odp: drop
-		    No match
-
-    Final flow: unchanged
-    Datapath actions: drop
-
-
-### EXAMPLE 3: Invalid Packet on Access Port
-
-This tests an invalid packet (one that includes an 802.1Q header)
-coming in on access port p2:
-
-    ovs-appctl ofproto/trace br0 in_port=2,vlan_tci=5
-
-The output shows the packet matching the default drop rule:
-
-    Flow: metadata=0,in_port=2,vlan_tci=0x0005,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-    Rule: table=0 cookie=0 priority=0
-    OpenFlow actions=resubmit(,1)
-
-	    Resubmitted flow: unchanged
-	    Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	    Resubmitted  odp: drop
-	    Rule: table=1 cookie=0 priority=0
-	    OpenFlow actions=drop
-
-    Final flow: unchanged
-    Datapath actions: drop
-
-
-Implementing Table 2: MAC+VLAN Learning for Ingress Port
---------------------------------------------------------
-
-This table allows the switch we're implementing to learn that the
-packet's source MAC is located on the packet's ingress port in the
-packet's VLAN.
-
-> This table is a good example why table 1 added a VLAN tag to
-> packets that entered the switch through an access port.  We want
-> to associate a MAC+VLAN with a port regardless of whether the VLAN
-> in question was originally part of the packet or whether it was an
-> assumed VLAN associated with an access port.
 
 It only takes a single flow to do this.  The following command adds
 it:
