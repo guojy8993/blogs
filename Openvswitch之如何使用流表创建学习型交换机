@@ -1,268 +1,65 @@
-Open vSwitch Advanced Features Tutorial
-=======================================
-
-Many tutorials cover the basics of OpenFlow.  This is not such a
-tutorial.  Rather, a knowledge of the basics of OpenFlow is a
-prerequisite.  If you do not already understand how an OpenFlow flow
-table works, please go read a basic tutorial and then continue reading
-here afterward.
-
-It is also important to understand the basics of Open vSwitch before
-you begin.  If you have never used `ovs-vsctl` or `ovs-ofctl` before,
-you should learn a little about them before proceeding.
-
-Most of the features covered in this tutorial are Open vSwitch
-extensions to OpenFlow.  Also, most of the features in this tutorial
-are specific to the software Open vSwitch implementation.  If you are
-using an Open vSwitch port to an ASIC-based hardware switch, this
-tutorial will not help you.
-
-This tutorial does not cover every aspect of the features that it
-mentions.  You can find the details elsewhere in the Open vSwitch
-documentation, especially `ovs-ofctl(8)` and the comments in the
-`include/openflow/nicira-ext.h` header file.
-
-> In this tutorial, paragraphs set off like this designate notes
-> with additional information that readers may wish to skip on a
-> first read.
-
-Getting Started
----------------
-
-This is a hands-on tutorial.  To get the most out of it, you will need
-Open vSwitch binaries.  You do not, on the other hand, need any
-physical networking hardware or even supervisor privilege on your
-system.  Instead, we will use a script called `ovs-sandbox`, which
-accompanies the tutorial, that constructs a software simulated network
-environment based on Open vSwitch.
-
-You can use `ovs-sandbox` three ways:
-
-  * If you have already installed Open vSwitch on your system, then
-    you should be able to just run `ovs-sandbox` from this directory
-    without any options.
-
-  * If you have not installed Open vSwitch (and you do not want to
-    install it), then you can build Open vSwitch according to the
-    instructions in [INSTALL.md], without installing it.  Then run
-    `./ovs-sandbox -b DIRECTORY` from this directory, substituting
-    the Open vSwitch build directory for `DIRECTORY`.
-
-  * As a slight variant on the latter, you can run `make sandbox`
-    from an Open vSwitch build directory.
-
-When you run `ovs-sandbox`, it does the following:
-
-  1. **CAUTION:** Deletes any subdirectory of the current directory
-     named "sandbox" and any files in that directory.
-
-  2. Creates a new directory "sandbox" in the current directory.
-
-  3. Sets up special environment variables that ensure that Open
-     vSwitch programs will look inside the "sandbox" directory
-     instead of in the Open vSwitch installation directory.
-
-  4. If you are using a built but not installed Open vSwitch,
-     installs the Open vSwitch manpages in a subdirectory of
-     "sandbox" and adjusts the `MANPATH` environment variable to point
-     to this directory.  This means that you can use, for example,
-     `man ovs-vsctl` to see a manpage for the `ovs-vsctl` program that
-     you built.
-
-  5. Creates an empty Open vSwitch configuration database under
-     "sandbox".
-
-  6. Starts `ovsdb-server` running under "sandbox".
-
-  7. Starts `ovs-vswitchd` running under "sandbox", passing special
-     options that enable a special "dummy" mode for testing.
-
-  8. Starts a nested interactive shell inside "sandbox".
-
-At this point, you can run all the usual Open vSwitch utilities from
-the nested shell environment.  You can, for example, use `ovs-vsctl`
-to create a bridge:
-
-    ovs-vsctl add-br br0
-
-From Open vSwitch's perspective, the bridge that you create this way
-is as real as any other.  You can, for example, connect it to an
-OpenFlow controller or use `ovs-ofctl` to examine and modify it and
-its OpenFlow flow table.  On the other hand, the bridge is not visible
-to the operating system's network stack, so `ifconfig` or `ip` cannot
-see it or affect it, which means that utilities like `ping` and
-`tcpdump` will not work either.  (That has its good side, too: you
-can't screw up your computer's network stack by manipulating a
-sandboxed OVS.)
-
-When you're done using OVS from the sandbox, exit the nested shell (by
-entering the "exit" shell command or pressing Control+D).  This will
-kill the daemons that `ovs-sandbox` started, but it leaves the "sandbox"
-directory and its contents in place.
-
-The sandbox directory contains log files for the Open vSwitch dameons.
-You can examine them while you're running in the sandboxed environment
-or after you exit.
-
-Using GDB
----------
-
-GDB support is not required to go through the tutorial. It is added in case
-user wants to explore the internals of OVS programs.
-
-GDB can already be used to debug any running process, with the usual
-'gdb <program> <process-id>' command.
-
-'ovs-sandbox' also has a '-g' option for launching ovs-vswitchd under GDB.
-This option can be handy for setting break points before ovs-vswitchd runs,
-or for catching early segfaults. Similarly, a '-d' option can be used to
-run ovsdb-server under GDB. Both options can be specified at the same time.
-
-In addition, a '-e' option also launches ovs-vswitchd under GDB. However,
-instead of displaying a 'gdb>' prompt and waiting for user input, ovs-vswitchd
-will start to execute immediately. '-r' option is the corresponding option
-for running ovsdb-server under gdb with immediate execution.
-
-To avoid GDB mangling with the sandbox sub shell terminal, 'ovs-sandbox'
-starts a new xterm to run each GDB session.  For systems that do not support
-X windows, GDB support is effectively disabled.
-
-When launching sandbox through the build tree's make file, the '-g' option
-can be passed via the 'SANDBOXFLAGS' environment variable.
-'make sandbox SANDBOXFLAGS=-g' will start the sandbox with ovs-vswitchd
-running under GDB in its own xterm if X is available.
-
-Motivation
-----------
-
-The goal of this tutorial is to demonstrate the power of Open vSwitch
-flow tables.  The tutorial works through the implementation of a
-MAC-learning switch with VLAN trunk and access ports.  Outside of the
-Open vSwitch features that we will discuss, OpenFlow provides at least
-two ways to implement such a switch:
-
-  1. An OpenFlow controller to implement MAC learning in a
-     "reactive" fashion.  Whenever a new MAC appears on the switch,
-     or a MAC moves from one switch port to another, the controller
-     adjusts the OpenFlow flow table to match.
-
-  2. The "normal" action.  OpenFlow defines this action to submit a
-     packet to "the traditional non-OpenFlow pipeline of the
-     switch".  That is, if a flow uses this action, then the packets
-     in the flow go through the switch in the same way that they
-     would if OpenFlow was not configured on the switch.
-
-Each of these approaches has unfortunate pitfalls.  In the first
-approach, using an OpenFlow controller to implement MAC learning, has
-a significant cost in terms of network bandwidth and latency.  It also
-makes the controller more difficult to scale to large numbers of
-switches, which is especially important in environments with thousands
-of hypervisors (each of which contains a virtual OpenFlow switch).
-MAC learning at an OpenFlow controller also behaves poorly if the
-OpenFlow controller fails, slows down, or becomes unavailable due to
-network problems.
-
-The second approach, using the "normal" action, has different
-problems.  First, little about the "normal" action is standardized, so
-it behaves differently on switches from different vendors, and the
-available features and how those features are configured (usually not
-through OpenFlow) varies widely.  Second, "normal" does not work well
-with other OpenFlow actions.  It is "all-or-nothing", with little
-potential to adjust its behavior slightly or to compose it with other
-features.
-
-
-Scenario
---------
-
-We will construct Open vSwitch flow tables for a VLAN-capable,
-MAC-learning switch that has four ports:
-
-  * p1, a trunk port that carries all VLANs, on OpenFlow port 1.
-
-  * p2, an access port for VLAN 20, on OpenFlow port 2.
-
-  * p3 and p4, both access ports for VLAN 30, on OpenFlow ports 3
-    and 4, respectively.
-
-> The ports' names are not significant.  You could call them eth1
-> through eth4, or any other names you like.
-
-> An OpenFlow switch always has a "local" port as well.  This
-> scenario won't use the local port.
-
-Our switch design will consist of five main flow tables, each of which
-implements one stage in the switch pipeline:
-
-  Table 0: Admission control.
-
-  Table 1: VLAN input processing.
-
-  Table 2: Learn source MAC and VLAN for ingress port.
-
-  Table 3: Look up learned port for destination MAC and VLAN.
-
-  Table 4: Output processing.
-
-The section below describes how to set up the scenario, followed by a
-section for each OpenFlow table.
-
-You can cut and paste the `ovs-vsctl` and `ovs-ofctl` commands in each
-of the sections below into your `ovs-sandbox` shell.  They are also
-available as shell scripts in this directory, named `t-setup`, `t-stage0`,
-`t-stage1`, ..., `t-stage4`.  The `ovs-appctl` test commands are intended
-for cutting and pasting and are not supplied separately.
-
-
-Setup
------
-
-To get started, start `ovs-sandbox`.  Inside the interactive shell
-that it starts, run this command:
-
-    ovs-vsctl add-br br0 -- set Bridge br0 fail-mode=secure
-
-This command creates a new bridge "br0" and puts "br0" into so-called
-"fail-secure" mode.  For our purpose, this just means that the
-OpenFlow flow table starts out empty.
-
-> If we did not do this, then the flow table would start out with a
-> single flow that executes the "normal" action.  We could use that
-> feature to yield a switch that behaves the same as the switch we
-> are currently building, but with the caveats described under
-> "Motivation" above.)
-
-The new bridge has only one port on it so far, the "local port" br0.
-We need to add p1, p2, p3, and p4.  A shell "for" loop is one way to
-do it:
-
-    for i in 1 2 3 4; do
-        ovs-vsctl add-port br0 p$i -- set Interface p$i ofport_request=$i
-	      ovs-ofctl mod-port br0 p$i up
-    done
-
-In addition to adding a port, the `ovs-vsctl` command above sets its
-"ofport_request" column to ensure that port p1 is assigned OpenFlow
-port 1, p2 is assigned OpenFlow port 2, and so on.
-
-> We could omit setting the ofport_request and let Open vSwitch
-> choose port numbers for us, but it's convenient for the purposes
-> of this tutorial because we can talk about OpenFlow port 1 and
-> know that it corresponds to p1.
-
-The `ovs-ofctl` command above brings up the simulated interfaces, which
-are down initially, using an OpenFlow request.  The effect is similar
-to `ifconfig up`, but the sandbox's interfaces are not visible to the
-operating system and therefore `ifconfig` would not affect them.
-
-We have not configured anything related to VLANs or MAC learning.
-That's because we're going to implement those features in the flow
-table.
-
-To see what we've done so far to set up the scenario, you can run a
-command like `ovs-vsctl show` or `ovs-ofctl show br0`.
-
-
+### 需求描述 ###
+假如我们需要构造一个具有 mac自学习以及vlan特性的4端口交换机,端口特性描述如下:
+*p1 一个trunk端口,带有所有的vlan,使用 openflow 端口号 1.
+*p2 一个access端口,带有vlan20,使用 openflow 端口号 2.
+*p3,p4  全部都是vlan30的 access端口,相应地占用openflow端口3,4.
+# 端口的名字不重要.
+# 一个OpenFlow交换机总是拥有一个 LOCAL 端口的,在该场景下并不会使用该端口.
+
+### 流表规划 ###
+我们的交换机设计包含5个主要的流表,每个流表在整个交换机管道中完成数据处理的一个阶段.
+Table 0: Admission control(准入控制).
+Table 1: VLAN input processing(VLAN 输入控制).
+Table 2: Learn source MAC and VLAN for ingress port(交换机入端口学习mac/vlan).
+Table 3: Look up learned port for destination MAC and VLAN(根据学习结果为包含指定dest mac与vlan的帧查找对应输出端口).
+Table 4: Output processing(输出处理).
+
+### 流表设计与测试 ###
+该部分将展示各个流表的详设计:
+(1)准备工作:
+   a.创建ovs交换机:
+   [root@my-pc ~]# ovs-vsctl -- --if-exists del-br ovs-guide \
+                             -- add-br ovs-guide  \
+                             -- set Bridge ovs-guide fail-mode=secure
+   # 在secure模式下,创建出的流表不包含默认流规则
+   b.添加4个端口,设置对应openflow端口号:
+   [root@my-pc ~]# for i in {1..4};do ovs-vsctl -- --if-exists del-port p$i \
+                                                -- add-port ovs-guide p$i \
+                                                -- set Interface p$i ofport_request=$i ;done
+   # 官方文档 使用 ovs-ofctl mod-port <Bridge> <Port> up,启动port对应的Interface, 但是系统一直
+   # 提示找不到对应的,e.g,p1设备,故而此处不予进行此操作.
+   # 但是有必要指出 ovs-ofctl mod-port <Bridge> <Port> up 作用类似于 ifconfig <Interface> up 的效果,
+   # 但是 ovs interface 对ifconfig是不可见的,不能使用 ifconfig显式启动设备.
+   [root@my-pc ~]# ovs-vsctl show
+    960b5b7a-d0bd-4ecb-8545-6710c3083e98
+    Bridge ovs-guide
+        fail_mode: secure
+        Port "p4"
+            Interface "p4"
+        Port "p3"
+            Interface "p3"
+        Port "p2"
+            Interface "p2"
+        Port "p1"
+            Interface "p1"
+        Port ovs-guide
+            Interface ovs-guide
+                type: internal
+    ovs_version: "2.1.3"
+ 
+(2)Table 0设计与测试:
+   该表是packet进入交换机的入口.我们使用该表来过滤并丢弃符合这样或那样条件的packets.
+   例如,包含多播源地址的packet不合法, 我们就在交换机入端口添加一条流表以匹配并丢弃多播包.
+   # note:
+   # 多播包:
+   # 广播包:
+   [root@my-pc ~]# ovs-ofctl add-flow  ovs-guide "table=0, dl_src=01:00:00:00:00:00/01:00:00:00:00:00, actions=drop"
+   
+   
+(3)Table 1设计与测试:
+(4)Table 2设计与测试:
+(5)Table 3设计与测试:
+(6)Table 4设计与测试:
 Implementing Table 0: Admission control
 ---------------------------------------
 
