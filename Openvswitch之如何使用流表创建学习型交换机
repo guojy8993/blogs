@@ -149,40 +149,18 @@ Table 4: Output processing(输出处理).
 (4)Table 2设计与测试:
   该表允许交换机学习包的源MAC,交换机端口(配置有vlan). 该表是个很好的例子来说明为什么交换机需要给进入access端口
   的包添加 vlan tag. 我们想要将交换机端口与(MAC+VLAN)关联起来,而不必关心vlan是数据包的原始部分抑或是access端口
-  关联的vlan值.
-    
+  关联的vlan值.使用一条流表规则搞定:
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=2 actions=learn(table=10, NXM_OF_VLAN_TCI[0..11],   \
+                                                                        NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[], \
+                                                                        load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]), \
+                                                                        resubmit(,3)"
+  # NOTE:
+  # learn(table=N...) :经学习产生的流表规则(假设为A)将加入tableN(MAC学习表)中
+  # NXM_OF_VLAN_TCI[0..11] :给规则A添加匹配条件 "vlan_tci=<当前packet的vlan_tci>"
+  # NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[] :给规则A添加匹配条件 "dl_dst=<当前packet的dl_src>"
+  # load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15] :给流表规则A添加action部分,进行的动作是把当前packet的入端口放入寄存器
 (5)Table 3设计与测试:
 (6)Table 4设计与测试:
-
-It only takes a single flow to do this.  The following command adds
-it:
-
-    ovs-ofctl add-flow br0 \
-        "table=2 actions=learn(table=10, NXM_OF_VLAN_TCI[0..11], \
-                               NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[], \
-                               load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]), \
-                         resubmit(,3)"
-
-The "learn" action (an Open vSwitch extension to OpenFlow) modifies a
-flow table based on the content of the flow currently being processed.
-Here's how you can interpret each part of the "learn" action above:
-
-    table=10
-
-        Modify flow table 10.  This will be the MAC learning table.
-
-    NXM_OF_VLAN_TCI[0..11]
-
-        Make the flow that we add to flow table 10 match the same VLAN
-        ID that the packet we're currently processing contains.  This
-        effectively scopes the MAC learning entry to a single VLAN,
-        which is the ordinary behavior for a VLAN-aware switch.
-
-    NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[]
-
-        Make the flow that we add to flow table 10 match, as Ethernet
-        destination, the Ethernet source address of the packet we're
-        currently processing.
 
     load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]
 
@@ -719,6 +697,9 @@ NXST_FLOW reply (xid=0x4):
 
 ovs-ofctl add-flow br0 "table=2 actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)"
 
+参考文档: 
+1. http://www.cnblogs.com/CasonChan/p/4754486.html
+2.
 
 
 
