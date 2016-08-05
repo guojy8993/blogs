@@ -231,47 +231,22 @@ Table 4: Output processing(输出处理).
   [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=3 priority=50 actions=resubmit(,10), resubmit(,4)"
   # Note:
   # resubmit(,10) ，table10负责将学习packet的入port到reg0;如果该包的目标地址没有被学习到,则不会匹配任何流规则,则该resubmit
-  # 在table10中不会触发任何操作,而reg0中初始化值0也不会改动.reg0的值为0，这在pipeline的下一阶段是一个信号:该包需要被flood.
-  
-(6)Table 4设计与测试:
-
-
-The flow's first action resubmits to table 10, the table that the
-"learn" action modifies.  As you saw previously, the learned flows in
-this table write the learned port into register 0.  If the destination
-for our packet hasn't been learned, then there will be no matching
-flow, and so the "resubmit" turns into a no-op.  Because registers are
-initialized to 0, we can use a register 0 value of 0 in our next
-pipeline stage as a signal to flood the packet.
-
-The second action resubmits to table 4, continuing to the next
-pipeline stage.
-
-We can add another flow to skip the learning table lookup for
-multicast and broadcast packets, since those should always be flooded:
-
-    ovs-ofctl add-flow br0 \
-        "table=3 priority=99 dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 \
-          actions=resubmit(,4)"
-
-> We don't strictly need to add this flow, because multicast
-> addresses will never show up in our learning table.  (In turn,
-> that's because we put a flow into table 0 to drop packets that
-> have a multicast source address.)
-
-
-### Testing Table 3
-
-### EXAMPLE
-
-Here's a command that should cause OVS to learn that f0:00:00:00:00:01
-is on p1 in VLAN 20:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_vlan=20,dl_src=f0:00:00:00:00:01,dl_dst=90:00:00:00:00:01 -generate
-
-Here's an excerpt from the output that shows (from the "no match"
-looking up the resubmit to table 10) that the flow's destination was
-unknown:
+  # 在table10中不会触发任何操作,而reg0中初始化值0也不会改动.reg0的值为0，这在pipeline的下一阶段是一个信号:该包需要被flooded.
+  # 我们可以添加流表以允许多播包跳过表查询,因为该类型的包总是应该被flooded的.
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=3 priority=99 dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 \
+                                                                                                      actions=resubmit(,4)"
+  # 严格来说,我们并不需要该流规则,因为多播地址包在table0已经被清洗掉了.
+  使用专业工具(ofproto/trace)测试table 3效果:
+  *使用下述命令引发table10学习 mac f0:00:00:00:00:01与vlan 20以及port p1的对应关系
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_vlan=20,dl_src=f0:00:00:00:00:01,\
+                                                                                 dl_dst=90:00:00:00:00:01 -generate
+  Bridge: ovs-guide
+  ...
+  Resubmitted flow: unchanged
+		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+		Resubmitted  odp: drop
+		Rule: table=2 cookie=0 
+		OpenFlow actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)
 
 			Resubmitted flow: unchanged
 			Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
@@ -284,423 +259,87 @@ unknown:
 				Resubmitted  odp: drop
 				No match
 
-You can verify that the packet's source was learned two ways.  The
-most direct way is to dump the learning table with:
-
-    ovs-ofctl dump-flows br0 table=10
-
-which ought to show roughly the following, with extraneous details
-removed:
-
-    table=10, vlan_tci=0x0014/0x0fff,dl_dst=f0:00:00:00:00:01 actions=load:0x1->NXM_NX_REG0[0..15]
-
-> If you tried the examples for the previous step, or if you did
-> some of your own experiments, then you might see additional flows
-> there.  These additional flows are harmless.  If they bother you,
-> then you can remove them with `ovs-ofctl del-flows br0 table=10`.
-
-The other way is to inject a packet to take advantage of the learning
-entry.  For example, we can inject a packet on p2 whose destination is
-the MAC address that we just learned on p1:
-
-    ovs-appctl ofproto/trace br0 in_port=2,dl_src=90:00:00:00:00:01,dl_dst=f0:00:00:00:00:01 -generate
-
-Here's an interesting excerpt from that command's output.  This group
-of lines traces the "resubmit(,10)", showing that the packet matched
-the learned flow for the first MAC we used, loading the OpenFlow port
-number for the learned port p1 into register 0:
-
 				Resubmitted flow: unchanged
 				Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 				Resubmitted  odp: drop
-				Rule: table=10 cookie=0 vlan_tci=0x0014/0x0fff,dl_dst=f0:00:00:00:00:01
-				OpenFlow actions=load:0x1->NXM_NX_REG0[0..15]
-
-
-If you read the commands above carefully, then you might have noticed
-that they simply have the Ethernet source and destination addresses
-exchanged.  That means that if we now rerun the first `ovs-appctl`
-command above, e.g.:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_vlan=20,dl_src=f0:00:00:00:00:01,dl_dst=90:00:00:00:00:01 -generate
-
-then we see in the output that the destination has now been learned:
-
-				Resubmitted flow: unchanged
-				Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-				Resubmitted  odp: drop
-				Rule: table=10 cookie=0 vlan_tci=0x0014/0x0fff,dl_dst=90:00:00:00:00:01
-				OpenFlow actions=load:0x2->NXM_NX_REG0[0..15]
-
-
-Implementing Table 4: Output Processing
----------------------------------------
-
-At entry to stage 4, we know that register 0 contains either the
-desired output port or is zero if the packet should be flooded.  We
-also know that the packet's VLAN is in its 802.1Q header, even if the
-VLAN was implicit because the packet came in on an access port.
-
-The job of the final pipeline stage is to actually output packets.
-The job is trivial for output to our trunk port p1:
-
-    ovs-ofctl add-flow br0 "table=4 reg0=1 actions=1"
-
-For output to the access ports, we just have to strip the VLAN header
-before outputting the packet:
-
-    ovs-ofctl add-flows br0 - <<'EOF'
-    table=4 reg0=2 actions=strip_vlan,2
-    table=4 reg0=3 actions=strip_vlan,3
-    table=4 reg0=4 actions=strip_vlan,4
-    EOF
-
-The only slightly tricky part is flooding multicast and broadcast
-packets and unicast packets with unlearned destinations.  For those,
-we need to make sure that we only output the packets to the ports that
-carry our packet's VLAN, and that we include the 802.1Q header in the
-copy output to the trunk port but not in copies output to access
-ports:
-
-    ovs-ofctl add-flows br0 - <<'EOF'
-    table=4 reg0=0 priority=99 dl_vlan=20 actions=1,strip_vlan,2
-    table=4 reg0=0 priority=99 dl_vlan=30 actions=1,strip_vlan,3,4
-    table=4 reg0=0 priority=50            actions=1
-    EOF
-
-> Our rules rely on the standard OpenFlow behavior that an output
-> action will not forward a packet back out the port it came in on.
-> That is, if a packet comes in on p1, and we've learned that the
-> packet's destination MAC is also on p1, so that we end up with
-> "actions=1" as our actions, the switch will not forward the packet
-> back out its input port.  The multicast/broadcast/unknown
-> destination cases above also rely on this behavior.
-
-
-### Testing Table 4
-
-### EXAMPLE 1: Broadcast, Multicast, and Unknown Destination
-
-Try tracing a broadcast packet arriving on p1 in VLAN 30:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=30
-
-The interesting part of the output is the final line, which shows that
-the switch would remove the 802.1Q header and then output the packet to
-p3 and p4, which are access ports for VLAN 30:
-
-    Datapath actions: pop_vlan,3,4
-
-Similarly, if we trace a broadcast packet arriving on p3:
-
-    ovs-appctl ofproto/trace br0 in_port=3,dl_dst=ff:ff:ff:ff:ff:ff
-
-then we see that it is output to p1 with an 802.1Q tag and then to p4
-without one:
-
-    Datapath actions: push_vlan(vid=30,pcp=0),1,pop_vlan,4
-
-> Open vSwitch could simplify the datapath actions here to just
-> "4,push_vlan(vid=30,pcp=0),1" but it is not smart enough to do so.
-
-The following are also broadcasts, but the result is to drop the
-packets because the VLAN only belongs to the input port:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=ff:ff:ff:ff:ff:ff
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=55
-
-Try some other broadcast cases on your own:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=20
-    ovs-appctl ofproto/trace br0 in_port=2,dl_dst=ff:ff:ff:ff:ff:ff
-    ovs-appctl ofproto/trace br0 in_port=4,dl_dst=ff:ff:ff:ff:ff:ff
-
-You can see the same behavior with multicast packets and with unicast
-packets whose destination has not been learned, e.g.:
-
-    ovs-appctl ofproto/trace br0 in_port=4,dl_dst=01:00:00:00:00:00
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=90:12:34:56:78:90,dl_vlan=20
-    ovs-appctl ofproto/trace br0 in_port=1,dl_dst=90:12:34:56:78:90,dl_vlan=30
-
-
-### EXAMPLE 2: MAC Learning
-
-Let's follow the same pattern as we did for table 3.  First learn a
-MAC on port p1 in VLAN 30:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_vlan=30,dl_src=10:00:00:00:00:01,dl_dst=20:00:00:00:00:01 -generate
-
-You can see from the last line of output that the packet's destination
-is unknown, so it gets flooded to both p3 and p4, the other ports in
-VLAN 30:
-
-    Datapath actions: pop_vlan,3,4
-
-Then reverse the MACs and learn the first flow's destination on port
-p4:
-
-    ovs-appctl ofproto/trace br0 in_port=4,dl_src=20:00:00:00:00:01,dl_dst=10:00:00:00:00:01 -generate
-
-The last line of output shows that the this packet's destination is
-known to be p1, as learned from our previous command:
-
-    Datapath actions: push_vlan(vid=30,pcp=0),1
-
-Now, if we rerun our first command:
-
-    ovs-appctl ofproto/trace br0 in_port=1,dl_vlan=30,dl_src=10:00:00:00:00:01,dl_dst=20:00:00:00:00:01 -generate
-
-we can see that the result is no longer a flood but to the specified
-learned destination port p4:
-
-    Datapath actions: pop_vlan,4
-
-
-Contact 
-=======
-
-bugs@openvswitch.org
-http://openvswitch.org/
-
-[INSTALL.md]:../INSTALL.md
-
-
-####################################################################
-ovs-vsctl  -- --if-exists del-port qg-58160f46-1d  --  add-port  br118  qg-58160f46-1d  -- set Interface  qg-58160f46-1d  type=internal  --  set Interface  qg-58160f46-1d  external-ids:iface-id=58160f46-1d08-46bc-86bc-ad7511c388dc  --  set  Interface  qg-58160f46-1d  external-ids:iface-status=active  --  set Interface  qg-58160f46-1d  external-ids:attached-mac=fa:16:3e:72:1f:4d
-
-ip netns add qrouter001
-ip link set qg-58160f46-1d address fa:16:3e:72:1f:4d
-ip link set qg-58160f46-1d netns qrouter001
-ip netns exec qrouter001 ip link set qg-58160f46-1d up
-ip netns exec qrouter001 ip addr show qg-58160f46-1d permanent scope global
-ip netns exec qrouter001 ip -4 addr add 192.168.100.1/24 brd 192.168.100.255 scope global dev qg-58160f46-1d
-
-
-
-=============
-流表网络实验:
-#  Port  Type   OF_PORT          Vlan
-#   p1  trunk   ofport_request=1 (carrying all VLANs) 
-#   p2  access  ofport_request=2 (VLAN 20) 
-#   p3  access  ofport_request=3 (VLAN 30) 
-#   p4  access  ofport_request=4 (VLAN 30) 
-
-*  Table  Usage       Flows
-*  0      Admission control     
-*                     ovs-ofctl add-flow br0 "table=0,dl_src=01:00:00:00:00:00/01:00:00:00:00:00,actions=drop"
-*                     ovs-ofctl add-flow br0 "table=0,dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0,actions=drop"
-*                     ovs-ofctl add-flow br0 "table=0,priority=0,actions=resubmit(,1)"
-*  1      Valn input processing 
-*                ovs-ofctl add-flow br0 "table=1,priority=0,actions=drop"
-*                ovs-ofctl add-flow br0 "table=1,priority=99,in_port=1,actions=resubmit(,2)"
-*                ovs-ofctl add-flow br0 "table=1,priority=99,in_port=2,vlan_tci=0,actions=mod_vlan_vid:20,resubmit(,2)"
-*				 ovs-ofctl add-flow br0 "table=1,priority=99,in_port=3,vlan_tci=0,actions=mod_vlan_vid:30,resubmit(,2)"
-*                ovs-ofctl add-flow br0 "table=1,priority=99,in_port=4,vlan_tci=0,actions=mod_vlan_vid:40,resubmit(,2)"
-*  2      Learn souce MAC&VLAN for integress port 
-*                ovs-ofctl add-flow br0 "table=2 actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]
-*                =NXM_OF_ETH_SRC[],load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)"     
-*  3      Look up learned port for destination MAC&VLAN
-*                ovs-ofctl add-flow br0 "table=3,priority=50,actions=resubmit(,10),resubmit(,4)"
-*				 ovs-ofctl add-flow br0 "table=3,priority=99,dl_dst=01:00:00:00:00:00/01:00:00:00:
-*                00:00,actions=resubmit(,4)"
-*  4      Output processing
-*                ovs-ofctl add-flow br0 "table=4 reg0=1 actions=1"
-*				 ovs-ofctl add-flow br0 "table=4 reg0=2 actions=strip_vlan,2"
-*                ovs-ofctl add-flow br0 "table=4 reg0=3 actions=strip_vlan,3"
-*                ovs-ofctl add-flow br0 "table=4 reg0=4 actions=strip_vlan,4" 
-
-####前期准备####
-ovs-vsctl add-br br0 -- set Bridge br0 fail-mode=secure && ip link set br0 up
-for i in {1..4};do ovs-vsctl add-port br0 p$i  -- set Interface  p$i type=internal -- set Interface  p$i ofport_request=$i;ovs-ofctl mod-port br0 p$i up;done
-########
-
-####测试table0####
-*1*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=1,dl_dst=01:80:c2:00:00:05
-Bridge: br0
-Flow: metadata=0,in_port=1,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=01:80:c2:00:00:05,dl_type=0x0000
-Rule: table=0 cookie=0 dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0
-OpenFlow actions=drop
-
-Final flow: unchanged
-Megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=01:80:c2:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-Datapath actions: drop
-
-*2*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=1,dl_dst=01:80:c2:00:00:10
-Bridge: br0
-Flow: metadata=0,in_port=1,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=01:80:c2:00:00:10,dl_type=0x0000
-Rule: table=0 cookie=0 priority=0
-OpenFlow actions=resubmit(,1)
-
+				No match
+  ...
+  [root@my-pc ~]# ovs-ofctl dump-flows ovs-guide "table=10" | grep "f0:00:00:00:00:01"
+  cookie=0x0, duration=170.770s, table=10, n_packets=0, n_bytes=0, idle_age=170, vlan_tci=0x0014/0x0fff,\
+                                                             dl_dst=f0:00:00:00:00:01 actions=load:0x1->NXM_NX_REG0[0..15]
+  * 发送packet测试该新加流规则.例如,我们可以从p2口发送一个dest mac 为f0:00:00:00:00:01(已经被学习)的packet.
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=2,dl_src=90:00:00:00:00:01,\
+                                                                                   dl_dst=f0:00:00:00:00:01 -generate
+  Bridge: ovs-guide
+  ...
+  Resubmitted flow: unchanged
+     Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+     Resubmitted  odp: drop
+     Rule: table=3 cookie=0 priority=50
+     OpenFlow actions=resubmit(,10),resubmit(,4)
 	Resubmitted flow: unchanged
 	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 	Resubmitted  odp: drop
-	Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=01:80:c2:00:00:10/ff:ff:ff:ff:ff:f0,dl_type=0x0000
+	Rule: table=10 cookie=0 vlan_tci=0x0014/0x0fff,dl_dst=f0:00:00:00:00:01
+	OpenFlow actions=load:0x1->NXM_NX_REG0[0..15]
+
+	Resubmitted flow: reg0=0x1,metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=90:00:00:00:00:01,\
+	                                                                      dl_dst=f0:00:00:00:00:01,dl_type=0x0000
+	Resubmitted regs: reg0=0x1 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
 	No match
+  ...
+  # NOTE:
+  # 上述内容是很有意思的一部分摘抄(excerpt),该部分输出显示出了对"resubmit(,10)"的追踪结果,显示出本次发送的数据包匹配到
+  # table0之前学习到的mac,因此执行对应的load操作,把数据包的入端口值加载入reg0中;
+  
+(6)Table 4设计与测试:
+  在该阶段,我们知道reg0的值包含的要么是数据包的入端口值,要么是0(原因参见前文). 同时我们也知道packet是包含802.1Q header的,
+  因为即使含蓄地未指明,但是packet是从access端口进入的,也会被添加vlan header.
+  pipeline最后一阶段的工作是输出packets:
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=1 actions=1"
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=2 actions=strip_vlan,2"
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=3 actions=strip_vlan,3"
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=4 actions=strip_vlan,4"
+  # 对于输出到access端口的packet,输出前需要去vlan
+  唯一稍微狡猾的地方是使用未学习的目的地址去洪泛多播与广播包,单播包
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=0 priority=99 dl_vlan=20 actions=1,strip_vlan,2"
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=0 priority=99 dl_vlan=30 actions=1,strip_vlan,3,4"
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=4 reg0=0 priority=50 actions=1"
+  # NOTE:
+  # 我们的规则依赖于标准OpenFlow交换机的行为,"output"操作并不会将数据包从其进入端口处转发.
+  # 举例说明,如果一个数据包从p1端口进入,且我们已经学习到该包的mac地址也在p1端口,那么该包的最终处理是发送到p1,
+  # 而此情景下,交换机是不转发数据包到其输入端口的.
+  # 而多播,广播,未知地址的包全部依赖于该行为处理.
 
-Final flow: unchanged
-Megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=01:80:c2:00:00:10/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-Datapath actions: drop
-
-####测试table1####
-*1*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=1,vlan_tci=5
-Bridge: br0
-Flow: metadata=0,in_port=1,vlan_tci=0x0005,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-Rule: table=0 cookie=0 priority=0
-OpenFlow actions=resubmit(,1)
-
+  使用专业工具(ofproto/trace)测试table 4效果:
+  *广播,多播以及未知地址
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=30
+  Bridge: ovs-guide
+  ...
+  OpenFlow actions=resubmit(,4)
 	Resubmitted flow: unchanged
 	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 	Resubmitted  odp: drop
-	Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-	Rule: table=1 cookie=0 priority=99,in_port=1
-	OpenFlow actions=resubmit(,2)
-
-		Resubmitted flow: unchanged
-		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-		Resubmitted  odp: drop
-		Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-		No match
-
-Final flow: unchanged
-Megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-Datapath actions: drop
-
-*2*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=2
-Bridge: br0
-Flow: metadata=0,in_port=2,vlan_tci=0x0000,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-Rule: table=0 cookie=0 priority=0
-OpenFlow actions=resubmit(,1)
-
-	Resubmitted flow: unchanged
-	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	Resubmitted  odp: drop
-	Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=2,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-	Rule: table=1 cookie=0 priority=99,in_port=2
-	OpenFlow actions=mod_vlan_vid:20,resubmit(,2)
-
-		Resubmitted flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-		Resubmitted  odp: drop
-		Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=2,vlan_tci=0x0000/0x1fff,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-		No match
-
-Final flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-Megaflow: recirc_id=0,skb_priority=0,in_port=2,vlan_tci=0x0000/0x1fff,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-Datapath actions: drop
-
-
-*3*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=2,vlan_tci=5
-Bridge: br0
-Flow: metadata=0,in_port=2,vlan_tci=0x0005,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-Rule: table=0 cookie=0 priority=0
-OpenFlow actions=resubmit(,1)
-
-	Resubmitted flow: unchanged
-	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	Resubmitted  odp: drop
-	Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=2,vlan_tci=0x0005,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-	Rule: table=1 cookie=0 priority=0
-	OpenFlow actions=drop
-
-Final flow: unchanged
-Megaflow: recirc_id=0,skb_priority=0,in_port=2,vlan_tci=0x0005,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-Datapath actions: drop
-
-
-
-####测试table2####
-*1*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=1,vlan_tci=20,dl_src=50:00:00:00:00:01 -generate
-Bridge: br0
-Flow: metadata=0,in_port=1,vlan_tci=0x0014,dl_src=50:00:00:00:00:01,dl_dst=00:00:00:00:00:00,dl_type=0x0000
-Rule: table=0 cookie=0 priority=0
-OpenFlow actions=resubmit(,1)
-
-	Resubmitted flow: unchanged
-	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-	Resubmitted  odp: drop
-	Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-	Rule: table=1 cookie=0 priority=99,in_port=1
-	OpenFlow actions=resubmit(,2)
-
-		Resubmitted flow: unchanged
-		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-		Resubmitted  odp: drop
-		Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=1,dl_src=00:00:00:00:00:00/01:00:00:00:00:00,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-		Rule: table=2 cookie=0 
-		OpenFlow actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)
-
-			Resubmitted flow: unchanged
-			Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-			Resubmitted  odp: drop
-			Resubmitted megaflow: recirc_id=0,skb_priority=0,in_port=1,vlan_tci=0x0014/0x0fff,dl_src=50:00:00:00:00:01,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-			No match
-
-Final flow: unchanged
-Megaflow: recirc_id=0,skb_priority=0,in_port=1,vlan_tci=0x0014/0x0fff,dl_src=50:00:00:00:00:01,dl_dst=00:00:00:00:00:00/ff:ff:ff:ff:ff:f0,dl_type=0x0000
-Datapath actions: drop
-[root@client ~]# ovs-ofctl dump-flows br0 "table=10"
-NXST_FLOW reply (xid=0x4):
- cookie=0x0, duration=20.241s, table=10, n_packets=0, n_bytes=0, idle_age=20, vlan_tci=0x0014/0x0fff,dl_dst=50:00:00:00:00:01 actions=load:0x1->NXM_NX_REG0[0..15]
-
-
-####测试table3####
-*1*
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=1,dl_vlan=20,dl_src=f0:00:00:00:00:01,dl_dst=90:00:00:00:00:01 -generate
-[root@client ~]# ovs-ofctl dump-flows br0 table=10  # 可看到新加的流表规则
-[root@client ~]# ovs-appctl ofproto/trace br0 in_port=1,dl_vlan=20,dl_src=f0:00:00:00:00:01,dl_dst=90:00:00:00:00:01 -generate   # 测试自动添加的流表规则
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ovs-ofctl add-flow br0 "table=2 actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)"
-
-参考文档: 
-1. http://www.cnblogs.com/CasonChan/p/4754486.html
-2.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	Rule: table=4 cookie=0 priority=99,reg0=0,dl_vlan=30
+	OpenFlow actions=output:1,strip_vlan,output:3,output:4  # 重点注意
+	skipping output to input port
+	Nonexistent output port
+	Nonexistent output port
+  ...
+  # 该部分输出展示对于未知地址,vlan_tci 30的数据包,那么去vlan，并发送到p3,p4端口
+  如下是广播包,但是结果是drop,因为VLAN只属于入端口
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=ff:ff:ff:ff:ff:ff
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=55
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=20
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=2,dl_dst=ff:ff:ff:ff:ff:ff
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=4,dl_dst=ff:ff:ff:ff:ff:ff
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=4,dl_dst=01:00:00:00:00:00
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=90:12:34:56:78:90,dl_vlan=20
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_dst=90:12:34:56:78:90,dl_vlan=30
+
+  *测试MAC学习
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=4,dl_src=20:00:00:00:00:01,\
+                                                                              dl_dst=10:00:00:00:00:01 -generate
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,dl_vlan=30,dl_src=10:00:00:00:00:01,\
+                                                                              dl_dst=20:00:00:00:00:01 -generate
