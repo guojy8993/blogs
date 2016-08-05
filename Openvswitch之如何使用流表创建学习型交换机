@@ -226,23 +226,15 @@ Table 4: Output processing(输出处理).
    
    
 (5)Table 3设计与测试:
+  该表主要负责弄清楚根据目标mac以及vlan,数据包该发往何端口.也就是说,如我门学习到目的位置(在table2中处理先前的packet,其
+  的源地址即为当前包目标地址),然后我们就将当前数据包发往学习到的port. 该表只需要一条流表用以查询:
+  [root@my-pc ~]# ovs-ofctl add-flow ovs-guide "table=3 priority=50 actions=resubmit(,10), resubmit(,4)"
+  # Note:
+  # resubmit(,10) ，table10负责将学习packet的入port到reg0;如果该包的目标地址没有被学习到,则不会匹配任何流规则,则该resubmit
+  # 在table10中不会触发任何操作,而reg0中初始化值0也不会改动.reg0的值为0，这在pipeline的下一阶段是一个信号:该包需要被flood.
+  
 (6)Table 4设计与测试:
 
-
-
-Implementing Table 3: Look Up Destination Port
-----------------------------------------------
-
-This table figures out what port we should send the packet to based on
-the destination MAC and VLAN.  That is, if we've learned the location
-of the destination (from table 2 processing some previous packet with
-that destination as its source), then we want to send the packet
-there.
-
-We need only one flow to do the lookup:
-
-    ovs-ofctl add-flow br0 \
-        "table=3 priority=50 actions=resubmit(,10), resubmit(,4)"
 
 The flow's first action resubmits to table 10, the table that the
 "learn" action modifies.  As you saw previously, the learned flows in
