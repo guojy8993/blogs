@@ -130,7 +130,8 @@ Table 4: Output processing(输出处理).
   Resubmitted  odp: drop
   Rule: table=1 cookie=0 priority=99,in_port=2,vlan_tci=0x0000
   OpenFlow actions=mod_vlan_vid:20,resubmit(,2)    # 从p1端口进入的流量先加vlan header,再交给table2处理
-	Resubmitted flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=00:00:00:00:00:00,dl_dst=00:00:00:00:00:00,dl_type=0x0000
+	Resubmitted flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=00:00:00:00:00:00,\
+	                                                             dl_dst=00:00:00:00:00:00,dl_type=0x0000
 	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 	Resubmitted  odp: drop
 	No match
@@ -158,80 +159,75 @@ Table 4: Output processing(输出处理).
   # learn(table=N...) :经学习产生的流表规则(假设为A)将加入tableN(MAC学习表)中
   # NXM_OF_VLAN_TCI[0..11] :给规则A添加匹配条件 "vlan_tci=<当前packet的vlan_tci>"
   # NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[] :给规则A添加匹配条件 "dl_dst=<当前packet的dl_src>"
-  # load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15] :给流表规则A添加action部分,进行的动作是把当前packet的入端口放入寄存器
+  # load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15] :给流表规则A添加action部分,进行的动作是把当前packet的入端口放入寄存器0
+  # 特别注意:
+  # `Learn`action为mac学习指定额外的两个元素:
+  # (1)hard_timeout 指定新加流表在合理时间间隔内无流量通过就会导致该流规则最终过期
+  # (2)max_flows_count 为节约ovs资源起见,每个流表都会有流规则数量上限
+  
+  使用专业工具(ofproto/trace)测试table 2效果:
+  *使用valn_tci为20,源mac为50:00:00:00:00:01的包测试trunk端口p1:
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=1,vlan_tci=20,dl_src=50:00:00:00:00:01 -generate
+  ...
+  Resubmitted flow: unchanged
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
+	Rule: table=1 cookie=0 priority=99,in_port=1
+	OpenFlow actions=resubmit(,2)
+		Resubmitted flow: unchanged
+		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+		Resubmitted  odp: drop
+		Rule: table=2 cookie=0 
+		OpenFlow actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
+		                                           load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)
+		        # 导致 table10 学习新规则
+			Resubmitted flow: unchanged
+			Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+			Resubmitted  odp: drop
+			No match
+  ...
+  # "-generate" 是个新的关键字. 一般来讲,"ofproto/trace" 是没有副作用的:意味着,"output"并不真正将包output,而"learn"
+  # 也并不会真的修改学习表,等等. 如果加上 "-genarate"选项,就会完全不一样,"ofproto/trace"就会真的执行对应的action.
+  # 这是很重要的一点,现在我们需要看到测试的"副作用",故而需要"-generate"参数.
+  [root@my-pc ~]# ovs-ofctl dump-flows ovs-guide "table=10"
+  NXST_FLOW reply (xid=0x4):
+  cookie=0x0, duration=496.614s, table=10, n_packets=0, n_bytes=0, idle_age=496, vlan_tci=0x0014/0x0fff,\
+                  dl_dst=50:00:00:00:00:01 actions=load:0x1->NXM_NX_REG0[0..15]
+  # 可以看到table10确实学习到新的规则了:新规则对vlan_tci=20,dl_dst=50:00:00:00:00:01的处理是记录port号到reg0
+  
+  * 使用无vlan header的,dl_src=50:00:00:00:00:01的数据包测试p2
+  [root@my-pc ~]# ovs-appctl ofproto/trace ovs-guide in_port=2,dl_src=50:00:00:00:00:01 -generate
+   Bridge: ovs-guide
+   ...
+   Resubmitted flow: unchanged
+   Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+   Resubmitted  odp: drop
+   Rule: table=1 cookie=0 priority=99,in_port=2,vlan_tci=0x0000
+   OpenFlow actions=mod_vlan_vid:20,resubmit(,2)
+	Resubmitted flow: metadata=0,in_port=2,dl_vlan=20,dl_vlan_pcp=0,dl_src=50:00:00:00:00:01,\
+	                                                dl_dst=00:00:00:00:00:00,dl_type=0x0000
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
+	Rule: table=2 cookie=0 
+	OpenFlow actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
+	                                                 load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)
+
+		Resubmitted flow: unchanged
+		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+		Resubmitted  odp: drop
+		No match
+   ...
+   [root@my-pc ~]# ovs-ofctl dump-flows ovs-guide "table=10"
+   NXST_FLOW reply (xid=0x4):
+   cookie=0x0, duration=1126.737s, table=10, n_packets=0, n_bytes=0, idle_age=1126, hard_age=126, \
+                               vlan_tci=0x0014/0x0fff,dl_dst=50:00:00:00:00:01 actions=load:0x2->NXM_NX_REG0[0..15]
+   # 经过p2的packet，mac地址端口被学习,而之前学习到的p1端口规则已经自然老化,被删除;
+   
+   
+   
 (5)Table 3设计与测试:
 (6)Table 4设计与测试:
 
-    load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]
-
-        Whereas the preceding parts specify fields for the new flow to
-        match, this specifies an action for the flow to take when it
-        matches.  The action is for the flow to load the ingress port
-        number of the current packet into register 0 (a special field
-        that is an Open vSwitch extension to OpenFlow).
-
-> A real use of "learn" for MAC learning would probably involve two
-> additional elements.  First, the "learn" action would specify a
-> hard_timeout for the new flow, to enable a learned MAC to
-> eventually expire if no new packets were seen from a given source
-> within a reasonable interval.  Second, one would usually want to
-> limit resource consumption by using the Flow_Table table in the
-> Open vSwitch configuration database to specify a maximum number of
-> flows in table 10.
-
-This definitely calls for examples.
-
-
-### Testing Table 2
-
-### EXAMPLE 1
-
-Try the following test command:
-
-    ovs-appctl ofproto/trace br0 in_port=1,vlan_tci=20,dl_src=50:00:00:00:00:01 -generate
-
-The output shows that "learn" was executed, but it isn't otherwise
-informative, so we won't include it here.
-
-The `-generate` keyword is new.  Ordinarily, `ofproto/trace` has no
-side effects: "output" actions do not actually output packets, "learn"
-actions do not actually modify the flow table, and so on.  With
-`-generate`, though, `ofproto/trace` does execute "learn" actions.
-That's important now, because we want to see the effect of the "learn"
-action on table 10.  You can see that by running:
-
-    ovs-ofctl dump-flows br0 table=10
-
-which (omitting the "duration" and "idle_age" fields, which will vary
-based on how soon you ran this command after the previous one, as well
-as some other uninteresting fields) prints something like:
-
-    NXST_FLOW reply (xid=0x4):
-     table=10, vlan_tci=0x0014/0x0fff,dl_dst=50:00:00:00:00:01 actions=load:0x1->NXM_NX_REG0[0..15]
-
-You can see that the packet coming in on VLAN 20 with source MAC
-50:00:00:00:00:01 became a flow that matches VLAN 20 (written in
-hexadecimal) and destination MAC 50:00:00:00:00:01.  The flow loads
-port number 1, the input port for the flow we tested, into register 0.
-
-
-### EXAMPLE 2
-
-Here's a second test command:
-
-    ovs-appctl ofproto/trace br0 in_port=2,dl_src=50:00:00:00:00:01 -generate
-
-The flow that this command tests has the same source MAC and VLAN as
-example 1, although the VLAN comes from an access port VLAN rather
-than an 802.1Q header.  If we again dump the flows for table 10 with:
-
-    ovs-ofctl dump-flows br0 table=10
-
-then we see that the flow we saw previously has changed to indicate
-that the learned port is port 2, as we would expect:
-
-    NXST_FLOW reply (xid=0x4):
-     table=10, vlan_tci=0x0014/0x0fff,dl_dst=50:00:00:00:00:01 actions=load:0x2->NXM_NX_REG0[0..15]
 
 
 Implementing Table 3: Look Up Destination Port
