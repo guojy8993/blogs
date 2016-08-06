@@ -1,1 +1,38 @@
+普通以太网报文与IEEE802.1q(vlan协议)报文的结构如下:
 
+Ethernet v2
++----------+----------+----------+-----------+---------+
+| 目标 MAC | 源 MAC   |  TYPE    | Payload   |   CRC   |
+| 6 bytes  | 6 bytes  |          | (46~1500) | 4 bytes |
+|          |          | 2 bytes  | bytes     |         |
++----------+----------+----------+-----------+---------+
+
+IEEE802.1q
++----------+----------+---------+---------+----------+-----------+---------+
+| 目标 MAC | 源 MAC   |  TPID   |  TCI    |  TYPE    | Payload   |   CRC   |
+| 6 bytes  | 6 bytes  | 0x8100  |         |          | (46~1500) | 4 bytes |
+|          |          | 2 bytes | 2 bytes | 2 bytes  | bytes     |         |
++----------+----------+---------+---------+----------+-----------+---------+
+
+TCI
++---------------+----------------------------+------------+
+| User priority | Cononical Format Indicator |  VLAN ID   |
+|   3 bits      |       1 bit                | 12 bits    |
++---------------+----------------------------+------------+
+
+## NOTE ##
+TPID:即tag protocol id,为 0x8100
+TCI:即tag control information,包含3部分:
+   (1) user prioiity(3bit)
+   (2) cononical format indicator,即cfi,占1bit
+   (3) vlan_id,占据12bit,最多有4096个vlan
+
+## NOTE ##
+    IEEE802.1q 所附加的VLAN识别信息,位于数据帧中"源MAC"与"类别域"(Type Field)之间.具体内容为2字节的TPID和2字节的TCI,共计4字节; 在
+数据帧中添加了4字节的内容,那么CRC值自然也会有所变化.这时数据帧上的CRC是插入TPID,TCI后,对包括它们在内的整个数据帧重新计算后所得的值.
+而当数据帧离开汇聚链路时,TPID和TCI会被去除,这时还会进行一次CRC的重新计算.TPID的值,固定为0x8100.交换机通过TPID,来确定数据帧内附加了
+基于IEEE802.1q的VLAN信息.而实质上的VLAN ID,是TCI中的12位元.由于总共有12位,因此最多可供识别4096个VLAN.基于IEEE802.1q 附加的VLAN信息,
+就像在传递物品时附加的标签.因此,它也被称作"标签型VLAN(Tagging VLAN)".
+
+## NOTE ##
+OVS交换机对数据包 strip_vlan,mod_vlan_vid,push_vlan等修改(IEEE802.1q)以太网帧的操作,需要重新计算校验和(CRC)
