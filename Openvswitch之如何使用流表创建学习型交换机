@@ -25,7 +25,10 @@ Table 4: Output processing(输出处理).
    b.添加4个端口,设置对应openflow端口号:
    [root@my-pc ~]# for i in {1..4};do ovs-vsctl -- --if-exists del-port p$i \
                                                 -- add-port ovs-guide p$i \
-                                                -- set Interface p$i ofport_request=$i ;done
+                                                -- set Interface p$i type=internal \
+                                                -- set Interface p$i ofport_request=$i;\
+                                      ovs-ofctl mod-port ovs-guide p$i up;\
+                                   done
    # 官方文档 使用 ovs-ofctl mod-port <Bridge> <Port> up,启动port对应的Interface, 但是系统一直
    # 提示找不到对应的,e.g,p1设备,故而此处不予进行此操作.
    # 但是有必要指出 ovs-ofctl mod-port <Bridge> <Port> up 作用类似于 ifconfig <Interface> up 的效果,
