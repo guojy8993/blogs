@@ -246,27 +246,27 @@ Table 4: Output processing(输出处理).
   Bridge: ovs-guide
   ...
   Resubmitted flow: unchanged
+	Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+	Resubmitted  odp: drop
+	Rule: table=2 cookie=0 
+	OpenFlow actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
+	                                                   load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)
+
+		Resubmitted flow: unchanged
 		Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 		Resubmitted  odp: drop
-		Rule: table=2 cookie=0 
-		OpenFlow actions=learn(table=10,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
-		                                                   load:NXM_OF_IN_PORT[]->NXM_NX_REG0[0..15]),resubmit(,3)
+		Rule: table=3 cookie=0 priority=50
+		OpenFlow actions=resubmit(,10),resubmit(,4)
 
 			Resubmitted flow: unchanged
 			Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 			Resubmitted  odp: drop
-			Rule: table=3 cookie=0 priority=50
-			OpenFlow actions=resubmit(,10),resubmit(,4)
+			No match
 
-				Resubmitted flow: unchanged
-				Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-				Resubmitted  odp: drop
-				No match
-
-				Resubmitted flow: unchanged
-				Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
-				Resubmitted  odp: drop
-				No match
+			Resubmitted flow: unchanged
+			Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
+			Resubmitted  odp: drop
+			No match
   ...
   [root@my-pc ~]# ovs-ofctl dump-flows ovs-guide "table=10" | grep "f0:00:00:00:00:01"
   cookie=0x0, duration=170.770s, table=10, n_packets=0, n_bytes=0, idle_age=170, vlan_tci=0x0014/0x0fff,\
