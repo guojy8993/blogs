@@ -1,3 +1,4 @@
+
 VXLAN封包结构示意:
 +---------+-------+-------+-------+----------+-----+
 | Outer   | Outer |  UDP  | VXLAN | Original | FCS |
@@ -13,6 +14,9 @@ VXLAN封包结构示意:
 |  Addr   |  Addr | 0x8100 |       |          |
 +---------+-------+--------+-------+----------+
    48bit    48bit   16bit    16bit    16bit
+Note:
+Outer MAC Header中的源头mac地址是绑定outer src ip的网卡(宿主机某物理网卡)的mac;
+Outer MAC Header中的源头mac地址是绑定outer dst ip的网卡(宿主机某物理网卡)的mac;
 
 (2)其中 Outer IP Header示意:
 +-----------+-----------+----------+--------+-------+
@@ -21,6 +25,13 @@ VXLAN封包结构示意:
 |           |           |          |  IP    | IP    |
 +-----------+-----------+----------+--------+-------+
    72bit       8bit         16bit     32bit    32bit
+Note:
+Outer IP Header中的源地址是vxlan tunnel通信发起端的ip,目的地址是目标端的ip;
+举例说明:
+Openstack Neutron为了建立计算节点内虚拟机与网络节点虚拟路由之间的网络,使用隧道,建立基于
+三层网络之上的二层通信,此时的三层地址就是计算节点与网路节点的ip,对应outer ip header中的
+源ip地址与目的ip地址;
+
 
 (3)其中 UDP Header示意图:
 +-----------+-----------+----------+--------+
@@ -29,21 +40,32 @@ VXLAN封包结构示意:
 |           |           |          |        |
 +-----------+-----------+----------+--------+
    16bit        16bit       16bit     16bit 
+Note:
+udp header中的源port是由vxlan tunnel通信发起端的vtep动态分配的,而目的地址则是众所周知的4789端口,
+但是在不同的vxlan tunnel实现中可能会有不同.
+
 
 (4)其中 VXLAN Header示意图:
 +-----------+-----------+----------+----------+
-| VXLAN     | Reserved  |  VNID    | Reserved |
+|  VXLAN    | Reserved  |  VNID    | Reserved |
+|   Flag    |           |          |          |
 | RRRR1RRR  |           |          |          |
-|           |           |          |          |
 +-----------+-----------+----------+----------+
    8bit         24bit       24bit      8bit 
+Note:
+vxlan header包含如下信息:
+i.  Flag,8bits,the 5th is set to 1 to indicate a valid VNI.The left 7 bits are reserved.
+ii. VNID,24bits,为个人vxlan分段提供唯一标识符;出于不同vni的虚拟机相互间网络隔离.24bits为
+   系统管理员提供16 million vxlan分段
+
+(5)其中 Original L2 Frame示意图如下:
++--------+---------+--------------+----------+----------+-----------+
+| INNER  |  INNER  |  Optional    | Optional | Ethernet | Original  |
+|  DST   |  SRC    |   802.1q     |  802.1q  |   Type   | Ethernet  |
+|  MAC   |  MAC    | EthernetType |          |          | Payload   |
++--------+---------+--------------+--------------+------+-----------+
 
 
-参考链接:
-1.使用 ip link 创建vxlan设备:https://www.kernel.org/doc/Documentation/networking/vxlan.txt
-2.openstack的ovs flow logic:https://wiki.openstack.org/wiki/Ovs-flow-logic
-                            http://www.opencloudblog.com/?p=300
-3.l3 agent 高可用: https://wiki.openstack.org/wiki/Neutron/L3_High_Availability_VRRP
-4.docker的vxlan网络:http://blog.thestateofme.com/2014/06/08/connecting-docker-containers-between-vms-with-vxlan/
-                    https://docs.docker.com/engine/userguide/networking/dockernetworks/
-5.kilo network guide:http://docs.openstack.org/kilo/networking-guide/scenario_legacy_lb.html
+参考资料:
+# VXLAN的封包: http://www.brocade.com/content/html/en/deployment-guide/brocade-vcs-gateway-vmware-dp/GUID-5A5F6C36-E03C-4CA6-9833-1907DD928842.html
+# VXLAN的优点: http://www.brocade.com/content/html/en/deployment-guide/brocade-vcs-gateway-vmware-dp/GUID-77B5DB67-F1F4-4F48-B077-A901C4542EDA.html
