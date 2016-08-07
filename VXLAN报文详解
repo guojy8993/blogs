@@ -67,5 +67,7 @@ ii. VNID,24bits,为个人vxlan分段提供唯一标识符;出于不同vni的虚�
 
 
 参考资料:
-# VXLAN的封包: http://www.brocade.com/content/html/en/deployment-guide/brocade-vcs-gateway-vmware-dp/GUID-5A5F6C36-E03C-4CA6-9833-1907DD928842.html
-# VXLAN的优点: http://www.brocade.com/content/html/en/deployment-guide/brocade-vcs-gateway-vmware-dp/GUID-77B5DB67-F1F4-4F48-B077-A901C4542EDA.html
+# VXLAN的封包: http://www.brocade.com/content/html/en/deployment-guide/brocade-vcs-gateway-vmware-dp/GUID-5A5F6C36-E03C
+-4CA6-9833-1907DD928842.html
+# VXLAN的优点: http://www.brocade.com/content/html/en/deployment-guide/brocade-vcs-gateway-vmware-dp/GUID-77B5DB67-F1F4
+-4F48-B077-A901C4542EDA.html
