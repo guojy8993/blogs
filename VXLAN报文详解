@@ -1,3 +1,42 @@
+VXLAN封包结构示意:
++---------+-------+-------+-------+----------+-----+
+| Outer   | Outer |  UDP  | VXLAN | Original | FCS |
+|  MAC    |  IP   | Header| Header| L2 Frame |     |
+| Header  | Header|       |       |          |     |
++---------+-------+-------+-------+----------+-----+
+  14bytes   20bytes 8bytes  8bytes
+
+(1)其中 Outer MAC Header示意:
++---------+-------+-------+--------+----------+
+|  DST    |  SRC  |  VLAN  | VXLAN | Ethernet |
+|  MAC    |  MAC  |  TYPE  | TAG   | TYPE     |
+|  Addr   |  Addr | 0x8100 |       |          |
++---------+-------+--------+-------+----------+
+   48bit    48bit   16bit    16bit    16bit
+
+(2)其中 Outer IP Header示意:
++-----------+-----------+----------+--------+-------+
+| IP Header | Protocol  |  Header  | Outer  | Outer |
+| Misc Date |  0x11     | CheckSUM |  Src   | Dst   |
+|           |           |          |  IP    | IP    |
++-----------+-----------+----------+--------+-------+
+   72bit       8bit         16bit     32bit    32bit
+
+(3)其中 UDP Header示意图:
++-----------+-----------+----------+--------+
+| UDP       | VXLAN     |  UDP     | Check  |
+| SRC Port  |  Port     |  Length  |  SUM   |
+|           |           |          |        |
++-----------+-----------+----------+--------+
+   16bit        16bit       16bit     16bit 
+
+(4)其中 VXLAN Header示意图:
++-----------+-----------+----------+----------+
+| VXLAN     | Reserved  |  VNID    | Reserved |
+| RRRR1RRR  |           |          |          |
+|           |           |          |          |
++-----------+-----------+----------+----------+
+   8bit         24bit       24bit      8bit 
 
 
 参考链接:
