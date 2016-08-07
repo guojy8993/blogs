@@ -31,8 +31,8 @@ function setup_link_to_ovs()
     [[ $(brctl show | grep ${sgbr} | wc -l) -eq 0 ]] && brctl addbr ${sgbr} || echo "bridge ${sgbr} already exists!"
     ip link set ${sgbr} up
     mac=$(virsh domiflist ${1} | grep ${2} | awk '{print $5}')
-    virsh detach-interface --domain ${1} --type bridge --mac ${mac} --live --config
-    virsh attach-interface --domain ${1} --type bridge --mac ${mac} --source ${sgbr} --live --config
+    virsh detach-interface --domain ${1} --type bridge --modle virtio --mac ${mac} --live --config
+    virsh attach-interface --domain ${1} --type bridge --modle virtio --mac ${mac} --source ${sgbr} --live --config
     [[ $(brctl show | grep ${port_to_ovs} | wc -l) -eq 0 ]] && brctl addif ${sgbr} ${port_to_ovs} || \
                                                                     echo "bridge ${sgbr} already connected to ovs!"
     return 0
