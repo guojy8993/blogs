@@ -1,0 +1,18 @@
+#! /bin/bash
+
+for i in `virsh list --all --name | egrep "[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"`; 
+do 
+   name=$(echo -n ${i} | md5sum | cut -c 1-12)     # cut -c {start_index}-{end_index}
+   mac=52:54:00:$(openssl rand -hex 3 | sed 's/\(..\)/\1:/g; s/.$//')    # 生成kvm可用mac地址
+   brctl addbr br0${name}
+   ip link set br0${name} up
+   virsh attach-interface --domain ${i} --type bridge --mac ${mac} --source br0${name} --model virtio --live --config
+   port_to_ovs=wan${name}
+   ovs-vsctl -- --if-exists del-port ${port_to_ovs} \
+              -- add-port br-wan ${port_to_ovs}  \
+              -- set Interface ${port_to_ovs}  type=internal \
+              -- set Interface ${port_to_ovs}  external-ids:iface-status=active \
+              -- set Interface ${port_to_ovs}  external-ids:iface-id=$(uuidgen)
+   ip link set ${port_to_ovs} up
+   brctl addif br0${name} ${port_to_ovs}
+done
