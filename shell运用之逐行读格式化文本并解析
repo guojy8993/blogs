@@ -1,0 +1,33 @@
+[root@my-pc ~]# cat > host_domain_map << EOF
+> 10.160.0.7    122.114.189.21
+> 10.138.1.134    111.123.132.56
+> EOF
+
+#! /bin/bash
+data_source=/root/host_domain_map
+flows_file=/root/flows.txt
+error_log=/root/errors.log
+
+function get_ofport_for_compute(){
+    port_name=vxlan${1}
+    ofport_request=$(ovs-vsctl find Interface name=${port_name} | egrep "ofport\s+" | awk '{print $3}')
+}
+
+while read LINE;
+do
+    if [[ ! -z ${LINE} ]];then
+        params=(${LINE})
+        Qvm_ip=${params[1]}
+        Qhost=${params[0]}
+        get_ofport_for_compute ${Qhost}
+        if [ $? -lt 1 ];then
+            Qhost_tunnel_ofport=${ofport_request}
+            echo "table=0,tun_id=0xffffff,arp,arp_tpa=${Qvm_ip} actions=${Qhost_tunnel_ofport}" >> ${flows_file}
+            echo "table=0,tun_id=0xffffff,ip,nw_dst=${Qvm_ip} actions=${Qhost_tunnel_ofport}" >> ${flows_file}
+        else
+            echo "fail to find ofport for compute node ${Qhost}" >> ${error_log}
+        fi
+    fi
+done < ${data_source};
+echo "table=0,priority=0 actions=normal" >> ${flows_file}
+
