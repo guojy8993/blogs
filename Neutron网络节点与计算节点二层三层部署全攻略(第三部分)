@@ -80,9 +80,9 @@ output:NXM_OF_IN_PORT[]),output:1"
                             -- set Interface qroutert2 external-ids:iface-id=633444fe-567a-447f-a29e-5fb94aa36a4c \
                             -- set Interface qroutert2 external-ids:iface-status=active \
                             -- set Interface qroutert2 external-ids:attached-mac=fa:16:00:4d:74:88
-
 [root@network ~]# ip link set qroutert2 netns qrt2
 [root@network ~]# ip netns exec qrt2 ip link set  qroutert2 up
+[root@network ~]# ip netns exec qrt2 ip link set qroutert2 state up
 [root@network ~]# ip netns exec qrt2 ip link set lo  up
 [root@network ~]# ip netns exec qrt2 ip addr add dev qroutert2 172.172.173.1/24
 
@@ -92,11 +92,12 @@ output:NXM_OF_IN_PORT[]),output:1"
                             -- set Interface qgwt2 external-ids:iface-status=active \
                             -- set Interface qgwt2 external-ids:attached-mac=fa:16:00:4c:99:16
 [root@network ~]# ip link set qgwt2 netns qrt2
+[root@network ~]# ip netns exec qrt2 ip link set qgwt2 state up
 [root@network ~]# ip netns exec qrt2 ip link set qgwt2 up
 [root@network ~]# ip netns exec qrt2 ip link set qgwt2 up
 [root@network ~]# ip netns exec qrt2 ip addr add dev qgwt2 10.160.0.155/16 broadcast 10.160.255.255
 [root@network ~]# ip netns exec qrt2 ip route add via 10.160.0.1 dev qgwt2
-
+[root@network ~]# ip netns exec qrt2 sysctl -w net.ipv4.ip_forward=1
 
 
 
