@@ -1,1 +1,102 @@
+(1) 虚拟机与租户的规划:设定原计算节点 compute(10.160.0.128) 原有的虚拟机B属于租户1(T1),则新增2个虚拟机:(1) tenant01C属于T1;tenant2D属于T2;
+(2) 计算节点本地VLAN的规划: 计算节点上: 租户T1使用local vlan 2;租户T2使用local vlan 3;
+(3) tunnel id 的规划: 租户T1使用tunnel id 2;租户T2使用tunnel id 3;
+
+### 计算节点部署部分 ###
+# 如本系列第一篇所示,创建linux网桥,启动虚拟机;通过创建对等设备连接br-int与linux bridge;
+[root@compute C]# brctl addbr sg-tenant01C && ip link set sg-tenant01C up
+[root@compute C]# virt-install -n tenant01C  \
+      	             --description tenant01C  \
+      	             --ram 1024  \
+      	             --vcpus 2,cpuset=6-7  \
+      	             --cpu host-model  \
+      	             --accelerate  \
+      	             --hvm \
+      	             --network  bridge:sg-tenant01C   \
+      	             --disk /data/instance/C/system,bus=virtio,cache=writeback,driver_type=qcow2 \
+      	             --boot hd \
+      	             --graphics vnc,listen=0.0.0.0  \
+      	             --noautoconsole \
+      	             --input tablet,bus=usb
+[root@compute D]# ip link add veth-sg-t01C type veth peer name t01C-veth-int
+[root@compute D]# ip link set veth-sg-t01C up
+[root@compute D]# ip link set t01C-veth-int up
+[root@compute D]# brctl addif sg-tenant01C veth-sg-t01C
+[root@compute D]# ovs-vsctl add-port br-int t01C-veth-int
+
+[root@compute D]# brctl addbr sg-tenant2D && ip link set sg-tenant2D up
+[root@compute D]# virt-install -n tenant2D  \
+      	             --description tenant2D  \
+      	             --ram 1024  \
+      	             --vcpus 2,cpuset=4,5  \
+      	             --cpu host-model  \
+      	             --accelerate  \
+      	             --hvm \
+      	             --network  bridge:sg-tenant2D   \
+      	             --disk /data/instance/D/system,bus=virtio,cache=writeback,driver_type=qcow2 \
+      	             --boot hd \
+      	             --graphics vnc,listen=0.0.0.0  \
+      	             --noautoconsole \
+      	             --input tablet,bus=usb
+[root@compute D]# ip link add veth-sg-t2D type veth peer name t2D-veth-int
+[root@compute D]# ip link set veth-sg-t2D up
+[root@compute D]# ip link set t2D-veth-int up
+[root@compute D]# brctl addif sg-tenant2D veth-sg-t2D
+[root@compute D]# ovs-vsctl add-port br-int t2D-veth-int
+
+# 在br-int上为对等设备与ovs交换机连接端口按租户设置本地vlan
+[root@compute D]# ovs-vsctl set Port veth-br-int tag=2
+[root@compute D]# ovs-vsctl set Port t01C-veth-int tag=2
+[root@compute D]# ovs-vsctl set Port t2D-veth-int tag=3
+
+# 在br-tun上使用基本流表规则
+[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=0 actions=drop"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=1 actions=resubmit(,1)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=2 actions=resubmit(,3)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,20)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,21)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=3,priority=0 actions=drop"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=10,priority=1 actions=learn(table=20,hard_timeout=300,priority=1,\
+NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
+output:NXM_OF_IN_PORT[]),output:1"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=20,priority=0 actions=resubmit(,21)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=21, priority=0 actions=drop"
+
+# 根据上述租户/本地vlan/tunnel id使用灵活流表规则
+# 为租户1添加
+[root@compute D]# ovs-ofctl add-flow br-tun "table=3,priority=1,tun_id=0x2 actions=mod_vlan_vid:2,resubmit(,10)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=21, dl_vlan=2 actions=strip_vlan,set_tunnel:0x2,output:2"
+# 为租户2添加
+[root@compute D]# ovs-ofctl add-flow br-tun "table=3,priority=1,tun_id=0x3 actions=mod_vlan_vid:3,resubmit(,10)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=21, dl_vlan=3 actions=strip_vlan,set_tunnel:0x3,output:2"
+
+
+### 网络节点部署部分 ###
+# 为租户2创建对应的虚拟机路由与dhcp
+[root@network ~]# ip netns add qrt2
+[root@network ~]# ip netns add dhcpt2
+[root@network ~]# ovs-vsctl -- --if-exists del-port qroutert2 -- add-port br-int qroutert2 \
+                            -- set Interface qroutert2 type=internal \
+                            -- set Interface qroutert2 external-ids:iface-id=633444fe-567a-447f-a29e-5fb94aa36a4c \
+                            -- set Interface qroutert2 external-ids:iface-status=active \
+                            -- set Interface qroutert2 external-ids:attached-mac=fa:16:00:4d:74:88
+
+[root@network ~]# ip link set qroutert2 netns qrt2
+[root@network ~]# ip netns exec qrt2 ip link set  qroutert2 up
+[root@network ~]# ip netns exec qrt2 ip link set lo  up
+[root@network ~]# ip netns exec qrt2 ip addr add dev qroutert2 172.172.173.1/24
+
+[root@network ~]# ovs-vsctl -- --if-exists del-port qgwt2 -- add-port br-ex qgwt2 \
+                            -- set Interface qgwt2 type=internal \
+                            -- set Interface  qgwt2 external-ids:iface-id=893431fe-567a-557f-d59e-5fb94aa36a40 \
+                            -- set Interface qgwt2 external-ids:iface-status=active \
+                            -- set Interface qgwt2 external-ids:attached-mac=fa:16:00:4c:99:16
+[root@network ~]# ip link set qgwt2 netns qrt2
+[root@network ~]# ip netns exec qrt2 ip link set qgwt2 up
+[root@network ~]# ip netns exec qrt2 ip link set qgwt2 up
+[root@network ~]# ip netns exec qrt2 ip addr add dev qgwt2 10.160.0.155/16 broadcast 10.160.255.255
+[root@network ~]# ip netns exec qrt2 ip route add via 10.160.0.1 dev qgwt2
+
+
+
 
