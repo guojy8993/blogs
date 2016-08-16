@@ -52,8 +52,8 @@
 
 # 在br-tun上使用基本流表规则
 [root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=0 actions=drop"
-[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=1 actions=resubmit(,1)"
-[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=2 actions=resubmit(,3)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=1 actions=resubmit(,3)"
+[root@compute D]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=2 actions=resubmit(,1)"
 [root@compute D]# ovs-ofctl add-flow br-tun "table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,20)"
 [root@compute D]# ovs-ofctl add-flow br-tun "table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,21)"
 [root@compute D]# ovs-ofctl add-flow br-tun "table=3,priority=0 actions=drop"
@@ -137,7 +137,7 @@ output:NXM_OF_IN_PORT[]),output:1"
 [root@network ~]# ovs-ofctl dump-flows br-tun
 NXST_FLOW reply (xid=0x4):
 # table0
-[root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=1 actions=resubmit(,1)"
+[root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=2,in_port=1 actions=resubmit(,1)"
 [root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=2 actions=resubmit(,3)"
 [root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=0 actions=drop"
 # table1
