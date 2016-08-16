@@ -106,7 +106,7 @@ output:NXM_OF_IN_PORT[]),output:2"
 [root@network ~]# ip netns exec qrt2 ip link set  qroutert2 up
 [root@network ~]# ip netns exec qrt2 ip link set qroutert2 state up
 [root@network ~]# ip netns exec qrt2 ip link set lo  up
-[root@network ~]# ip netns exec qrt2 ip addr add dev qroutert2 172.172.173.1/24
+[root@network ~]# ip netns exec qrt2 ip addr add dev qroutert2 172.172.172.1/24
 
 [root@network ~]# ovs-vsctl -- --if-exists del-port qgwt2 -- add-port br-ex qgwt2 \
                             -- set Interface qgwt2 type=internal \
@@ -132,7 +132,7 @@ output:NXM_OF_IN_PORT[]),output:2"
 [root@network ~]# ip netns exec dhcpt2 ip link set qdhcpt2 qlen 1000
 [root@network ~]# ip netns exec dhcpt2 ip link set lo up
 [root@network ~]# ip netns exec dhcpt2 ip link set lo state up
-[root@network ~]# ip netns exec dhcpt2 ip addr add 172.172.173.2/24 dev qdhcpt2
+[root@network ~]# ip netns exec dhcpt2 ip addr add 172.172.172.2/24 dev qdhcpt2
 [root@network ~]# uuidgen
 84919d55-b800-4922-b52b-04560e35bfa3
 [root@network ~]# mkdir -p /var/lib/neutron/dhcp/84919d55-b800-4922-b52b-04560e35bfa3/
@@ -143,7 +143,7 @@ output:NXM_OF_IN_PORT[]),output:2"
                         --addn-hosts=/var/lib/neutron/dhcp/84919d55-b800-4922-b52b-04560e35bfa3/addn_hosts    \
                         --dhcp-optsfile=/var/lib/neutron/dhcp/84919d55-b800-4922-b52b-04560e35bfa3/opts \
                         --dhcp-leasefile=/var/lib/neutron/dhcp/84919d55-b800-4922-b52b-04560e35bfa3/leases  \
-                        --dhcp-range=set:tag1,172.172.173.3,172.172.173.3,86400s \
+                        --dhcp-range=set:tag1,172.172.172.5,172.172.172.5,86400s \
                         --domain=qqt2
                         
 
