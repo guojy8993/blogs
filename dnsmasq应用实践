@@ -1,5 +1,19 @@
+[root@network ~]# ip netns exec Q dnsmasq --no-hosts \
+                                          --no-resolv \
+                                          --strict-order \
+                                          --bind-interfaces \
+                                          --interface=qdhcp \
+                                          --except-interface=lo \
+                                          --pid-file=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/pid \
+                                          --dhcp-hostsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/host \
+                                          --addn-hosts=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/addn_hosts \
+                                          --dhcp-optsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/opts \
+                                          --dhcp-leasefile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/leases \
+                                          --dhcp-range=set:tag1,172.172.172.3,172.172.172.4,86400s \
+                                          --dhcp-option=option:router,172.172.172.1 \
+                                          --domain=qq
 
-
+注意:上述数命令用于网络节点在qdhcp命令空间下启动dnsmasq为某租户的私有网络提供dhcp服务;
 参考:
 1.http://baike.baidu.com/link?url=DOAi8upR621szGBjQn-eBEgsnijXOmp4MekrZduf0QQs3bvZ1wz2VUqaUdrcBm_bMQ6FjJF0BRHvm6u7kBDdMK  #PTR是什么?
 2.http://www.thekelleys.org.uk/dnsmasq/doc.html   # dnsmasq 官网
