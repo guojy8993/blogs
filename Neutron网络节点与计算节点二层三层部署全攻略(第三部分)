@@ -203,3 +203,44 @@ OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0
 [root@network ~]# ovs-ofctl add-flow br-tun "table=3,priority=1,tun_id=0x3 actions=mod_vlan_vid:200,resubmit(,10)"
 [root@network ~]# ovs-ofctl add-flow br-tun "table=21,dl_vlan=200 actions=strip_vlan,set_tunnel:0x3,output:1"
 
+
+说明:
+1.重启租户1的dnsmasq服务:
+[root@network ~]# ip netns exec Q dnsmasq --no-hosts --no-resolv --strict-order --bind-interfaces --interface=qdhcp \
+                  --except-interface=lo --pid-file=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/pid \
+                  --dhcp-hostsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/host \
+                  --addn-hosts=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/addn_hosts \
+                  --dhcp-optsfile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/opts \
+                  --dhcp-leasefile=/var/lib/neutron/dhcp/50dbf44b-c44f-404d-ac93-c06b1a75ec2e/leases \
+                  --dhcp-range=set:tag1,172.172.172.3,172.172.172.4,86400s \
+                  --dhcp-option=option:router,172.172.172.1 \
+                  --domain=qq
+# 分配 172.172.172.3,172.172.172.4 给B以及tenant01C 使用;
+# 172.172.172.5给 tenant2D 使用;
+# 之所以这样分配ip是为了验证网络隔离,而验证实验如下:
+
+## 租户2 ##
+[root@tenant2D ~] arp -a
+? (172.172.172.1) at ee:7e:aa:63:a8:57 [ether] on eth0
+? (172.172.172.2) at 6a:a0:b7:39:5c:23 [ether] on eth0
+
+## 租户1 ##
+[root@my-pc ~] arp -a
+? (172.172.172.1) at 56:c5:40:58:94:a6 [ether] on eth0
+? (172.172.172.2) at 66:2e:98:7e:b3:32 [ether] on eth0
+[root@tenant01C ~] arp -a
+? (172.172.172.1) at 56:c5:40:58:94:a6 [ether] on eth0
+? (172.172.172.2) at 66:2e:98:7e:b3:32 [ether] on eth0
+
+[root@my-pc ~] ping 172.172.172.5
+PING 172.172.172.5(172.172.172.5) 56(84) bytes of data
+FROM 172.172.172.3 icmp_sql=1 Destination Host Unrechable
+FROM 172.172.172.3 icmp_sql=1 Destination Host Unrechable
+FROM 172.172.172.3 icmp_sql=1 Destination Host Unrechable
+^C
+....
+
+对比实验结果显示,租户1,租户2 在3层上隔离;
+即使在2层,3个虚拟机连接同一ovs(br-int),分配同段ip也是隔离的;
+...
+本阶段任务至此结束!
