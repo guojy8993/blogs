@@ -1,5 +1,6 @@
 (1) 虚拟机与租户的规划:设定原计算节点 compute(10.160.0.128) 原有的虚拟机B属于租户1(T1),则新增2个虚拟机:(1) tenant01C属于T1;tenant2D属于T2;
-(2) 计算节点本地VLAN的规划: 计算节点上: 租户T1使用local vlan 2;租户T2使用local vlan 3;
+(2) 计算节点本地VLAN的规划: 租户T1使用local vlan 2;租户T2使用local vlan 3;
+(3) 网络节点本地VLAN的规划: 租户T1使用local vlan 100;租户T2使用local vlan 200;
 (3) tunnel id 的规划: 租户T1使用tunnel id 2;租户T2使用tunnel id 3;
 
 ### 计算节点部署部分 ###
@@ -125,32 +126,38 @@ output:NXM_OF_IN_PORT[]),output:1"
                         --domain=qqt2
                         
 
-网络节点流表:
+# 根据租户1与租户2在网络节点上本地vlan使用的规划,为qrouter<-->br-int,qdhcp<-->br-int的连接端口(ovs)设置对应vlan:
+[root@network ~]# ovs-vsctl set Port qrouter tag=100
+[root@network ~]# ovs-vsctl set Port qdhcp tag=100
+[root@network ~]# ovs-vsctl set Port qroutert2 tag=200
+[root@network ~]# ovs-vsctl set Port qdhcpt2 tag=200
 
-#  table=0,priority=1,in_port=1 actions=resubmit(,1)
-#  table=0,priority=1,in_port=2 actions=resubmit(,3)
-#  table=0,priority=0 actions=drop
+# 为网络节点的br-tun添加基础流表规则(为保证br-tun无默认流表规则,设置其fail mode为secure)
+[root@network ~]# ovs-vsctl set Bridge br-tun fail-mode=secure
+[root@network ~]# ovs-ofctl dump-flows br-tun
+NXST_FLOW reply (xid=0x4):
+# table0
+[root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=1 actions=resubmit(,1)"
+[root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=1,in_port=2 actions=resubmit(,3)"
+[root@network ~]# ovs-ofctl add-flow br-tun "table=0,priority=0 actions=drop"
+# table1
+[root@network ~]# ovs-ofctl add-flow br-tun "table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,20)"
+[root@network ~]# ovs-ofctl add-flow br-tun "table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,21)"
+# table3
+[root@network ~]# ovs-ofctl add-flow br-tun "table=3,priority=0 actions=drop"
+# table10
+[root@network ~]# ovs-ofctl add-flow br-tun "table=10,priority=1 actions=learn(table=20,hard_timeout=300,priority=1,\
+         NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
+         output:NXM_OF_IN_PORT[]),output:1"
+# table20
+[root@network ~]# ovs-ofctl add-flow br-tun "table=20,priority=0 actions=resubmit(,21)"
+# table21
+[root@network ~]# ovs-ofctl add-flow br-tun "table=21,priority=0 actions=drop"
 
-#  table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,20)
-#  table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 actions=resubmit(,21)
-
-#  table=3,priority=1,tun_id=0xb actions=mod_vlan_vid:1,resubmit(,10)
-#  table=3,priority=1,tun_id=0xa actions=mod_vlan_vid:2,resubmit(,10)
-#  table=3,priority=1,tun_id=0xd4 actions=mod_vlan_vid:3,resubmit(,10)
-#  table=3,priority=0 actions=drop
-
-#  table=10,priority=1 actions=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
-
-#  table=20,priority=1,vlan_tci=0x0001/0x0fff,dl_dst=fa:16:3e:23:91:7b actions=load:0->NXM_OF_VLAN_TCI[],load:0xb->NXM_NX_TUN_ID[],output:2
-(13) table=20,priority=1,vlan_tci=0x0002/0x0fff,dl_dst=fa:16:3e:61:d8:b7 actions=load:0->NXM_OF_VLAN_TCI[],load:0xa->NXM_NX_TUN_ID[],output:2
-(14)table=20,priority=0 actions=resubmit(,21)
-
-(15)table=21,dl_vlan=2 actions=strip_vlan,set_tunnel:0xa,output:2
-(16)table=21,dl_vlan=1 actions=strip_vlan,set_tunnel:0xb,output:2
-(17)table=21,dl_vlan=3 actions=strip_vlan,set_tunnel:0xd4,output:2
-
-(18)table=21,priority=0 actions=drop
-
-
-
+# 为租户1 添加流表规则
+[root@network ~]# ovs-ofctl add-flow br-tun "table=3,priority=1,tun_id=0x2 actions=mod_vlan_vid:100,resubmit(,10)"
+[root@network ~]# ovs-ofctl add-flow br-tun "table=21,dl_vlan=100 actions=strip_vlan,set_tunnel:0x2,output:2"
+# 为租户2 添加流表规则
+[root@network ~]# ovs-ofctl add-flow br-tun "table=3,priority=1,tun_id=0x3 actions=mod_vlan_vid:200,resubmit(,10)"
+[root@network ~]# ovs-ofctl add-flow br-tun "table=21,dl_vlan=200 actions=strip_vlan,set_tunnel:0x3,output:2"
 
