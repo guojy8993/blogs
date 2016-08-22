@@ -1,0 +1,28 @@
+## sed联手regrex实现字符串替换 ##
+现有字符串如下所示:
+[root@my-pc testsh]# cat complex_flows 
+cookie=0x0, duration=622543.826s, table=0, n_packets=293, n_bytes=12306, idle_age=2452, \
+hard_age=65534, priority=100,arp,in_port=352,dl_src=52:54:00:6a:01:d1,arp_spa=10.122.141.93 \
+actions=load:0x418a63->NXM_NX_TUN_ID[],resubmit(,1)
+
+需求:将上述字符串处理为：
+table=0,arp,in_port=352,dl_src=52:54:00:6a:01:d1,arp_spa=10.122.141.93
+
+开始动手:
+[root@my-pc testsh]# sed -e 's/cookie=0x[0-9,a-f]*, //' complex_flows 
+duration=622543.826s, table=0, n_packets=293, n_bytes=12306, idle_age=2452, hard_age=65534, 、
+priority=100,arp,in_port=352,dl_src=52:54:00:6a:01:d1,arp_spa=10.122.141.93 actions=load:0x418a63->NXM_NX_TUN_ID[],resubmit(,1)
+
+[root@my-pc testsh]# sed -e 's/cookie=0x[0-9,a-f]*, //' -e 's/duration=[0-9]*\.[0-9]*s, //' complex_flows
+table=0, n_packets=293, n_bytes=12306, idle_age=2452, hard_age=65534, \
+priority=100,arp,in_port=352,dl_src=52:54:00:6a:01:d1,arp_spa=10.122.141.93 actions=load:0x418a63->NXM_NX_TUN_ID[],resubmit(,1)
+
+[root@my-pc testsh]# sed -e 's/cookie=0x[0-9,a-f]*, //' -e 's/duration=[0-9]*\.[0-9]*s, //' -e 's/ n_packets=[0-9]*, n_bytes=[0-9]*, \
+                     idle_age=[0-9]*, hard_age=[0-9]*, priority=[0-9]*,//'   complex_flows
+table=0,arp,in_port=352,dl_src=52:54:00:6a:01:d1,arp_spa=10.122.141.93 actions=load:0x418a63->NXM_NX_TUN_ID[],resubmit(,1)
+
+[root@my-pc testsh]# sed -e 's/cookie=0x[0-9,a-f]*, //' -e 's/duration=[0-9]*\.[0-9]*s, //' \
+                         -e 's/ n_packets=[0-9]*, n_bytes=[0-9]*, idlage=[0-9]*, hard_age=[0-9]*, priority=[0-9]*,//'   
+                         -e 's/ actions=load:0x[0-9,a-f]*->NXM_NX_TUN_ID[],resubmit(,[0-9]*)//'  complex_flows
+table=0,arp,in_port=352,dl_src=52:54:00:6a:01:d1,arp_spa=10.122.141.93
+
