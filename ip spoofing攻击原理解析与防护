@@ -115,8 +115,10 @@ Ip Spoofing攻击的防护:
 
 # 为防ip spoofing链添加规则,过滤非法流量
 # 以攻击者虚拟机为例,针对该机器添加出流量的 "ip"/"网卡" 验证
-[root@my-pc ~]# iptables -I DE_IP_SPOOFING ! -s 172.172.172.100/32 -p icmp -m physdev --physdev-in \
+[root@my-pc ~]# iptables -I DE_IP_SPOOFING ! -s 172.172.172.100/32 -m physdev --physdev-in \
                 vnet0 --physdev-is-bridged -j DROP
+# note: physdev模块的 physdev-in/out 选项中所谓的 in/out 是相对于bridge来说的出虚拟机的流量其实是physdev-in;
+# 入虚拟机的流量其实是physdev-out;
 
 参考链接:
 https://sandilands.info/sgordon/address-spoofing-with-iptables-in-linux
