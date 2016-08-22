@@ -29,10 +29,12 @@ listen=0.0.0.0 --noautoconsole --input tablet,bus=usb
 /data/instance/node0${i}/system ; sh /root/install node0${i} br-ip-spoofing ; done
 
 [root@my-pc ~]# brctl show br-ip-spoofing
-bridge name	bridge id		STP enabled	interfaces
+[root@my-pc ~]# brctl show br-ip-spoofing
+bridge name	        bridge id		STP enabled	interfaces
 br-ip-spoofing		8000.fe54009cb324	no		vnet0
-											                    vnet1
-							                            vnet2
+                                                                vnet1
+                                                                vnet2
+							                    
 [root@my-pc ~]# virsh domiflist node00
 Interface  Type       Source     Model       MAC
 -------------------------------------------------------
