@@ -120,6 +120,7 @@ Ip Spoofing攻击的防护:
 # note: physdev模块的 physdev-in/out 选项中所谓的 in/out 是相对于bridge来说的出虚拟机的流量其实是physdev-in;
 # 入虚拟机的流量其实是physdev-out;
 
+
 参考链接:
 https://sandilands.info/sgordon/address-spoofing-with-iptables-in-linux
 http://linux.die.net/man/8/iptables
