@@ -1,0 +1,123 @@
+
+什么是Ip Spoofing:
+    互联网中,每个IP报文头信息都包含源地址与目的地址.源地址即IP报文发送者ip,而目的地址是接受者ip.因此,在忽略nat的情况下,当你的电脑
+与互联网服务器通信时,服务器知道你电脑的ip地址,因为该ip地址包含在电脑发送向服务器数据包的源地址中;在一些场景下,你想更换你的发送的ip
+报文的源ip地址(不修改自身ip地址),例如网络测试与诊断,安全渗透测试,以及发动安全攻击(当然是仅供测试).将IP报文的源地址设置为伪
+造ip地址的行为称为ip spoofing.在linux下通过iptables实现.
+
+Ip Spoofing攻击的原理:
+    有以下两种情形:
+    (1)将自己发送的报文的源地址修改为不存在的节点的ip;
+攻击者将自己的ip伪装为不存在节点的ip,ip报文接受者处理后,需要知道目标ip(即原来的伪装源ip)的mac,但是该ip对应的机器却是不存在的,从而引
+发报文接受者在其局域网无休止发送arp广播,影响局域网网络质量;
+    (2)将自己发送的报文的源地址修改为局域网内某节点的ip;
+攻击者将自己伪装为局域网内某节点的ip(受害者),向某节点不间断发送报文,该节点处理报文之后,把这些无意义,数量巨大的的响应包发送到受害者机
+器的网卡,造成受害者机器协议栈处理负担,影响正常网络业务处理;
+
+KVM虚拟化中Ip Spoofing场景构建:
+(1) 创建linux网桥
+[root@my-pc ~]# brctl addbr br-ip-spoofing
+[root@my-pc ~]# ip link set br-ip-spoofing up
+
+(2) 创建3台kvm虚拟机连接到同一网桥
+[root@my-pc ~]# cat /root/install
+virt-install -n ${1} --description ${1} --ram 1024 --vcpus 1 --cpu host-model --accelerate --hvm --network bridge:${2} 
+--disk /data/instance/${1}/system,bus=virtio,cache=writeback,driver_type=qcow2,size=10 --boot hd,cdrom --graphics vnc,
+listen=0.0.0.0 --noautoconsole --input tablet,bus=usb
+
+[root@my-pc ~]# for i in {0..2};do mkdir -p /data/instance/node0${i}/;cp /data/image/centos7.qcow2  \
+/data/instance/node0${i}/system ; sh /root/install node0${i} br-ip-spoofing ; done
+
+[root@my-pc ~]# brctl show br-ip-spoofing
+bridge name	bridge id		STP enabled	interfaces
+br-ip-spoofing		8000.fe54009cb324	no		vnet0
+											                    vnet1
+							                            vnet2
+[root@my-pc ~]# virsh domiflist node00
+Interface  Type       Source     Model       MAC
+-------------------------------------------------------
+vnet0      bridge     br-ip-spoofing rtl8139     52:54:00:a3:7d:ad
+
+[root@my-pc ~]# virsh domiflist node01
+Interface  Type       Source     Model       MAC
+-------------------------------------------------------
+vnet1      bridge     br-ip-spoofing rtl8139     52:54:00:e4:28:2c
+
+[root@my-pc ~]# virsh domiflist node02
+Interface  Type       Source     Model       MAC
+-------------------------------------------------------
+vnet2      bridge     br-ip-spoofing rtl8139     52:54:00:9c:b3:24
+
+(3) 待3虚拟机启动完毕,使用vncviewer进入虚拟机,按如下ip分配配置对应节点ip
+节点名    IP                    角色
+---------------------------------------
+node00    172.172.172.100/24    攻击者
+---------------------------------------
+node01    172.172.172.101/24    受害者
+---------------------------------------
+node02    172.172.172.102/24
+---------------------------------------
+[root@node00 ~] ip addr add dev eth0 172.172.172.100/24
+[root@node01 ~] ip addr add dev eth0 172.172.172.101/24
+[root@node02 ~] ip addr add dev eth0 172.172.172.102/24
+
+(4) 攻击者虚拟机使用iptables nat伪装不存在ip 172.172.172.110/24,宿主抓包
+[root@node00 ~] iptables -t nat -I POSTROUTING -p icmp -j SNAT --to-source 172.172.172.110
+[root@node00 ~] ping 172.172.172.102
+[root@my-pc ~]# tcpdump -i vnet2
+tcpdump: WARNING: vnet2: no IPv4 address assigned
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on vnet2, link-type EN10MB (Ethernet), capture size 65535 bytes
+02:14:01.875106 IP 172.172.172.110 > 172.172.172.102: ICMP echo request, id 1514, seq 53, length 64
+02:14:01.879719 ARP, Request who-has 172.172.172.110 tell 172.172.172.102, length 28
+02:14:02.879116 IP 172.172.172.110 > 172.172.172.102: ICMP echo request, id 1514, seq 54, length 64
+02:14:03.884158 IP 172.172.172.110 > 172.172.172.102: ICMP echo request, id 1514, seq 55, length 64
+02:14:03.886742 ARP, Request who-has 172.172.172.110 tell 172.172.172.102, length 28
+02:14:04.888825 ARP, Request who-has 172.172.172.110 tell 172.172.172.102, length 28
+...
+...
+
+(5) 攻击者虚拟机使用iptables nat伪装受害者ip 172.172.172.101/24,宿主抓包
+[root@node00 ~] iptables -t nat -D POSTROUTING -p icmp -j SNAT --to-source 172.172.172.110
+[root@node00 ~] iptables -t nat -I POSTROUTING -p icmp -j SNAT --to-source 172.172.172.101
+[root@node00 ~] ping 172.172.172.102
+
+[root@my-pc ~]# tcpdump -i vnet2
+tcpdump: WARNING: vnet2: no IPv4 address assigned
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on vnet2, link-type EN10MB (Ethernet), capture size 65535 bytes
+02:16:15.608241 IP 172.172.172.101 > 172.172.172.102: ICMP echo request, id 1518, seq 17, length 64
+02:16:15.609577 IP 172.172.172.102 > 172.172.172.101: ICMP echo reply, id 1518, seq 17, length 64
+02:16:16.611776 IP 172.172.172.101 > 172.172.172.102: ICMP echo request, id 1518, seq 18, length 64
+02:16:16.613431 IP 172.172.172.102 > 172.172.172.101: ICMP echo reply, id 1518, seq 18, length 64
+...
+
+[root@my-pc ~]# tcpdump -i vnet1
+tcpdump: WARNING: vnet1: no IPv4 address assigned
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on vnet1, link-type EN10MB (Ethernet), capture size 65535 bytes
+02:16:59.683822 IP 172.172.172.102 > 172.172.172.101: ICMP echo reply, id 1518, seq 61, length 64
+02:17:00.684302 IP 172.172.172.102 > 172.172.172.101: ICMP echo reply, id 1518, seq 62, length 64
+02:17:01.686091 IP 172.172.172.102 > 172.172.172.101: ICMP echo reply, id 1518, seq 63, length 64
+02:17:02.688117 IP 172.172.172.102 > 172.172.172.101: ICMP echo reply, id 1518, seq 64, length 64
+...
+
+Ip Spoofing攻击的防护:
+在宿主上针对ip spoofing的特点(出流量ip伪装)进行针对性的出流量过滤:
+# 添加专防ip spoofing链
+[root@my-pc ~]# iptables -N  DE_IP_SPOOFING
+# 将FORWARD的所有流量(含客户机网卡进出的所有流量)导入防ip spoofing链
+[root@my-pc ~]# iptables -A FORWARD -j DE_IP_SPOOFING
+# 设置防ip spoofing链的默认规则:合法的流量将返回FORWARD链
+[root@my-pc ~]# iptables -A DE_IP_SPOOFING -j RETURN 
+
+# 为防ip spoofing链添加规则,过滤非法流量
+# 以攻击者虚拟机为例,针对该机器添加出流量的 "ip"/"网卡" 验证
+[root@my-pc ~]# iptables -I DE_IP_SPOOFING ! -s 172.172.172.100/32 -p icmp -m physdev --physdev-in \
+                vnet0 --physdev-is-bridged -j DROP
+
+参考链接:
+https://sandilands.info/sgordon/address-spoofing-with-iptables-in-linux
+http://linux.die.net/man/8/iptables
+
+
