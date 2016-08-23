@@ -61,10 +61,16 @@ win 14600, options [mss 1460,sackOK,TS val 341743547 ecr 0,nop,wscale 7], length
 win 14600, options [mss 1460,sackOK,TS val 341745695 ecr 0,nop,wscale 7], length 0
 
 虚拟化环境中对arp spoofing攻击的防御
+# openstack 社区提交的补丁使用 ebtables 于VM端口处,以Ethernet frame level filtering rules处理arp spoofing
+
 
 参考链接:
 http://www.veracode.com/security/arp-spoofing
 http://serverfault.com/questions/175803/how-to-broadcast-arp-update-to-all-neighbors-in-linux
 http://specs.openstack.org/openstack/neutron-specs/specs/kilo/arp-spoof-filtering-ebtables.html
+http://specs.openstack.org/openstack/neutron-specs/specs/kilo/arp-spoof-filtering-ebtables.html#proposed-change    # ebtables patch
+http://www.fiec.espol.edu.ec/publicidades/2010/cd/DATA/papers/Preventing%20ARP%20Cache%20Poisoning%20Attacks%20A%20Proof%20of%20Con\
+cept%20using%20OpenWrt.pdf
 http://www.windowsecurity.com/articles-tutorials/authentication_and_encryption/Understanding-Man-in-the-Middle-Attacks-ARP-Part1.html
+https://www.ibm.com/support/knowledgecenter/linuxonibm/liaai.vswitch/liaaivswitchnospoof.htm  # ibm的no-arp-spoofing方案
 令参考 arping man手册
