@@ -1,2 +1,50 @@
-在kvm虚拟化环境中创建3台测试机，并连接到某孤立的(不影响宿主网络)linux bridge上:
-创建过程参考: https://github.com/guojy8993/blogs/blob/master/ip%20spoofing%E6%94%BB%E5%87%BB%E5%8E%9F%E7%90%86%E8%A7%A3%E6%9E%90%E4%B8%8E%E9%98%B2%E6%8A%A4
+什么是arp spoofing ?
+    ARP spoofing 是一种局域网攻击.它是用心险恶的(malicious)的角色在局域网发送伪造的(falsified)的ARP信息.该伪造ARP信息将攻击者的mac地址与局
+域网某(一个或多个)合法的(legitimate)ip建立对应关系.一旦攻击者的MAC地址与真实的ip(受害者)建立连接,攻击者就开始接受原本应该发送给受害者ip的任
+何数据.arp spoofing可以让攻击者在数据传输中拦截,修改,甚至阻拦数据.APR spoofing攻击只是局限于局域网中,因为局域网是需要arp进行ip->mac转换.
+
+APR Spoofing 原理 ?
+    伪装受害者的ip地址,使用自己的mac与受害者的ip发送arp reply,更新 局域网neigh机器的arp cache,建立攻击者mac与受害者ip在第三方机器arp cache
+的对应关系；而第三方发送给受害者机器的数据帧,在局域网中(按mac寻址),则按攻击者的mac发送数据,数据被攻击者机器收到.
+
+ARP Spoofing 常见攻击方式 ?
+(1) ARP缓存投毒(ARP Cache Poisoning): 攻击者在局域网发送恶意的(包含受害者ip与错误mac)arp reply,更新neigh机器(s)的arp cache;导致原本应该发送
+给受害者的数据帧按错误mac而无法找到受害者机器,导致受害者机器网络通信中断.
+(2) 中间人攻击: 攻击者在局域网发送恶意的(包含受害者ip与错误mac)arp reply,更新neigh机器(s)的arp cache;例如告诉A,网关在攻击者机器这里;同时,又
+欺骗网关,告诉网关A机器是攻击者所在机器;这样,网关原本应该发送给A机器的数据帧就按mac发送给了攻击者;同时,机器A出网关的数据包发送给了攻击者;这
+样,攻击者在机器A与网关之间扮演中间人角色,可以拦截,修改数据包.
+
+ARP Spoofing 攻击演示
+演示前的准备工作:
+在kvm虚拟化环境中创建3台测试机，并连接到某孤立的(不影响宿主网络)linux bridge上,构建简单的lan环境.
+创建过程参考文章:《ip spoofing攻击原理解析与防护》
+角色分配如下:
+Hostname  Ip                  Role
+---------------------------------------
+node00    172.172.172.100     Attacker
+node01    172.172.172.101     Victim01
+node02    172.172.172.102     Victim02
+---------------------------------------
+
+在Attacker 机器上作如下设置:
+# 允许arp包的源地址可以不是本机ip
+[root@node00 ~] sysctl -w net.ipv4.ip_nonlocal_bind = 1
+# 伪装为 172.172.172.101 告诉 172.172.172.102，自己的mac是 eth0设备的mac
+[root@node00 ~] arping -A -I eth0 -s 172.172.172.101 172.172.172.102 &
+# 伪装为 172.172.172.102 告诉 172.172.172.101，自己的mac是 eth0设备的mac
+[root@node00 ~] arping -A -I eth0 -s 172.172.172.102 172.172.172.101 &
+
+经过上述arp poisoning:
+[root@node00 ~] 
+172.172.172.102的arp cache中保存 172.172.172.101 <Attacker MAC> 的对应关系;
+
+172.172.172.101的arp cache中保存 172.172.172.102 <Attacker MAC> 的对应关系;
+
+虚拟化环境中对arp spoofing攻击的防御
+
+参考链接:
+http://www.veracode.com/security/arp-spoofing
+http://serverfault.com/questions/175803/how-to-broadcast-arp-update-to-all-neighbors-in-linux
+http://specs.openstack.org/openstack/neutron-specs/specs/kilo/arp-spoof-filtering-ebtables.html
+http://www.windowsecurity.com/articles-tutorials/authentication_and_encryption/Understanding-Man-in-the-Middle-Attacks-ARP-Part1.html
+令参考 arping man手册
