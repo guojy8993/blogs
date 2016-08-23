@@ -46,6 +46,20 @@ node02    172.172.172.102     Victim02
 [root@node01 ~] arp -a | grep 172.172.172.102
 ? (172.172.172.102) at 52:54:00:a3:7d:ad [ether] on eth0
 
+然后在Attacker网卡(宿主下为 vnet0)抓包,发现victims之间的通信包被Attacker获取:
+[root@node01 ~] curl 172.172.172.102
+
+[root@my-pc ~]# tcpdump -i vnet0 port 80
+tcpdump: WARNING: vnet0: no IPv4 address assigned
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on vnet0, link-type EN10MB (Ethernet), capture size 65535 bytes
+01:21:39.226853 IP 172.172.172.101.36079 > 172.172.172.102.http: Flags [S], seq 3771044644, \
+win 14600, options [mss 1460,sackOK,TS val 341742348 ecr 0,nop,wscale 7], length 0
+01:21:40.436856 IP 172.172.172.101.36079 > 172.172.172.102.http: Flags [S], seq 3771044644, \
+win 14600, options [mss 1460,sackOK,TS val 341743547 ecr 0,nop,wscale 7], length 0
+01:21:42.458764 IP 172.172.172.101.36079 > 172.172.172.102.http: Flags [S], seq 3771044644, \
+win 14600, options [mss 1460,sackOK,TS val 341745695 ecr 0,nop,wscale 7], length 0
+
 虚拟化环境中对arp spoofing攻击的防御
 
 参考链接:
