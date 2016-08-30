@@ -1,1 +1,36 @@
+第一部分: 测试环境准备
+(1)测试机器
+-----------------------------------------
+Role    Name            IP
+Host    mypc            10.160.0.144/16
+Server  apache-server   10.160.0.151/16
+Client  apache-client   10.160.0.108/16
+-----------------------------------------
+其中 mypc 与 apache 是两个宿主,apache-server 在宿主mypc下.
+(2)网络设置介绍
+apache-client(ens160.610) <----->(ens160.610)mypc(ens224)<--->node02br(Linux Bridge) (vnet1) <----> apache-server(eth0.610)
+其中 ens160,ens224均为管理网络,分配vlan610使用;
+(3)虚拟机网络设置,安装设置apache服务
+[root@apache-server ~]# nmcli c add con-name eth0.610 type vlan id 610 dev eth0 ip4 10.160.0.151/16 gw4 10.160.0.1
+虚拟机部署apache服务:
+[root@apache-server ~]# echo "proxy=http://10.134.89.34:3128" >> /etc/yum.conf && yum install -y httpd \
+                        && systemctl enable httpd && echo "apache" > /var/www/html/index.html && systemctl start httpd
+[root@apache-server ~]# iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+
+第二部分: 配置流量测量设置与原理说明
+(1) 当前网络连接状态下,虚拟机直连linux bridge,因此可以考虑使用iptables检测虚拟机流量使用
+在"ip spoof攻击演示与预防"一文,我们知道,在该种云环境下,进出虚拟机实例的流量其实经过的是宿主filter表FORWARD链的,因此我们考虑为被检测
+虚拟机添加个性定制的iptables链,e.g,calc-node02.将进出node02网卡,此处是apache-server的流量引流到calc-node02链,该链添加默认规则,再将
+流量RETURN到原起跳链.相当于,进出虚拟机的流量都要被calc-node02链经手,而使用iptables命令查看该链的详情,就知道虚拟机使用流量的多少了.
+[root@mypc ~]# iptables -N calc-node02
+[root@mypc ~]# iptables -A calc-node02 -j RETURN
+[root@mypc ~]# iptables -I FORWARD -s 10.160.0.151/32 -m physdev --physdev-in vnet1 --physdev-is-bridged -j calc-node02
+[root@mypc ~]# iptables -I FORWARD -d 10.160.0.151/32 -m physdev --physdev-out vnet1 --physdev-is-bridged -j calc-node02
+
+
+(2) 如果虚拟机直连openvswitch bridge,众所周知,ovs设备不支持iptables,其流量检测需要使用别的方法
+# TODO
+
+第三部分: 流量查询实测
+
 
