@@ -25,6 +25,7 @@ WebPublisher RsyncClient    agent128.com  10.160.0.128     Web站点发布服务
 [root@agent128 rpms]# yum install -y unzip automake  libtool
 [root@agent128 rpms]# unzip /home/guojingyu/rpms/inotify-tools-master.zip
 [root@agent128 rpms]# cd inotify-tools-master
+[root@agent128 rpms]# sh autogen.sh
 [root@agent128 inotify-tools-master]# ./configure
 [root@agent128 inotify-tools-master]# make && make install
 
