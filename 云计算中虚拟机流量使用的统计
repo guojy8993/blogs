@@ -26,11 +26,81 @@ apache-client(ens160.610) <----->(ens160.610)mypc(ens224)<--->node02br(Linux Bri
 [root@mypc ~]# iptables -A calc-node02 -j RETURN
 [root@mypc ~]# iptables -I FORWARD -s 10.160.0.151/32 -m physdev --physdev-in vnet1 --physdev-is-bridged -j calc-node02
 [root@mypc ~]# iptables -I FORWARD -d 10.160.0.151/32 -m physdev --physdev-out vnet1 --physdev-is-bridged -j calc-node02
-
+[root@apache-client ~]# curl http://10.160.0.151
+apache
 
 (2) 如果虚拟机直连openvswitch bridge,众所周知,ovs设备不支持iptables,其流量检测需要使用别的方法
 # TODO
 
 第三部分: 流量查询实测
+清空 calc-node02 的pkts与bytes counter:
+[root@my-pc ~]# iptables -Z calc-node02
+[root@my-pc ~]# iptables -L calc-node02 -nvx
+Chain calc-node02 (2 references)
+    pkts      bytes target     prot opt in     out     source               destination         
+       0        0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0
 
+为了方便确认流量,我们给流量统计链加一个log(在流量RETURN之前),将会输出log到/var/log/messages中
+[root@my-pc ~]# iptables -I calc-node02 -j LOG --log-level 5 --log-prefix "Meter:"
+[root@my-pc ~]# iptables -L calc-node02 -nxv
+Chain calc-node02 (2 references)
+    pkts      bytes target     prot opt in     out     source               destination         
+       0        0 LOG        all  --  *      *       0.0.0.0/0            0.0.0.0/0            LOG flags 0 level 5 prefix "Meter:"
+       0        0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+
+测试访问:
+[root@apache-client ~]# curl http://10.160.0.151
+apache
+
+[root@my-pc ~]# iptables -L calc-node02 -nvx
+Chain calc-node02 (2 references)
+    pkts      bytes target     prot opt in     out     source               destination         
+      10      858 LOG        all  --  *      *       0.0.0.0/0            0.0.0.0/0            LOG flags 0 level 5 prefix "Meter:"
+      10      858 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+
+[root@my-pc ~]# tail -f /var/log/messages
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=ens224 PHYSOUT=vnet1 \
+MAC=52:54:00:9c:b3:24:00:0c:29:49:32:b5:08:00 SRC=10.160.0.108 DST=10.160.0.151 LEN=60 TOS=0x00 \
+PREC=0x00 TTL=64 ID=28538 DF PROTO=TCP SPT=37834 DPT=80 WINDOW=14600 RES=0x00 SYN URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=vnet1 PHYSOUT=ens224 \
+MAC=00:0c:29:49:32:b5:52:54:00:9c:b3:24:08:00 SRC=10.160.0.151 DST=10.160.0.108 LEN=60 TOS=0x00 \
+PREC=0x00 TTL=64 ID=0 DF PROTO=TCP SPT=80 DPT=37834 WINDOW=14480 RES=0x00 ACK SYN URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=ens224 PHYSOUT=vnet1 \
+MAC=52:54:00:9c:b3:24:00:0c:29:49:32:b5:08:00 SRC=10.160.0.108 DST=10.160.0.151 LEN=52 TOS=0x00 \
+PREC=0x00 TTL=64 ID=28539 DF PROTO=TCP SPT=37834 DPT=80 WINDOW=115 RES=0x00 ACK URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=ens224 PHYSOUT=vnet1 \
+MAC=52:54:00:9c:b3:24:00:0c:29:49:32:b5:08:00 SRC=10.160.0.108 DST=10.160.0.151 LEN=128 TOS=0x00 \
+PREC=0x00 TTL=64 ID=28540 DF PROTO=TCP SPT=37834 DPT=80 WINDOW=115 RES=0x00 ACK PSH URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=vnet1 PHYSOUT=ens224 \
+MAC=00:0c:29:49:32:b5:52:54:00:9c:b3:24:08:00 SRC=10.160.0.151 DST=10.160.0.108 LEN=52 TOS=0x00 \
+PREC=0x00 TTL=64 ID=33808 DF PROTO=TCP SPT=80 DPT=37834 WINDOW=114 RES=0x00 ACK URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=vnet1 PHYSOUT=ens224 \
+MAC=00:0c:29:49:32:b5:52:54:00:9c:b3:24:08:00 SRC=10.160.0.151 DST=10.160.0.108 LEN=298 TOS=0x00 \
+PREC=0x00 TTL=64 ID=33809 DF PROTO=TCP SPT=80 DPT=37834 WINDOW=114 RES=0x00 ACK PSH URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=ens224 PHYSOUT=vnet1 \
+MAC=52:54:00:9c:b3:24:00:0c:29:49:32:b5:08:00 SRC=10.160.0.108 DST=10.160.0.151 LEN=52 TOS=0x00 \
+PREC=0x00 TTL=64 ID=28541 DF PROTO=TCP SPT=37834 DPT=80 WINDOW=123 RES=0x00 ACK URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=ens224 PHYSOUT=vnet1 \
+MAC=52:54:00:9c:b3:24:00:0c:29:49:32:b5:08:00 SRC=10.160.0.108 DST=10.160.0.151 LEN=52 TOS=0x00 \
+PREC=0x00 TTL=64 ID=28542 DF PROTO=TCP SPT=37834 DPT=80 WINDOW=123 RES=0x00 ACK FIN URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=vnet1 PHYSOUT=ens224 \
+MAC=00:0c:29:49:32:b5:52:54:00:9c:b3:24:08:00 SRC=10.160.0.151 DST=10.160.0.108 LEN=52 TOS=0x00 \
+PREC=0x00 TTL=64 ID=33810 DF PROTO=TCP SPT=80 DPT=37834 WINDOW=114 RES=0x00 ACK FIN URGP=0
+
+Aug 30 01:47:44 my-pc kernel: Meter:IN=node02br OUT=node02br PHYSIN=ens224 PHYSOUT=vnet1 \
+MAC=52:54:00:9c:b3:24:00:0c:29:49:32:b5:08:00 SRC=10.160.0.108 DST=10.160.0.151 LEN=52 TOS=0x00 \
+PREC=0x00 TTL=64 ID=28543 DF PROTO=TCP SPT=37834 DPT=80 WINDOW=123 RES=0x00 ACK URGP=0
+
+分析上述流量信息知道:
+(1)本次请求包括 三次握手建立tcp连接 + 客户端请求 + 服务端响应 + 握手结束tcp连接
+(2)传输总的数据量为(60 + 60 + 52 + 128 + 52 + 298 + 52 + 52 + 52 + 52) = 858, 与iptables记录的bytes数量吻合
+(3)iptables统计的流量是具有实际意义,无杂质流量;
 
