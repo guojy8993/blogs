@@ -52,16 +52,15 @@
   g.在宿主上操作iptables规则:
     [root@my-pc ~]# iptables-save > /data/iptables-backup.old
     # 添加BlackListChain，DispatchChain，FirewallLogChain三个公共链,以及node02的私有链
-    
-    # 重要:允许使用 netfilter 管理bridge流量
-    [root@my-pc ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1
-    net.bridge.bridge-nf-call-iptables = 1
-    
     [root@my-pc ~]# iptables -N black-list-drop
     [root@my-pc ~]# iptables -I FORWARD -j black-list-drop
     [root@my-pc ~]# iptables -N traffic-dispatch
     [root@my-pc ~]# iptables -N node02-security-meter
     [root@my-pc ~]# iptables -N invalid-traffic-logger
+    
+    # 重要:允许使用 netfilter 管理bridge流量
+    [root@my-pc ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1
+    net.bridge.bridge-nf-call-iptables = 1
     
     # 为BlackListChain添加默认规则
     # note: BlackListChain 处理流量的3个层级
@@ -117,7 +116,7 @@
     
     # 由管理员添加全局过滤规则
     [root@my-pc ~]# iptables -I invalid-traffic-logger -p tcp \
-                             --syn -m limit --limit 20/s -j LOG \
+                             --syn -m limit --limit 1/s -j LOG \
                              --log-level 5 --log-prefix "EvilTraffic"
 
 方案验证:
@@ -144,7 +143,7 @@ keyword="EvilTraffic"
 
 function learn()
 {
-    mac=$(echo ${1}|awk '{print $10}'|awk -F'=' '{print $2}'|cut -c 1-17)
+    mac=$(echo ${1}|awk '{print $10}'|awk -F'=' '{print $2}'|cut -c 19-35)
     cmd="iptables -I ${learn_chain} -m mac --mac-source ${mac} -j DROP"
     chk="iptables -C ${learn_chain} -m mac --mac-source ${mac} -j DROP"
     /usr/bin/sh -c "${chk}" 2>/dev/null
@@ -181,6 +180,7 @@ curl: (28) Connection timed out after 10001 milliseconds
     
 参考文档:
 http://bwachter.lart.info/linux/bridges.html
+https://javapipe.com/iptables-ddos-protection
 http://net.doit.wisc.edu/~dwcarder/captivator/linux_l2_firewalling.txt
 http://ipset.netfilter.org/iptables-extensions.man.html
     
