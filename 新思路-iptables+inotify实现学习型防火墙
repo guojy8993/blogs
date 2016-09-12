@@ -21,11 +21,13 @@
 实现:
 (1)环境搭建:
    a.宿主添加管理网络网卡ens224(vlan 610)
+     [root@my-pc ~]# ip link add link ens224 name ens224.610 type vlan id 610
+     [root@my-pc ~]# ip link set ens224.610 up
    b.添加linux bridge:
      [root@my-pc ~]# brctl addbr node02br 
      [root@my-pc ~]# ip link set node02br up
    c.挂载宿主物理网卡到linux bridge
-     [root@my-pc ~]# brctl addif ens224
+     [root@my-pc ~]# brctl addif ens224.610
    d.启动虚拟机 node02
      [root@my-pc ~]# virt-install -n node02 --description node02 \
                                   --ram 1024 --vcpus 1 --cpu host-model \
@@ -37,7 +39,7 @@
                                   
   e.使用vncview视图进入虚拟机,为虚拟机配置vlan610 的ip,e.g: 10.160.0.151/16
     [root@localhost ~]# echo "apache-server" > /etc/hostname
-    [root@apache-server ~]# nmclic c add con-name eth0.610 type vlan id 610 dev eth0 ip4 10.160.0.151/16 gw4 10.160.0.1
+    [root@apache-server ~]# ip addr add 10.160.0.151/16 dev eth0
     [root@apache-server ~]# echo "proxy=http://10.158.89.23:3128" >> /etc/yum.conf
     [root@apache-server ~]# yum install -y httpd
     [root@apache-server ~]# echo "apache" > /var/www/html/index.html
@@ -114,16 +116,68 @@
     -A traffic-dispatch -j RETURN
     
     # 由管理员添加全局过滤规则
-    # (1) 测试此时网络服务是否可用
-    [root@network ~]# curl 10.160.0.151
-    apache
     [root@my-pc ~]# iptables -I invalid-traffic-logger -p tcp \
                              --syn -m limit --limit 20/s -j LOG \
                              --log-level 5 --log-prefix "EvilTraffic"
-    [root@network ~]# ip -o a | grep 10.160.0.130
-    4: ens33.610    inet 10.160.0.130/24 brd 10.160.0.255 scope global ens33.610\   valid_lft forever preferred_lft forever
-    [root@network ~]# curl 10.160.0.151
-    apache
+
+方案验证:
+# 第三方客户端机器(10.160.0.130,hostname:network)信息如下(注意设备mac地址):
+[root@network ~]# ip -o a | grep 10.160.0.130
+4: ens33.610    inet 10.160.0.130/24 brd 10.160.0.255 scope global ens33.610\   valid_lft forever preferred_lft forever
+[root@network ~]# ip -o link | grep ens33.610
+4: ens33.610@ens33: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT 
+   \    link/ether 00:0c:29:5e:5d:89 brd ff:ff:ff:ff:ff:ff
+
+# 测试此时网络服务是否可用
+[root@network ~]# curl 10.160.0.151
+apache
+
+# 创建并启动 inotify 脚本,监控/var/log/messages文件,从非法流量记录中学习非法访问者的源地址,并
+# 维护宿主 black-list-drop 链的丢弃规则
+[root@my-pc ~]# cat > iptables_log_monitor << EOF
+#! /bin/bash
+
+learn_chain="black-list-drop"
+iptlog="/var/log/messages"
+iptables=$(which iptables)
+keyword="EvilTraffic"
+
+function learn()
+{
+    mac=$(echo ${1}|awk '{print $10}'|awk -F'=' '{print $2}'|cut -c 1-17)
+    cmd="iptables -I ${learn_chain} -m mac --mac-source ${mac} -j DROP"
+    chk="iptables -C ${learn_chain} -m mac --mac-source ${mac} -j DROP"
+    /usr/bin/sh -c "${chk}" 2>/dev/null
+    [[ $? -gt 0 ]] && (/usr/bin/sh -c "${cmd}") 2>/dev/null 
+}
+
+inotifywait -mq -e modify ${iptlog} | while read event
+do
+    line=$(tail -n1 ${iptlog})
+    count=$(echo ${line}|grep ${keyword}|wc -l)
+    if [ ${count} -gt 0 ];then
+        learn "${line}"
+    fi
+done
+EOF
+
+[root@my-pc ~]# nohup sh iptables_log_monitor &
+
+# 观察宿主系统日志输出
+[root@my-pc ~]# tail -n1 /var/log/messages
+Sep 12 02:44:14 my-pc kernel: EvilTrafficIN=node02br OUT=node02br PHYSIN=ens224.610 \
+PHYSOUT=vnet0 MAC=52:54:00:9c:b3:24:00:0c:29:5e:5d:89:08:00 SRC=10.160.0.130 DST=10.160.0.151 \
+LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=58445 DF PROTO=TCP SPT=55641 DPT=80 WINDOW=29200 RES=0x00 SYN URGP=0
+
+# 观察宿主iptables的black-list-drop规则
+[root@my-pc ~]# iptables -S | grep "black-list-drop" | grep "mac-source"
+-A black-list-drop -m mac --mac-source 52:54:00:9C:B3:24 -j DROP
+# 此时可知,规则已经学习到
+# 恶意访问来源10.160.0.130的流量已经在black-list-drop中按mac地址丢弃
+
+# 测试此时网络服务是否可用
+[root@network ~]# curl 10.160.0.151 --connect-timeout 10
+curl: (28) Connection timed out after 10001 milliseconds
     
 参考文档:
 http://bwachter.lart.info/linux/bridges.html
