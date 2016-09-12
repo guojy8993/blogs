@@ -125,6 +125,11 @@
     [root@network ~]# curl 10.160.0.151
     apache
     
+参考文档:
+http://bwachter.lart.info/linux/bridges.html
+http://net.doit.wisc.edu/~dwcarder/captivator/linux_l2_firewalling.txt
+http://ipset.netfilter.org/iptables-extensions.man.html
+    
     
     
     
