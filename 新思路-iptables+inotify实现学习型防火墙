@@ -50,6 +50,11 @@
   g.在宿主上操作iptables规则:
     [root@my-pc ~]# iptables-save > /data/iptables-backup.old
     # 添加BlackListChain，DispatchChain，FirewallLogChain三个公共链,以及node02的私有链
+    
+    # 重要:允许使用 netfilter 管理bridge流量
+    [root@my-pc ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1
+    net.bridge.bridge-nf-call-iptables = 1
+    
     [root@my-pc ~]# iptables -N black-list-drop
     [root@my-pc ~]# iptables -I FORWARD -j black-list-drop
     [root@my-pc ~]# iptables -N traffic-dispatch
