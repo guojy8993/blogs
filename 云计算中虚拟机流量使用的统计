@@ -33,6 +33,10 @@ apache
 # TODO
 
 第三部分: 流量查询实测
+# 重要:允许使用 netfilter 管理bridge流量
+[root@my-pc ~]# sysctl -w net.bridge.bridge-nf-call-iptables=1
+net.bridge.bridge-nf-call-iptables = 1
+
 清空 calc-node02 的pkts与bytes counter:
 [root@my-pc ~]# iptables -Z calc-node02
 [root@my-pc ~]# iptables -L calc-node02 -nvx
