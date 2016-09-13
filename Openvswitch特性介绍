@@ -1,0 +1,18 @@
+Visibility into inter-VM communication via NetFlow, sFlow(R), IPFIX, SPAN, RSPAN, and GRE-tunneled mirrors
+LACP (IEEE 802.1AX-2008)
+Standard 802.1Q VLAN model with trunking
+Multicast snooping
+IETF Auto-Attach SPBM and rudimentary required LLDP support
+BFD and 802.1ag link monitoring
+STP (IEEE 802.1D-1998) and RSTP (IEEE 802.1D-2004)
+Fine-grained QoS control
+Support for HFSC qdisc
+Per VM interface traffic policing
+NIC bonding with source-MAC load balancing, active backup, and L4 hashing
+OpenFlow protocol support (including many extensions for virtualization)
+IPv6 support
+Multiple tunneling protocols (GRE, VXLAN, STT, and Geneve, with IPsec support)
+Remote configuration protocol with C and Python bindings
+Kernel and user-space forwarding engine options
+Multi-table forwarding pipeline with flow-caching engine
+Forwarding layer abstraction to ease porting to new software and hardware platforms
