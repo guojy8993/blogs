@@ -1,0 +1,49 @@
+角色          机器名   IP              系统
+git-client    my-pc    10.160.0.144    CentOS7
+git-server    git      10.160.0.118    CentOS7
+
+
+Step1: 使用yum安装git
+[root@git ~]# yum install git -y
+
+Step2: 创建git用户以运行git服务
+[root@git ~]# adduser git
+[root@git ~]# passwd git
+
+Step3: 创建证书登录
+客户端机器生成rsa公钥,并将其加入服务端 /home/git/.ssh/authorized_keys中
+[root@my-pc ~]# ssh-keygen -t rsa
+以git用户身份登录到git服务器,生成公钥(主要是为了自动生成 /home/git/.ssh/authorized_keys)
+[git@git ~]$ ssh-keygen -t rsa
+然后将上述客户端的公钥导入 /home/git/.ssh/authorized_keys 文件
+[root@my-pc ~]# ssh-copy-id -i ~/.ssh/id_rsa.pub git@10.160.0.118
+[git@git ~]$ cat /home/git/.ssh/authorized_keys 
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCijmV6k8hNAr43x7fOfnQgNtYN1xzUZo/h4fOjXUJ09Fj6RmiTzX4nKSFUv+vQSyF2eG\
+ANpRYlxf1XetRTRbvqC6bY29aZ4gUe5u7KimO97UDsa2Tdm3N10yMGzkyfLFcI60NQRm/L5im+b8NSYzvAE16gpRQZ771VyMTc0WFUxpujg\
+G90vifCx8TkCDKcxfvqvCycMRvebh0WNnDudIbhfUsYuefeDVJmcDw57A+GrDSAwruLmQhTY00pck2Sp3Ce7YpKY3BCtL6/PgjtgZUBqhz9q\
+UhlaqDLEKhDMoNgyGjguUeISLgJV13fJNrBsWHOzklIizd59zPqb/xM+HWl root@my-pc
+
+Step4: 初始化git仓库
+[root@git ~]# cd /cloud/
+[root@git cloud]# git init --bare tinycloud.git
+Initialized empty Git repository in /cloud/tinycloud.git/
+
+[root@git cloud]# chown -R git:git tinycloud.git
+
+Step5: 禁用shell登录
+修改 /etc/passwd 文件,将git:x:1000:1000::/home/git:/bin/bash变更为git:x:1000:1000::/home/git:/usr/bin/git-shell
+# ssh 登录 git server 时出现 "fatal: Interactive git shell is not enabled. hint: ~/git-shell-commands should exist\
+# and have read and execute access"  错误的解决方法:
+# http://serverfault.com/questions/285324/git-shell-not-enabled
+
+Step6: 客户端克隆项目
+[root@my-pc ~]# mkdir -p /cloud
+[root@my-pc ~]# cd /cloud/
+[root@my-pc cloud]# git clone git@10.160.0.118:/cloud/tinycloud.git
+Cloning into 'tinycloud'...
+git@10.160.0.118's password: 
+warning: You appear to have cloned an empty repository.
+[root@my-pc cloud]# 
+[root@my-pc cloud]# 
+[root@my-pc cloud]# ls
+tinycloud
