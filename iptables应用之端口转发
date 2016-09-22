@@ -1,0 +1,24 @@
+# 场景: 将发送到虚拟机host10(外网122.114.202.218,内网192.168.65.10)端口10080的请求重定向到
+#       只有内网的 192.168.65.10 yjk虚拟机的80端口
+# 参考: http://www.linuxidc.com/Linux/2013-08/88983.htm
+
+# Step1: 开启ip转发
+[root@host10 tools]# echo 1 > /proc/sys/net/ipv4/ip_forward
+[root@host10 tools]# sysctl -a | grep ip_forward
+net.ipv4.ip_forward = 1
+net.ipv4.ip_forward_use_pmtu = 0
+
+# Step2: 设置转发的NAT规则
+[root@host10 tools]# iptables -t nat -I PREROUTING -p tcp --dport 10080 -d 122.114.202.218 -j DNAT --to 192.168.65.40:80
+[root@host10 tools]# iptables -t nat -I POSTROUTING -p tcp --dport 80 -d 192.168.65.40 -j SNAT --to 122.114.202.218:10080
+[root@host10 tools]# iptables -A FORWARD -d 192.168.65.40 -j ACCEPT
+
+# Step3: 重定向的目标虚拟机: 设置开启对应端口
+[root@yjk ~]# iptables -I INPUT --dport 80 -j ACCEPT
+
+# Step4: 使用公网测试
+# 在目标虚拟机上tcpdump舰艇对应网卡设备
+[root@yjk ~]# tcpdump -i eth1
+# 在办公环境(通外网)telnet测试
+C:\User\Administrator> telnet 122.114.202.218:10080
+# 观察tcpdump输出确认yjk虚拟机是否收到请求
