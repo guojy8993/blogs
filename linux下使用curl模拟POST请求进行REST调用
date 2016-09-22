@@ -1,0 +1,3 @@
+curl -l -H "Content-type: application/json" -X POST -d '{"action":"add_ovs_flows","module":"network","bridge":"br-lan",\
+                                                         "vni":4210001,"gateway_ip":"10.122.128.1","vm_mac":"52:54:00:9a:5e:fa",\
+                                                         "host_ip":"192.168.65.10","domain_ip":"10.122.135.123"}' http://192.168.65.60:9999
