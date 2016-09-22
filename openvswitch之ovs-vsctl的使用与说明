@@ -74,6 +74,9 @@ ip netns exec hostnetns193 ping 192.168.193.1
 ip netns exec hostnetns193 route add -net 192.168.192.0/24 dev hostif-193-191
 
 =================
+# 设置虚拟交换机上联口(VLANs)
+[root@host10 ~]# ovs-vsctl set Port uplink trunks=80,610,1000,223
+=================
 
 参考:
 http://sdnhub.org/tutorials/opendaylight/
