@@ -10,10 +10,11 @@ net.ipv4.ip_forward_use_pmtu = 0
 
 # Step2: 设置转发的NAT规则
 [root@host10 tools]# iptables -t nat -I PREROUTING -p tcp --dport 10080 -d 122.114.202.218 -j DNAT --to 192.168.65.40:80
-[root@host10 tools]# iptables -t nat -I POSTROUTING -p tcp --dport 80 -d 192.168.65.40 -j SNAT --to 122.114.202.218:10080
+[root@host10 tools]# iptables -t nat -I POSTROUTING -p tcp --dport 80 -d 192.168.65.40 -j SNAT --to 122.114.202.218
 [root@host10 tools]# iptables -A FORWARD -d 192.168.65.40 -j ACCEPT
 
 # Step3: 重定向的目标虚拟机: 设置开启对应端口
+[root@host10 tools]# iptables -I INPUT --dport 10080 -j ACCEPT
 [root@yjk ~]# iptables -I INPUT --dport 80 -j ACCEPT
 
 # Step4: 使用公网测试
