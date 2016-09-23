@@ -18,8 +18,8 @@ net.ipv4.ip_forward_use_pmtu = 0
 [root@yjk ~]# iptables -I INPUT --dport 80 -j ACCEPT
 
 # Step4: 使用公网测试
-# 在目标虚拟机上tcpdump舰艇对应网卡设备
+# 在目标虚拟机上tcpdump监听对应网卡设备
 [root@yjk ~]# tcpdump -i eth1
 # 在办公环境(通外网)telnet测试
-C:\User\Administrator> telnet 122.114.202.218:10080
+C:\User\Administrator> telnet 122.114.202.218 10080
 # 观察tcpdump输出确认yjk虚拟机是否收到请求
