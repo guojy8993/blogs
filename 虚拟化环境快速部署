@@ -1,0 +1,175 @@
+#!/bin/bash
+# Date   2016/09/23
+# Author guojy
+# email  guojy8993@163.com
+
+# port that CloudKvmAPI service listens to
+KVM_API_PORT=9999
+
+# vnc ports range
+VNC_PORT_RANGE=5900:6900
+
+# 0, Internet available, yum proxy can be null;
+# 1, Mgmt network available, yum proxy needed be set
+USE_YUM_PROXY=0
+YUM_PROXY=http://10.123.67.88:3128
+
+# NICs
+WAN_NIC=em2
+LAN_NIC=em1
+
+# Network Node
+EXT_NODE=192.168.65.30
+INT_NODE=135.114.211.218
+
+
+function setup_repo()
+{
+echo "[rdo-release]
+baseurl=https://repos.fedorapeople.org/openstack/EOL/openstack-icehouse/epel-7/
+enabled=1
+gpgcheck=0
+priority=98
+skip_if_unavailable=0
+" > /etc/yum.repos.d/rdo-release.repo
+
+    if [ ${USE_YUM_PROXY} -eq 1 ] ; then
+        reset=$(cat /etc/yum.conf | grep "proxy=${YUM_PROXY}" | wc -l)
+        if [ ${reset} -eq 0 ];then
+            echo "proxy=${YUM_PROXY}" >> /etc/yum.conf
+        fi
+    fi
+    sed -ri "s/(keepcache=).*/\11/" /etc/yum.conf
+    yum clean all
+    yum makecache
+}
+
+function install_tcpdump()
+{
+    installed=$(rpm -qa | grep tcpdump | wc -l)
+    [ ${installed} -eq 0 ] && yum install -y tcpdump
+}
+
+function install_common_tools()
+{
+    echo "INFO: installing common tools !"
+    install_tcpdump
+}
+
+function setup_firewall()
+{
+    echo "INFO: setting iptables to enable vns traffic !"
+    iptables -C INPUT -p tcp --dport ${VNC_PORT_RANGE} -j ACCEPT 2>/dev/null
+    if [ $? -gt 0 ];then
+        iptables -I INPUT -p tcp --dport ${VNC_PORT_RANGE} -j ACCEPT
+    fi
+    echo "INFO: setting iptables to enable KVMAPI traffic !"
+    iptables -C INPUT -p tcp --dport ${KVM_API_PORT} -j ACCEPT 2>/dev/null
+    if [ $? -gt 0 ];then
+        iptables -I INPUT -p tcp --dport ${KVM_API_PORT} -j ACCEPT
+    fi
+    echo "INFO: saving iptable rules to /opt/iptables.save"
+    iptables-save > /opt/iptables.save
+}
+
+function setup_bridge()
+{
+    ovs-vsctl br-exists ${1}
+    [ $? -gt 0 ] && ovs-vsctl add-br ${1}
+}
+
+function setup_tunnel()
+{
+    ovs-vsctl br-exists ${1}
+    [ $? -gt 0 ] && (echo "ERROR: bridge ${1} not exists !" && exit 1)
+    tun_port=vxlan-${1}
+    if [ ${1} == "br-lan" ]; then
+        REMOTE=${INT_NODE}
+    fi
+    if [ ${1} == "br-wan" ]; then
+        REMOTE=${EXT_NODE}
+    fi
+    ovs-vsctl -- --if-exists del-port ${tun_port} \
+                 -- add-port ${1} ${tun_port} \
+                 -- set Interface ${tun_port} type=vxlan options:remote_ip=${REMOTE} \
+                    options:in_key=flow options:out_key=flow
+    ofport=$(ovs-vsctl get Interface ${tun_port} ofport)
+    if [ ${ofport} -gt 1 ]; then
+        ovs-vsctl set Interface ${tun_port} ofport_request=1
+        if [ $? -gt 0 ];then
+            echo "ERROR: Fails to set ofport for ${tun_port}: port 1 has been used !" && exit 1
+        fi
+    fi
+}
+
+function install_ovs()
+{
+    installed=$(rpm -qa | grep openvswitch | wc -l)
+    [ $? -eq 0 ] && yum install -y python-openvswitch.noarch openvswitch-test.noarch \
+                                   openvswitch-devel.x86_64 openvswitch-controller.x86_64 openvswitch.x86_64 
+    systemctl enable openvswitch
+    systemctl start openvswitch
+}
+
+function setup_ovs()
+{
+    ovs-vsctl --help 2>/dev/null 1>/dev/null
+    if [ $? -gt 0 ]; then
+        echo "ERROR: open-vswitch wrong!" && exit 1
+    else 
+        echo "INFO: setting ovs bridges!"
+    fi
+
+    setup_bridge br-lan
+    setup_bridge br-wan
+}
+
+function setup_virsh()
+{
+    virsh --help 2>/dev/null 1>/dev/null
+    [ $? -eq 1 ] && yum install -y fence-agents-virsh.x86_64
+}
+
+function setup_qemu_kvm()
+{
+    
+    [ ! -f "/usr/libexec/qemu-kvm" ] && yum install -y qemu-kvm-tools.x86_64 qemu-kvm-common.x86_64 \
+                   qemu-kvm.x86_64 qemu-img.x86_64 qemu-common.x86_64 \
+                   qemu.x86_64 libvirt-daemon-driver-qemu.x86_64 libvirt-daemon-kvm.x86_64
+}
+
+function setup_libvirt()
+{
+    installed=$(systemctl status libvirtd | grep "not-found" | wc -l)
+    if [ ${installed} -gt 0 ] ; then
+        yum install -y libvirt-daemon-kvm.x86_64 libvirt.x86_64 \
+                       libvirt-python.x86_64 libvirt-devel.x86_64 libvirt-daemon.x86_64
+    fi
+    systemctl start libvirtd
+    systemctl enable libvirtd
+}
+
+function setup_virt_install()
+{
+    virt-install --help 2>/dev/null 1>/dev/null
+    [ $? -gt 0 ] && yum install -y virt-install
+}
+
+
+## main ##
+setup_repo
+
+setup_firewall
+setup_qemu_kvm
+
+setup_virsh
+setup_virt_install
+
+setup_libvirt
+
+install_ovs
+setup_ovs
+setup_tunnel br-lan
+setup_tunnel br-wan
+
+install_common_tools
