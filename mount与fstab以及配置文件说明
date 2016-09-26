@@ -1,0 +1,38 @@
+
+## 块设备挂载使用 ##
+# 格式化分区/磁盘,创建挂载点目录并热挂载磁盘
+[root@frontend ~]# mkfs -t xfs /dev/sdb1
+[root@frontend ~]# mkdir -p /data/
+[root@frontend ~]# mount -t xfs /dev/sdb1 /data
+# 按UUID挂载磁盘
+[root@frontend ~]# ll /dev/disk/by-uuid/ | grep sdb1 | awk '{print $9}'
+e1b3abc5-95eb-42c5-a256-4033424dbef5
+# 添加磁盘挂载到配置文件实现持久化
+[root@frontend ~]# echo "UUID=e1b3abc5-95eb-42c5-a256-4033424dbef5 /data xfs defaults 0 0" >> /etc/fstab
+
+说明:
+fstab配置文件语法:
+第1列: 设备路径(UUID=XXX 或 /dev/sdX 或 /dev/hdX)
+第2列: 挂载点(普通目录)
+第3列: 磁盘格式(xfs,btrfs,ext3...)
+第4列: 挂载属性(defaults即可,无需修改)
+第5列: 该文件系统是否使用dump备份(0否,1每天备份)
+第6列: 开机对该磁盘进行fsck
+
+又说明:
+使用UUID标识磁盘的好处在于可以实现磁盘灵活替换
+例如原来的 sdb1 坏掉了,使用sdb2顶上:
+[root@frontend ~]# mkfs.xfs /dev/sdb2
+[root@frontend ~]# ll /dev/disk/by-uuid/ | grep sdb2 | awk '{print $9}'
+24d8800e-82ce-4c84-beb0-c81a5cc2b236
+卸载原磁盘sdb1并修改其UUID(释放原UUID)并设置sdb2的uuid为原sdb1的uuid:
+[root@frontend ~]# umount /data
+[root@frontend ~]# xfs_admin -U $(uuidgen) /dev/sdb1
+[root@frontend ~]# mkfs -t xfs -f /dev/sdb2
+[root@frontend ~]# xfs_admin -U e1b3abc5-95eb-42c5-a256-4033424dbef5 /dev/sdb2
+[root@frontend ~]# mount -t xfs /dev/sdb2 /data/
+
+再说明:
+不同文件系统的块设备修改UUID使用的工具不同,但方式类似(reiserfs - reiserfstune ;jfs - jfs_tune ; xfs - xfs_admin;ext2/3/4使用tune2fs)
+
+ 
