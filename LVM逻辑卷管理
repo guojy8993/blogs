@@ -73,3 +73,8 @@ Physical volume "/dev/sdd5" successfully created
   LV Name                sddvg_lv002
   LV Name                sddvg_lv001
   LV Name                sddvg_lv003
+
+# 逻辑卷扩容
+[root@frontend ~]# lvresize /dev/sddvg/sddvg_lv001 -L +4G
+  Size of logical volume sddvg/sddvg_lv001 changed from 2.00 GiB (1024 extents) to 6.00 GiB (1536 extents).
+  Logical volume sddvg_lv001 successfully resized
