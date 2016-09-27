@@ -79,4 +79,7 @@ Physical volume "/dev/sdd5" successfully created
   Size of logical volume sddvg/sddvg_lv001 changed from 2.00 GiB (1024 extents) to 6.00 GiB (1536 extents).
   Logical volume sddvg_lv001 successfully resized
 
+# 第四部分:扩展
+# LVM有thin/fat之别 http://www.searchvirtual.com.cn/showcontent_87194.htm
 # 各种高级应用参考openstack子项目cinder的cinder/brick/local_dev/lvm.py
+
