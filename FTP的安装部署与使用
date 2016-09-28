@@ -1,7 +1,7 @@
-Step1: yum安装vsftpd
+## Step1: yum安装vsftpd
 [root@frontend data]# yum install -y vsftpd.x86_64
 
-Step2: 修改vsftpd配置文件,启动服务
+## Step2: 修改vsftpd配置文件,启动服务
 [root@frontend ~]# ll /etc/vsftpd/ | awk '{print $9}' | grep -v "^$"
 chroot_list
 ftpusers
@@ -79,7 +79,8 @@ EOF
 [root@frontend vsftpd]# systemctl enable vsftpd
 [root@frontend vsftpd]# systemctl start  vsftpd
 
-Step3: 启动防火墙并添加防火墙例外
+## Step3: 启动防火墙并添加防火墙例外
+
 [root@frontend vsftpd]# systemctl enable firewalld
 [root@frontend vsftpd]# systemctl start  firewalld
 # 开启ftp的命令传输端口(默认21)
@@ -87,5 +88,44 @@ Step3: 启动防火墙并添加防火墙例外
 # 开启ftp数据传输端口(${pasv_min_port}~${pasv_max_port})
 [root@frontend vsftpd]# iptables -I INPUT -p tcp --dport 10050:10100 -j ACCEPT
 
+## Step4: 创建系统用户,共享目录(用户home目录),目录赋访问权限，chroot,详细参考下述脚本.
 
+<bash>
+#!/bin/bash
+# Author  guojy
+# Date    206/09/27
+# Email   guojingyu@zzidc.com
 
+# Params:
+# ${1} ftp user
+LOCAL_FTP_DIR="/data/"
+VSFTP_CHROOT_LIST="/etc/vsftpd/chroot_list"
+
+useradd -b ${LOCAL_FTP_DIR} \
+        -c "ftp user ${1}" -m \
+        -s /sbin/nologin ${1}
+echo ${1} | passwd --stdin ${1}
+chown ${1} ${LOCAL_FTP_DIR}${1}
+chmod 700  ${LOCAL_FTP_DIR}${1}
+echo ${1} >> ${VSFTP_CHROOT_LIST}
+</bash>
+
+# 使用脚本创建ftp用户以及共享目录(无需重启vsftp)
+[root@frontend ~]# sh add_ftp_user wzc
+
+## Step5: 测试使用ftp服务
+[root@my-pc image]# sh /opt/scripts/image/sync_image ftp://wzc:wzc@10.160.0.154/ deepin-amd64.iso /data/image/
+/data/image/deepin-amd64.iso
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0    76    0     0   1431      0 --:--:-- --:--:-- --:--:--  1461
+--2016-09-27 21:40:08--  ftp://wzc:*password*@10.160.0.154/deepin-amd64.iso
+           => ‘/data/image/deepin-amd64.iso’
+Connecting to 10.160.0.154:21... connected.
+Logging in as wzc ... Logged in!
+==> SYST ... done.    ==> PWD ... done.
+==> TYPE I ... done.  ==> CWD not needed.
+==> SIZE deepin-amd64.iso ... 2070216704
+==> PASV ... done.    ==> RETR deepin-amd64.iso ... done.
+Length: 2070216704 (1.9G) (unauthoritative)
+....
