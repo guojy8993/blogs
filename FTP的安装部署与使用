@@ -1,1 +1,91 @@
+Step1: yum安装vsftpd
+[root@frontend data]# yum install -y vsftpd.x86_64
+
+Step2: 修改vsftpd配置文件,启动服务
+[root@frontend ~]# ll /etc/vsftpd/ | awk '{print $9}' | grep -v "^$"
+chroot_list
+ftpusers
+user_list
+vsftpd.conf
+vsftpd.conf.bak
+vsftpd_conf_migrate.sh
+
+# 添加禁用用户
+[root@frontend vsftpd]# cat > ftpusers << EOF
+# Users that are not allowed to login via ftp
+root
+bin
+daemon
+adm
+lp
+sync
+shutdown
+halt
+mail
+news
+uucp
+operator
+games
+nobody
+EOF
+
+[root@frontend vsftpd]# cat  > user_list  << EOF
+# vsftpd userlist
+# If userlist_deny=NO, only allow users in this file
+# If userlist_deny=YES (default), never allow users in this file, and
+# do not even prompt for a password.
+# Note that the default vsftpd pam config also checks /etc/vsftpd/ftpusers
+# for users that are denied.
+root
+bin
+daemon
+adm
+lp
+sync
+shutdown
+halt
+mail
+news
+uucp
+operator
+games
+nobody
+EOF
+
+[root@frontend vsftpd]# cat > vsftpd.conf << EOF
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=077
+anon_upload_enable=NO
+anon_mkdir_write_enable=NO
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+xferlog_std_format=YES
+chroot_local_user=YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+listen=YES
+pam_service_name=vsftpd
+userlist_enable=YES
+tcp_wrappers=YES
+
+pasv_max_port=10100
+pasv_min_port=10050
+EOF
+
+# 开启服务
+[root@frontend vsftpd]# systemctl enable vsftpd
+[root@frontend vsftpd]# systemctl start  vsftpd
+
+Step3: 启动防火墙并添加防火墙例外
+[root@frontend vsftpd]# systemctl enable firewalld
+[root@frontend vsftpd]# systemctl start  firewalld
+# 开启ftp的命令传输端口(默认21)
+[root@frontend vsftpd]# iptables -I INPUT -p tcp --dport 21 -j ACCEPT
+# 开启ftp数据传输端口(${pasv_min_port}~${pasv_max_port})
+[root@frontend vsftpd]# iptables -I INPUT -p tcp --dport 10050:10100 -j ACCEPT
+
+
 
