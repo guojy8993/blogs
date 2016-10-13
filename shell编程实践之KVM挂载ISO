@@ -1,0 +1,119 @@
+#!/bin/bash
+# Desc     Attach Oracle/MsSQL ISO or PE to KVM
+# Author   guojy
+# Email    guojy8993@163.com
+# Date     2016/10/12
+
+PRE_ATTACH_SUFFIX=".old"
+POST_ATTACH_SUFFIX=".pa"
+RE_ORDER_SUFFIX=".ro"
+RE_ORDER_FIN=".rof"
+
+BASE_INSTANCE_DIR="/data/instance/"
+BASE_IMAGE_DIR="/data/image/"
+
+# param: instance_name
+# param: iso full path
+# param: iso type (0 for pe & value-gt-0 for oracle/mssql)
+
+function ensure_shutoff()
+{
+    if [ $# -lt 1 ] ; then
+        echo "ensure_shutoff needs params: (1) instance_name"
+        exit 1
+    else
+        echo 0 > /var/lib/${1}
+        virsh destroy ${1} 2>/dev/null
+    fi
+    
+}
+
+function backup_virshxml()
+{
+    if [ $# -lt 2 ] ; then
+        echo "backup_virshxml needs params: (1) instance_name (2) backup_file"
+        exit 1
+    else
+        virsh dumpxml ${1} > ${2}
+    fi
+}
+
+function reset_boot_order()
+{
+    post_attach_xml="${BASE_INSTANCE_DIR}${1}/${1}${POST_ATTACH_SUFFIX}"
+    if [ ! -e ${post_attach_xml} ] ; then
+        echo "Can not find virshxml of instance attached with ISO"
+        exit 1
+    else
+        sed -e "s/dev='hd'/dev='tmp'/g"  \
+            -e "s/dev='cdrom'/dev='hd'/g"  \
+            -e "s/dev='tmp'/dev='cdrom'/g" ${post_attach_xml} > ${2}
+    fi
+}
+
+function start_with_iso()
+{
+    virsh change-media --domain ${1} \
+          --path hda      \
+          --source ${2} \
+          --update \
+          --config
+    if [ $? -gt 0 ] ; then
+        echo "Error occurs while inject media ${2} into ${1}"
+        exit 1
+    fi
+    if [ ${3} -eq 0 ] ; then
+        backup_virshxml ${1}  "${BASE_INSTANCE_DIR}${1}/${1}${POST_ATTACH_SUFFIX}"
+        reset_boot_order ${1} "${BASE_INSTANCE_DIR}${1}/${1}${RE_ORDER_SUFFIX}"
+        virsh undefine ${1}
+        virsh define "${BASE_INSTANCE_DIR}${1}/${1}${RE_ORDER_SUFFIX}" && \
+              echo 1 > /var/lib/${1} && \
+              virsh start ${1} 2>/dev/null
+        virsh dumpxml ${1} > "${BASE_INSTANCE_DIR}${1}/${1}${RE_ORDER_FIN}"
+        echo "OK! Starting KVM ${1} after attaching Application ISO."
+        exit 0
+    else
+        echo 1 > /var/lib/${1} && virsh start ${1} 2>/dev/null
+        echo "OK! Starting KVM ${1} after attaching PE ."
+        exit 0 
+    fi
+     
+}
+
+function attach_iso()
+{
+    backup_virshxml ${1} "${BASE_INSTANCE_DIR}${1}/${1}${PRE_ATTACH_SUFFIX}"
+    ensure_shutoff ${1}
+    start_with_iso ${1} ${2} ${3}
+}
+
+if [ $# -lt 3 ] ; then
+    echo "Usage: sh /path/to/attach_tools <instance_name> <iso_full_path> <iso_type>"
+    exit 1
+fi
+if [ $(virsh list --all | grep ${1} | wc -l) -lt 1 ] ; then
+    echo "KVM ${1} not found !"
+    exit 1
+fi
+if [ ! -e ${2} ] ; then
+    echo "ISO ${2} not found !"
+    exit 1
+fi
+if [ ${3} -lt 0 ] ; then
+    echo "ISO type: value-lt-0 invalid !"
+    exit 1
+fi
+
+tmp="/tmp/$(uuidgen)"
+virsh dumpxml ${1} > ${tmp}
+
+cdrom_line_num=$(cat -n ${tmp} | grep "<boot" | grep cdrom | awk '{print $1}')
+hd_line_num=$(cat -n ${tmp} | grep "<boot" | grep hd | awk '{print $1}')
+rm -rf ${tmp}
+
+if [ ${hd_line_num} -lt ${cdrom_line_num} ] ; then
+    attach_iso ${1} ${2} ${3}
+else
+    echo "Warn: CDROM already in 1st Order !"
+    exit 1       
+fi
