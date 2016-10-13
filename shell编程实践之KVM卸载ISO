@@ -1,0 +1,58 @@
+#!/bin/bash
+# Desc    Detach TOOL ISO from kvm
+# Author  guojy
+# Date    2016/10/12
+# Email   guojy8993@163.com
+
+PRE_ATTACH_SUFFIX=".old"
+RE_ORDER_FIN=".rof"
+BASE_INSTANCE_DIR="/data/instance/"
+
+function ensure_shutoff()
+{
+    if [ $# -lt 1 ] ; then
+        echo "ensure_shutoff needs params: (1) instance_name"
+        exit 1
+    else
+        echo 0 > /var/lib/${1}
+        virsh destroy ${1} 2>/dev/null
+    fi
+
+}
+
+function remove_tool()
+{
+    rof="${BASE_INSTANCE_DIR}${1}/${1}${RE_ORDER_FIN}"
+    if [ ! -e ${rof} ] ; then
+        echo "Old virshxml file lost !"
+        exit 1
+    fi
+    tmp="/tmp/$(uuidgen).xml"
+    sed -e "s/dev='hd'/dev='tmp'/g"  \
+        -e "s/dev='cdrom'/dev='hd'/g"  \
+        -e "s/dev='tmp'/dev='cdrom'/g" ${rof} > ${tmp}
+    ensure_shutoff ${1}
+    virsh undefine ${1} && virsh define ${tmp} && rm -rf ${tmp} \
+              && virsh change-media ${1} hda --eject --config && echo 1 > /var/lib/${1} && virsh start ${1}
+    echo "OK!"
+    exit 0   
+}
+
+if [ $# -lt 2 ]; then
+    echo "Instance name and iso type needed !"
+    exit 1
+fi
+
+if [ $(virsh list --all | grep ${1} | wc -l) -lt 1 ] ; then
+    echo "Instance ${1} not found !"
+    exit 1
+fi
+if [ ${2} -eq 0 ] ; then
+    remove_tool ${1}
+else
+    ensure_shutoff ${1}
+    virsh change-media ${1} hda --eject --config 2>/dev/null
+    echo 1 > /var/lib/${1} && virsh start ${1}
+    echo "OK!"
+    exit 0
+fi
