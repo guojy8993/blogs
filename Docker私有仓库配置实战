@@ -1,0 +1,88 @@
+## Step1: 安装 docker-* ##
+[root@docker-hub ~]# yum install -y docker-*
+[root@docker-hub ~]# systemctl start docker
+[root@docker-hub ~]# systemctl enable docker
+
+## Step2: 准备镜像目录 ##
+[root@docker-hub ~]# mkfs -t xfs /dev/sdb
+[root@docker-hub ~]# mkdir -p /data && mount -t xfs /dev/sdb /data \
+                     && echo "/dev/sdb /data xfs defaults 0 0" >> /etc/fstab
+[root@docker-hub ~]# mkdir -p /data/registry
+
+## Step3: 制作基础镜像 ##
+# 克隆 docker github 到本地, 使用 /docker/blob/master/contrib/mkimage-yum.sh 脚本创建最简镜像
+# 参考 NOTE 部分使用yum cache
+[root@docker-hub ~]# sh mkimage-yum.sh -y /etc/yum.conf centos7
+....
++ docker import - centos7:7.2.1511
+sha256:b58f799cecd99345b77143a973df9ecf80d878330b8dcf1095174e05393df1d7
++ docker run -i -t --rm centos7:7.2.1511 /bin/bash -c 'echo success'
+success
++ rm -rf /tmp/genimage.sh.ZFkTOk
+
+NOTE:
+mkimage-yum.sh 使用说明:
+(1) -y 表示当前机器制作镜像安装软件使用的yum的配置文件.centos7的yum配置文件是 /etc/yum.conf
+(2) -g Core 默认值
+(3) -p 制作的最简镜像包含的初始工具或应用软件(s)
+
+另外mkimage-yum执行过程中下载大量的rpm包,有些下载速度比较慢,特此把我制作镜像时下载的包打包以供后续使用.
+使用说明: 
+(1) tar -xf centos-init-packets.tar.gz 
+(2) /bin/cp -rf var/cache/yum/x86_64/7  /var/cache/yum/x86_64/  # yum使用本地软件包即可
+(3) sh mkimage-yum.sh -y /etc/yum.conf centos7 # docker创建镜像并上传到本地库
+
+## Step4:  使用网易蜂巢的registry镜像启动容器作为镜像仓库 ##
+# 该镜像已保存成registry_latest.tar文件,使用docker load导入docker-hub机器以添加registry镜像
+[root@docker-hub ~]# docker load < centos7_latest
+[root@docker-hub ~]# docker images
+REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
+registry                 latest              0bb8b1006103        4 weeks ago         33.27 MB
+centos7                  7.2.1511            b58f799cecd9        2 weeks ago         245 MB
+[root@docker-hub ~]# docker run -d -p 5000:5000 -v /data/registry/:/tmp/registry registry
+[root@docker-hub ~]# docker ps -a
+CONTAINER ID  IMAGE     COMMAND                  CREATED       STATUS       PORTS                    NAMES
+0e640514ea8d  registry  "/entrypoint.sh /etc/"   4 weeks ago   Up 43 hours  0.0.0.0:5000->5000/tcp   berserk_turing
+
+## Step5:  管理私有镜像仓库 ##
+[root@docker-hub ~]# docker tag centos7:7.2.1511 10.160.0.153:5000/centos7:base
+[root@docker-hub ~]# docker push 10.160.0.153:5000/centos7:base
+The push refers to a repository [10.160.0.153:5000/centos7]
+d55e1559ed97: Mounted from test 
+base: digest: sha256:4da858a77fbca689afad6b3e54b82dd5085d0ceb8d06ededabbdde0e1f79c0a9 size: 507
+
+# 镜像仓库先tag本地镜像为 <registry_ip>:5000/repository:tag,然后push
+# Docker客户端从 docker-hub 中 pull <registry_ip>:5000/repository:tag 到本地
+
+[root@docker ~]# docker pull 10.160.0.153:5000/centos7:base
+Trying to pull repository 10.160.0.153:5000/centos7 ... 
+base: Pulling from 10.160.0.153:5000/centos7
+Digest: sha256:4da858a77fbca689afad6b3e54b82dd5085d0ceb8d06ededabbdde0e1f79c0a9
+Status: Downloaded newer image for 10.160.0.153:5000/centos7:base
+[root@docker ~]# docker images
+REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
+10.160.0.153:5000/centos7   base                b58f799cecd9        2 weeks ago         245 MB
+
+NOTE:
+docker pull/push 执行的前提是 docker-hub 与 docker 服务器均设置 insecure-registry,设置好之后重启docker即可
+[root@docker ~]# cat /etc/sysconfig/docker | grep OPTIONS
+# OPTIONS='--selinux-enabled --log-driver=journald --insecure-registry=www.dockerhub.com:5000'
+OPTIONS='--selinux-enabled --log-driver=journald --insecure-registry=http://10.160.0.153:5000'
+需要在 insecure-registry 中明确使用 http 而 非默认的 https,否则或出现类似 "Get https://10.160.0.153:5000/v1/_ping:
+http: server gave HTTP response to HTTPS client" 这样的错误信息.
+
+## Step6:  Docker计算节点pull出镜像 ##
+[root@docker ~]# docker pull 10.160.0.153:5000/centos7:base
+Trying to pull repository 10.160.0.153:5000/centos7 ... 
+base: Pulling from 10.160.0.153:5000/centos7
+Digest: sha256:4da858a77fbca689afad6b3e54b82dd5085d0ceb8d06ededabbdde0e1f79c0a9
+Status: Downloaded newer image for 10.160.0.153:5000/centos7:base
+[root@docker ~]# docker images
+REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
+10.160.0.153:5000/centos7   base                b58f799cecd9        2 weeks ago         245 MB
+
+## Step7:  Docker计算节点使用pull出的镜像启动容器 ##
+[root@docker ~]# docker run -it --name web 10.160.0.153:5000/centos7:base /bin/bash
+[root@69a2cfdc1dc7 /]#
+
+
