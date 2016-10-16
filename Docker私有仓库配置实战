@@ -34,7 +34,7 @@ mkimage-yum.sh 使用说明:
 
 ## Step4:  使用网易蜂巢的registry镜像启动容器作为镜像仓库 ##
 # 该镜像已保存成registry_latest.tar文件,使用docker load导入docker-hub机器以添加registry镜像
-[root@docker-hub ~]# docker load < centos7_latest
+[root@docker-hub ~]# docker load < registry_latest.tar
 [root@docker-hub ~]# docker images
 REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
 registry                 latest              0bb8b1006103        4 weeks ago         33.27 MB
