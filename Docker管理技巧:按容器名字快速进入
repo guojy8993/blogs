@@ -1,0 +1,13 @@
+#!/bin/bash
+# Author guojingyu
+# Date   2016/10/20
+# Email  guojy8993@163.com
+# Desc   Enter specified docker container from host
+
+# @param container
+
+CID=$(docker ps -a | grep datashare | awk '{print $1}')
+docker start ${CID} 2>/dev/null
+PID=$(docker inspect -f '{{.State.Pid}}' ${CID})
+nsenter --target ${PID} \
+        --pid --net --ipc --mount
