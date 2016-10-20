@@ -6,8 +6,7 @@
 
 # @param container
 
-CID=$(docker ps -a | grep datashare | awk '{print $1}')
+CID=$(docker ps -a | grep ${1} | awk '{print $1}')
 docker start ${CID} 2>/dev/null
 PID=$(docker inspect -f '{{.State.Pid}}' ${CID})
-nsenter --target ${PID} \
-        --pid --net --ipc --mount
+nsenter --target ${PID} --pid --net --ipc --mount
