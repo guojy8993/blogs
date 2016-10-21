@@ -1,1 +1,108 @@
+#!/bin/bash
+# Author   guojingyu
+# Email    guojy8993@163.com
+# Desc     Create KVM instance including:
+#          (1) setup links to OVS bridge(s)
+#          (2) install new instance with given configuration
 
+# @param ${1}: instance
+# @param ${2}: desc
+# @param ${3}: memory in Mb
+# @param ${4}: cpu count
+
+INSTANCE_SET="/data/instance/"
+INSTANCE_FOLDER="${INSTANCE_SET}${1}/"
+SYS_VOLUME="${INSTANCE_FOLDER}system"
+INSTANCE_LOG="${INSTANCE_FOLDER}operate.log"
+CONSOLE="${INSTANCE_FOLDER}console.log"
+DEFAUILT_CDROM_ISO="/data/iso/welcome.iso"
+
+function error()
+{
+    echo "fail. check ${INSTANCE_LOG} for more details !" && exit 1
+}
+
+# @param ${1}: instance name
+# @param ${2}: ovs bridge name
+function setup_link_to_ovs()
+{
+    if [ ${2} == "br-wan" ] ; then
+        port_to_ovs="wan${1}"
+        sgbr="br0${1}"
+    else
+        if [ ${2} == "br-lan" ] ; then
+            port_to_ovs="lan${1}"
+            sgbr="br1${1}"
+        else
+            echo "only br-wan or br-lan allowed !" >> ${INSTANCE_LOG} && error
+        fi
+    fi
+    ovs-vsctl -- --if-exists del-port ${port_to_ovs} \
+              -- add-port ${2} ${port_to_ovs}  \
+              -- set Interface ${port_to_ovs}  type=internal \
+              -- set Interface ${port_to_ovs}  external-ids:iface-status=active \
+              -- set Interface ${port_to_ovs}  external-ids:iface-id=$(uuidgen)
+    ip link set ${port_to_ovs} up
+    brctl --help 2>/dev/null 1>/dev/null
+    if [ $? -gt 0 ] ; then
+        echo "bridge-util required !" >> ${INSTANCE_LOG} && error
+    fi
+    [[ $(brctl show | grep ${sgbr} | wc -l) -eq 0 ]] && brctl addbr ${sgbr} || echo "bridge ${sgbr} already exists!"
+    ip link set ${sgbr} up
+    [[ $(brctl show | grep ${port_to_ovs} | wc -l) -eq 0 ]] \
+                            && brctl addif ${sgbr} ${port_to_ovs} || echo "bridge ${sgbr} already connected to ovs!"
+}
+
+function check_params()
+{
+    if [ $# -lt 4 ] ; then
+        echo "Params:(1) instance (2) desc (3) memory in mb (4) cpu count needed !" >> ${INSTANCE_LOG} && error
+    fi
+    if [ -z ${1} ] ; then
+        echo "Instance name must not be null" >> ${INSTANCE_LOG} && error
+    fi
+    if [ ! ${3} =~ [0-9] ] ; then
+        echo "Instance memory: num" >> ${INSTANCE_LOG} && error
+    fi
+    if [ ! ${4} =~ [0-9] ] ; then
+        echo "Instance cpu count: num" >> ${INSTANCE_LOG} && error
+    fi  
+    
+}
+
+function install_instance()
+{
+    echo "Preparing to install kvm '${1}' ... " >> ${INSTANCE_LOG}
+    virt-install --help 2>/dev/null 1>/dev/null
+    if [ $? -gt 0 ] ; then
+        echo "virt-install required !" >> ${INSTANCE_LOG} && error 
+    fi
+    if [ ! -f ${5} ] ; then
+        echo "System Volume ${5} Not Found !" >> ${INSTANCE_LOG} && error
+    fi
+    if [ ! -f ${DEFAUILT_CDROM_ISO} ] ; then
+        echo "Default ISO ${DEFAUILT_CDROM_ISO} Not Found !" >> ${INSTANCE_LOG} && error
+    fi
+    virt-install --name ${1} \
+                 --description ${2} \
+                 --ram  ${3} \
+                 --vcpus ${4} --cpu host-model --accelerate --hvm \
+                 --network bridge:br0${1},model=virtio \
+                 --network bridge:br1${1},model=virtio   \
+                 --disk ${5},bus=virtio,cache=writeback,driver_type=qcow2,size=10 \
+                 --boot hd,cdrom \
+                 --graphics vnc,listen=0.0.0.0 --noautoconsole \
+                 --input tablet,bus=usb \
+                 --serial file,path=${CONSOLE} \
+                 --cdrom ${DEFAUILT_CDROM_ISO} 1>>${INSTANCE_LOG} 2>>${INSTANCE_LOG}
+    if [ $? -gt 0 ] ; then
+        error
+    else
+        echo 1 > /var/lib/${1} && echo "Create succeed" && exit 0
+    fi
+}
+
+check_params ${1} ${2} ${3} ${4}
+setup_link_to_ovs ${1} br-wan
+setup_link_to_ovs ${1} br-lan
+install_instance ${1} ${2} ${3} ${4} ${SYS_VOLUME}
