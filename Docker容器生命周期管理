@@ -248,7 +248,6 @@ www.huayu.com
 
 (41) --group-add 加入到指定用户组
 [root@docker ~]# docker run -it --name docker --group-add daemon 10.160.0.153:5000/centos7:base /bin/bash
-
 (42) --expose 容器对外暴露端口或端口范围,但并不通过宿主端口映射对外发布(相当于iptables放开端口范围访问许可)
 # iptables -I INPUT -p tcp --dport 8000:9000 -j ACCEPT
 # 在禁用容器iptables的情况下使用 --expose 选项放开port访问许可
@@ -273,12 +272,7 @@ centos7
 (47) --dns-opt 设置 DNS 选项
 (48) --dns-search 设置 DNS 查找主机("bar.foo.com")
 [root@docker ~]# docker run -it --name docker \
-                            --dns-opt port=55555 --dns 8.8.4.4 --dns-search bar.foo.com 10.160.0.153:5000/centos7:base /bin/bash
-[root@46cd1e8e1544 /]# 
-[root@46cd1e8e1544 /]# cat /etc/re   
-redhat-release  resolv.conf     
-[root@46cd1e8e1544 /]# cat /etc/re
-redhat-release  resolv.conf     
+                            --dns-opt port=55555 --dns 8.8.4.4 --dns-search bar.foo.com 10.160.0.153:5000/centos7:base /bin/bash   
 [root@46cd1e8e1544 /]# cat /etc/resolv.conf 
 search bar.foo.com
 nameserver 8.8.4.4
@@ -323,7 +317,7 @@ docker: Error response from daemon: Requested CPUs are not available - requested
 [root@docker ~]# docker run -it --name docker --cpuset-cpus 0-3 10.160.0.153:5000/centos7:base /bin/bash
 [root@15f0fffb8f9a /]#
 
-(66) --cpuset-mems                   MEMs in which to allow execution (0-3, 0,1)
+(66) --cpuset-mems  MEMs in which to allow execution (0-3, 0,1)
 [root@docker ~]# docker run -it --name docker --cpuset-mems 0-3 10.160.0.153:5000/centos7:base /bin/bash
 docker: Error response from daemon: Requested memory nodes are not available - requested 0-3, available: 0
 [root@docker ~]# docker run -it --name docker --cpuset-mems 0 10.160.0.153:5000/centos7:base /bin/bash
