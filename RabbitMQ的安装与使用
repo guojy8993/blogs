@@ -39,3 +39,17 @@ rabbit_userid=guest
 rabbit_password=guest
 rabbit_virtual_host=/
 rabbit_ha_queues=False
+
+（完）
+
+
+NOTE: 使用 rabbitmqctl 命令添加新用户(设置密码),并设置权限
+[root@controller ~]# rabbitmqctl add_user openstack RABBIT_PASS
+Creating user "openstack" ...
+...done.
+[root@controller ~]# rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+Setting permissions for user "openstack" in vhost "/" ...
+...done.
+
+参考:
+http://docs.openstack.org/kilo/install-guide/install/yum/content/ch_basic_environment.html#basics-networking
