@@ -1,0 +1,10 @@
+[root@comp118 yum]# for in in {1..100} ; do openssl rand -hex 20 >> secrets.txt ;done
+[root@comp118 yum]# cat secrets.txt 
+227555a470dfb130be6bfa1b335de84de57b6fd5
+6fad2662007a248dc58b0e37efea2242fa7d0cb7
+045aa0a9d3c94d3a92132cb1bcc103f1012ef0f6
+4f3479f25f5a4315a39a186d97cb69fb2709b2fb
+13d4966076d4c5f4a40684282d5cae325dfaf7ee
+d9697931254f9439a64ca28af877b47d85ac277c
+53c8f49dedd04326ae23a9533cc41f3628f75e21
+....
