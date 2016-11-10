@@ -228,3 +228,41 @@ Pushing tag for rev [de32f4e8920d] on {http://10.160.0.153:5000/v1/repositories/
             ├── json
             ├── tag_latest
             └── taglatest_json
+
+(3) 为nginx代理服务提供基本的认证功能
+# 安装 {httpd|apache}-{tools|utils}.x86_64之类的
+[root@docker-hub registry]# yum install -y httpd-tools.x86_64
+# 生成用户名/密码文件,添加用户tom&jerry
+[root@docker-hub ~]# htpasswd -cb /etc/nginx/docker-registry-htpasswd tom kilo
+Adding password for user tom
+[root@docker-hub ~]# htpasswd -b /etc/nginx/docker-registry-htpasswd jerry newton
+Adding password for user jerry
+[root@docker-hub ~]# 
+[root@docker-hub ~]# cat /etc/nginx/docker-registry-htpasswd
+tom:$apr1$LjxwKN6d$J.juCjqxoDaZjM/jFGDRw0
+jerry:$apr1$zz0hcG1C$Z.v6GT41sJa3mJCYLlNkZ0
+
+# 修改/etc/nginx/nginx.conf location部分,添加auth认证以及认证使用的密码文件
+[root@docker-hub ~]# vi /etc/nginx/nginx.conf
+...
+location / {
+            proxy_pass                 http://docker_registry;
+            auth_basic                 "Input user/passwd";
+            auth_basic_user_file       docker-registry-htpasswd;
+        }
+...
+
+# 重启nginx服务
+[root@docker-hub ~]# nginx -s reload
+
+# 测试 docker push 命令
+[root@dev ~]# curl 10.160.0.153:5000
+<html>
+<head><title>401 Authorization Required</title></head>
+<body bgcolor="white">
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx/1.11.0</center>
+</body>
+</html>
+[root@dev ~]# curl jerry:newton@10.160.0.153:5000/
+"\"docker-registry server\""
