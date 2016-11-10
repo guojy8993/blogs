@@ -1,3 +1,9 @@
+Docker配置私有仓库的两种方法
+[目录]
+1.使用docker-registry容器作为私有仓库
+2.使用docker-registry + nginx 搭建私有仓库
+
+### 方案1: 使用docker-registry容器作为私有仓库 ###
 ## Step1: 安装 docker-* ##
 [root@docker-hub ~]# yum install -y docker-*
 [root@docker-hub ~]# systemctl start docker
@@ -86,3 +92,139 @@ REPOSITORY                  TAG                 IMAGE ID            CREATED     
 [root@69a2cfdc1dc7 /]#
 
 
+### 方案1: 使用docker-registry + nginx 搭建私有仓库 ###
+1.准备工作
+(1) 创建CentOS7虚拟机一台(50G系统+50G数据盘),配置IP 10.160.0.153
+(2) 更新系统
+(3) 格式化数据盘挂载为docker-registry存储目录,e.g:/opt/data/registry
+[root@docker-hub ~]# mkfs.xfs /dev/sdb
+[root@docker-hub ~]# mkdir -p /opt/data/registry
+[root@docker-hub ~]# mount -t xfs /dev/sdb /opt/data/registry
+[root@docker-hub ~]# echo "/dev/sdb /opt/data/registry xfs defaults 0 0" >> /etc/fstab 
+
+2.安装docker-registry
+(1) yum安装docker-registry
+[root@docker-hub ~]# yum install -y docker-registry-0.9.1-7.el7.x86_64
+# 配置文件yml默认放置在 /etc/docker-registry.yml
+# 在...python2.7/site-packages/ 下存在 docker_registry 与 docker-registry/docker_registry,使用后者中更新前者目录
+[root@docker-hub ~]# /usr/bin/cp -rf /usr/lib/python2.7/site-packages/docker-registry/docker_registry/* \
+                                     /usr/lib/python2.7/te-packages/docker_registry/
+
+(2) 配置docker-registry,运行服务,测试本地可用性
+[root@docker-hub ~]# sed -i "s/STORAGE_PATH\:\/var\/lib\/docker-registry/STORAGE_PATH\:\/opt\/data\/registry/g" \
+  /etc/docker-registry.yml
+
+# docker-registry从环境变量SETTINGS_GLAVOR中取出yml中对应的偏好存储后端(我们设置为local即保存文件在/opt/data/registry下)
+# docker-registry从环境变量DOCKER_REGISTRY_CONFIG读取自定义的yml文件的位置,启动服务.
+[root@docker-hub ~]# mkdir -p /var/log/docker-registry/
+[root@docker-hub ~]# gunicorn --access-logfile /var/log/docker-registry/access.log \
+                              --error-logfile /var/log/docker-registry/error.log \
+                              --worker-class gevent \
+                              --env SETTINGS_GLAVOR=local \
+                              --env DOCKER_REGISTRY_CONFIG=/etc/docker-registry.yml \
+                              --bind 127.0.0.1:49494  \
+                              --backlog 50 --workers 5 --worker-connections 10 \
+                              --max-requests 100 \
+                              --proxy-allow-from 10.160.0.153 \
+                              --pid /var/log/docker-registry/pid docker_registry.wsgi:application \
+                              --daemon
+
+[root@docker-hub ~]# ps aux | grep gunicorn
+root 17777  0.0  0.6 228420 12304 ? S    17:44   0:00 /usr/bin/python /usr/bin/gunicorn --access-logfile 
+/var/log/docker-registry/access.log --error-logfile /var/log/docker-registry/error.log --worker-class gevent 
+--env SETTINGS_GLAVOR=local --env DOCKER_REGISTRY_CONFIG=/etc/docker-registry.yml --bind 127.0.0.1:49494 
+--backlog 50 --workers 5 --worker-connections 10 --max-requests 100 --proxy-allow-from 10.160.0.153 --pid 
+/var/log/docker-registry/pid docker_registry.wsgi:application --daemon
+
+[root@docker-hub ~]# curl 127.0.0.1:49494
+"\"docker-registry server\""
+
+(3) 配置使用systemctl管理docker-registry服务
+i.启动服务:如上
+2.终止服务: kill -9 $(cat /var/log/docker-registry/pid) && rm -rf /var/log/docker-registry/pid
+(略)
+
+3.配置nginx代理docker-registry服务
+(1) 安装nginx
+# 官方下载(http://nginx.org/packages/mainline/centos/7/x86_64/RPMS/)rpm包
+# 并安装
+[root@docker-hub ~]# rpm -ivh nginx-1.11.0-1.el7.ngx.x86_64.rpm
+
+(2) 修改配置文件代理docker-registry服务,并添加基本验证
+[root@docker-hub ~]# cat > /etc/nginx/nginx.conf << EOF
+events {
+    worker_connections 1024;
+}
+http {
+    upstream docker_registry {
+        server localhost:49494;
+    }
+    server {
+        listen                         5000;
+        server_name                    docker-hub.org;
+   
+        proxy_set_header Host          $http_host;
+        proxy_set_header X-Real-IP     $remote_addr;
+
+        client_max_body_size           0;
+        chunked_transfer_encoding      on;
+
+        location / {
+            proxy_pass                 http://docker_registry;
+        }
+
+        location /_ping {
+            auth_basic                 off;
+            proxy_pass                 http://docker_registry;
+        }
+
+        location /v1/_ping {
+            auth_basic                 off;
+            proxy_pass                 http://docker_registry;
+        }
+    }
+}
+EOF
+
+#启动nginx代理
+[root@docker-hub ~]# nginx -c /etc/nginx/nginx.conf
+
+(3) 运行nginx服务并测试docker-registry服务可用性
+[root@dev ~]# curl 10.160.0.153:5000
+"\"docker-registry server\""
+
+[root@docker ~]# docker images
+REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
+mysql                       latest              de32f4e8920d        2 weeks ago         575.3 MB
+...
+
+[root@docker ~]# docker tag mysql 10.160.0.153:5000/mysql
+[root@docker ~]# docker push 10.160.0.153:5000/mysql
+...(输出信息略)...
+Pushing tag for rev [de32f4e8920d] on {http://10.160.0.153:5000/v1/repositories/mysql/tags/latest}
+
+[root@docker-hub registry]# pwd
+/opt/data/registry
+[root@docker-hub registry]# tree
+.
+├── images
+│   ├── 14a15a937e4a5ee78113de94cfe09c3228abfbdb9ce19e3bac9a0b67f0c7a124
+│   │   ├── ancestry
+│   │   ├── _checksum
+│   │   ├── json
+│   │   └── layer
+.................
+└── repositories
+    └── library
+        ├── centos7
+        │   ├── _index_images
+        │   ├── json
+        │   ├── tag_base
+        │   ├── tagbase_json
+        │   ├── tag_latest
+        │   └── taglatest_json
+        └── mysql
+            ├── _index_images
+            ├── json
+            ├── tag_latest
+            └── taglatest_json
