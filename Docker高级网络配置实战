@@ -1,1 +1,100 @@
+#!/bin/bash
+# Author   guojingyu
+# Email    guojingyu@zzidc.com
+# Date     2016/10/24
+# Desc     Start docker container and setup network
+
+iface_max_len=15
+brg_max_len=13
+
+# @param ${1}  container
+function check_docker(){
+    exists=$(docker ps -a | egrep "^${1}\s+|\s+${1}$" | wc -l)
+}
+
+# @param ${1}  container
+function start_docker(){
+    check_docker ${1}
+    [ ${exists} -eq 0 ] && echo "ERROR: Container ${1} does not exist" && exit 1
+    docker start ${1} 1>/dev/null 2>/dev/null
+    [ $? -gt 0 ] && echo "ERROR: Fail to start Container ${1}" && exit 1
+}
+
+# @param ${1}  container
+function parse_labels(){
+    interface=$(docker inspect -f '{{.Config.Labels.net_interface}}' ${1})
+    ipaddr=$(docker inspect -f '{{.Config.Labels.net_ipaddress}}' ${1})
+    prefix=$(docker inspect -f '{{.Config.Labels.net_prefix}}'    ${1})
+    gateway=$(docker inspect -f  '{{.Config.Labels.net_gateway}}' ${1})
+    bridge=$(docker inspect  -f  '{{.Config.Labels.net_bridge}}'  ${1})
+    mac=$(docker inspect  -f  '{{.Config.Labels.net_mac}}'  ${1})
+    cidr=$(docker inspect -f  '{{.Config.Labels.net_cidr}}' ${1})
+}
+
+# @param ${1}  bridge
+function ensure_bridge(){
+    brctl --help 1>/dev/null 2>/dev/null
+    [ $? -gt 0 ] && echo "ERROR: Rpm bridge-util required !" && exit 1
+    count=$(brctl show | grep ${1} | wc -l)
+    [ ${count} -eq 0 ] && brctl addbr ${1} && ip link set ${1} mtu 1450 up    
+}
+
+# @param ${1}  container/netns
+function setup_netns(){
+    [ $(ip netns | grep "^${1}$" | wc -l) -eq 1 ] && ip netns del ${1}
+    pid=$(docker inspect -f '{{.State.Pid}}' ${1})
+    mkdir -p /var/run/netns && ln -s /proc/${pid}/ns/net /var/run/netns/${1}   
+}
+
+# @param ${1}  container/netns
+# @param ${2}  netdev
+# @param ${3}  ip
+# @param ${4}  prefix
+# @param ${5}  gateway
+function setup_ipaddr(){
+    # ip netns exec ${1} ip addr flush dev ${2}
+    ip netns exec ${1} ip addr add dev ${2} ${3}/${4}
+    # ip netns exec ${1} ip route flush dev ${2}
+    ip netns exec ${1} ip route add default via ${5} dev ${2}
+}
+
+# @param ${1}   bridge
+# @param ${2}   docker/netns
+# @param ${3}   netdev
+# @param ${4}   mac
+function ensure_link(){
+    veth_master_device="co-${2}"
+    veth_slave_device="ci-${2}"
+    master=${veth_master_device:0:${iface_max_len}}
+    slave=${veth_slave_device:0:${iface_max_len}}
+    ip link del dev ${master} 2>/dev/null     
+    ip link add ${master} type veth peer name ${slave}
+    ip link set ${slave}  mtu 1450 netns ${2}
+
+    # set docker lo/ethX(mtu/state)
+    ip netns exec ${2} ip link set lo up
+    ip netns exec ${2} ip link set ${slave} name ${3}
+    ip netns exec ${2} ip link set dev ${3} address ${4} up
+    ip link set ${master} mtu 1450 up
+    brctl show ${1} | grep ${master} | wc -l
+    [ $? -eq 0 ] && brctl addif ${1} ${master}
+}
+
+function build_network(){
+    setup_netns      ${1}
+    ensure_bridge    ${2}
+    ensure_link      ${2} ${1} ${interface} ${mac}
+    setup_ipaddr     ${1} ${interface} ${ipaddr} ${prefix} ${gateway}
+}
+
+# @param ${1}  container/netns
+function setup()
+{
+    start_docker    ${1}
+    parse_labels    ${1}
+    build_network   ${1} ${bridge}
+}
+
+
+setup ${1}
 
