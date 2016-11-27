@@ -6,7 +6,8 @@
 第五节   为租户内网IP绑定浮动IP
 第六节   负载均衡即服务实现
 附录
-
+1.系统结构细图(重要)
+2.docker容器网络初始化脚本
 
 
 ## 第一节:Provider网络的初始化 ##
@@ -333,7 +334,7 @@ This page is got from 192.168.100.7
 
 
 附录:
-1.项目系统结构示意图
+1.系统结构细图
 https://github.com/guojy8993/blogs/blob/master/kvm%E4%B8%8Edocker%E6%B7%B7%E5%90%88%E4%BA%91.png
 2.计算节点docker容器网络初始化脚本
 https://github.com/guojy8993/blogs/blob/master/Docker%E9%AB%98%E7%BA%A7%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E5%AE%9E%E6%88%98
