@@ -364,8 +364,8 @@ auth=no
 	              {keepalive, true}
 	            ]
 	       },
-		   {default_user, <<"guest">>},
-		   {default_pass, <<"guest">>}
+		   {default_user, <<"rabbitmq">>},
+		   {default_pass, <<"a02a2a42a9af59b74712">>}
 	    ]
     },
     {kernel,[]}
@@ -380,6 +380,7 @@ auth=no
 tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      off (0.00/0/0)
 tcp6       0      0 :::5672                 :::*                    LISTEN      off (0.00/0/0)
 [root@master116.openstack.org ~]# iptables -I INPUT -p tcp --dport 5672 -j ACCEPT
+[root@master116.openstack.org ~]# ip6tables -I INPUT -p tcp --dport 5672 -j ACCEPT
 
 # 使用 "RestfulAPI的设计与实现及应用: 搭建 Restful API" 中提供的脚本测试 rabbitmq 是否可用;
 # 注意修改对应的rabbitmq_host
