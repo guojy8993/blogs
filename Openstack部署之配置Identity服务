@@ -74,7 +74,7 @@ Identity服务概念:
 (2) 该服务使用数据库存储信息,在服务的配置文件中指定数据库的位置;在本例中,我们使用mysql数据库,用户名"keystone"; 使用合适的密码替换
 KEYSTONE_DBPASS(前文已经用openssl生成并分配);
 # openstack-config --set /etc/keystone/keystone.conf \
-   database connection mysql://keystone:KEYSTONE_DBPASS@controller/keystone
+   database connection mysql://keystone:KEYSTONE_DBPASS@master116.openstack.org/keystone
 (3) 使用之前登录的root用户密码,创建keystone用户:
 $ mysql -u root -p
 mysql> CREATE DATABASE keystone;
@@ -111,33 +111,33 @@ echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-t
 >> /var/spool/cron/keystone
 
 实战部分:
-[root@controller ~]# yum install -y openstack-keystone.noarch
-[root@controller ~]# yum install -y python-keystoneclient.noarch
-[root@controller ~]# openstack-config --set /etc/keystone/keystone.conf database \
-                     connection mysql://keystone:f9b101949a581ac12dfe@controller/keystone
-[root@controller ~]# mysql -uroot -p
+[root@master116.openstack.org ~]# yum install -y openstack-keystone.noarch
+[root@master116.openstack.org ~]# yum install -y python-keystoneclient.noarch
+[root@master116.openstack.org ~]# openstack-config --set /etc/keystone/keystone.conf database \
+                     connection mysql://keystone:f9b101949a581ac12dfe@master116.openstack.org/keystone
+[root@master116.openstack.org ~]# mysql -uroot -p
 Enter password: 1428101ae612a0110bb9
 MariaDB [(none)]> create DATABASE keystone;
 MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'f9b101949a581ac12dfe';
 MariaDB [(none)]> GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'f9b101949a581ac12dfe';
 MariaDB [(none)]> FLUSH PRIVILEGES;
 MariaDB [(none)]> exit
-[root@controller ~]# su -s /bin/sh -c "keystone-manage db_sync" keystone  # keystone数据库建表完成
+[root@master116.openstack.org ~]# su -s /bin/sh -c "keystone-manage db_sync" keystone  # keystone数据库建表完成
 # 生成并设置 admin_token
-[root@controller ~]# openssl rand -hex 10
+[root@master116.openstack.org ~]# openssl rand -hex 10
 ad5cc25d4650fbbe44c9
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token ad5cc25d4650fbbe44c9
 # pki设置
-[root@controller ~]# keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
-[root@controller ~]# chown -R keystone:keystone /etc/keystone/ssl
-[root@controller ~]# chmod -R o-rwx /etc/keystone/ssl
+[root@master116.openstack.org ~]# keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+[root@master116.openstack.org ~]# chown -R keystone:keystone /etc/keystone/ssl
+[root@master116.openstack.org ~]# chmod -R o-rwx /etc/keystone/ssl
 # 启动服务并制止开机自启
-[root@controller ~]# systemctl start openstack-keystone
-[root@controller ~]# systemctl enable openstack-keystone
-[root@controller ~]# (crontab -l -u keystone 2>&1 | grep -q token_flush) || \
+[root@master116.openstack.org ~]# systemctl start openstack-keystone
+[root@master116.openstack.org ~]# systemctl enable openstack-keystone
+[root@master116.openstack.org ~]# (crontab -l -u keystone 2>&1 | grep -q token_flush) || \
                      echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1' \
                      >> /var/spool/cron/keystone
-[root@controller ~]# crontab -l -u keystone
+[root@master116.openstack.org ~]# crontab -l -u keystone
 @hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1
 # 查询定时任务: crontab -l -u {user}
 
@@ -198,77 +198,80 @@ OpenStack诸位服务也需要username,tenant,和role去获取其他OpenStack服
 $ keystone tenant-create --name=service --description="Service Tenant"
 
 实践部分:
-[root@controller ~]# export OS_SERVICE_TOKEN=ad5cc25d4650fbbe44c9
-[root@controller ~]# export OS_SERVICE_ENDPOINT=http://controller:35357/v2.0
+[root@master116.openstack.org ~]# export OS_SERVICE_TOKEN=ad5cc25d4650fbbe44c9
+[root@master116.openstack.org ~]# export OS_SERVICE_ENDPOINT=http://master116.openstack.org:35357/v2.0
 # 启动服务时发现Identity服务监听 tcp:35357 端口,那么添加防火墙例外:
-[root@controller ~]# netstat -ano | grep 35357
+[root@master116.openstack.org ~]# netstat -ano | grep 35357
 tcp    0   0 0.0.0.0:35357   0.0.0.0:*     LISTEN   off (0.00/0/0)
-[root@controller ~]# iptables -I INPUT -p tcp --dport 35357 -j ACCEPT
+[root@master116.openstack.org ~]# iptables -I INPUT -p tcp --dport 35357 -j ACCEPT
 
 # 创建 admin 用户租户
-[root@controller ~]# keystone user-create --name=admin --pass=d65c077ed7332d8aa238 --email=admin@qqvps.com
+[root@master116.openstack.org ~]# keystone user-create --name=admin --pass=d65c077ed7332d8aa238 --email=admin@qqvps.com
 +----------+----------------------------------+
 | Property |              Value               |
 +----------+----------------------------------+
 |  email   |         admin@qqvps.com          |
 | enabled  |               True               |
-|    id    | a99a065803a34852bca96c53385efc4c |
+|    id    | 1c1c1298fe3e469f95b9d84f6b21fb0c |
 |   name   |              admin               |
 | username |              admin               |
 +----------+----------------------------------+
 
-[root@controller ~]# keystone role-create --name=admin
+[root@master116 ~]# keystone role-create --name=admin
 +----------+----------------------------------+
 | Property |              Value               |
 +----------+----------------------------------+
-|    id    | 93196a5b2b0c4ae3b5da4833df163c6e |
+|    id    | d031e7d9c86247e1b16262ad7eaea197 |
 |   name   |              admin               |
 +----------+----------------------------------+
 
-[root@controller ~]# keystone tenant-create --name=admin --description="Admin Tenant"
+[root@master116 ~]# keystone tenant-create --name=admin --description="Admin Tenant"
 +-------------+----------------------------------+
 |   Property  |              Value               |
 +-------------+----------------------------------+
 | description |           Admin Tenant           |
 |   enabled   |               True               |
-|      id     | e068b28f4d09487a91df3f1e02aa645f |
+|      id     | ef6a0abf2a744545add53f78716fdd84 |
 |     name    |              admin               |
 +-------------+----------------------------------+
 
-[root@controller ~]# keystone user-role-add --user=admin --tenant=admin --role=admin
-[root@controller ~]# keystone user-role-add --user=admin --tenant=admin --role=_member_
+[root@master116 ~]# keystone user-role-add --user=admin --tenant=admin --role=admin
+[root@master116 ~]# keystone user-role-add --user=admin --tenant=admin --role=_member_
+
 
 # 创建 demo用户租户
-[root@controller ~]# keystone user-create --name=demo --pass=22eb630cad4785bfdc81 --email=demo@qqvps.com
+[root@master116 ~]# keystone user-create --name=demo --pass=22eb630cad4785bfdc81 --email=demo@qqvps.com
 +----------+----------------------------------+
 | Property |              Value               |
 +----------+----------------------------------+
 |  email   |          demo@qqvps.com          |
 | enabled  |               True               |
-|    id    | be2ccbd63de7460dbd556c5b5f99e9d7 |
+|    id    | a0acdf7594404a008a0826bacee89200 |
 |   name   |               demo               |
 | username |               demo               |
 +----------+----------------------------------+
 
-[root@controller ~]# keystone tenant-create --name=demo --description="Demo Tenant"
+[root@master116 ~]# keystone tenant-create --name=demo --description="Demo Tenant"
 +-------------+----------------------------------+
 |   Property  |              Value               |
 +-------------+----------------------------------+
 | description |           Demo Tenant            |
 |   enabled   |               True               |
-|      id     | ce0b702330f74917a4f864af3df4b322 |
+|      id     | 827f53b1fcda418daa51743b8be13c98 |
 |     name    |               demo               |
 +-------------+----------------------------------+
-[root@controller ~]# keystone user-role-add --user=demo --tenant=demo --role=_member_
+
+[root@master116 ~]# keystone user-role-add --user=demo --tenant=demo --role=_member_
+
 
 # 创建 service 租户
-[root@controller ~]# keystone tenant-create --name=service --description="Service Tenant"
+[root@master116 ~]# keystone tenant-create --name=service --description="Service Tenant"
 +-------------+----------------------------------+
 |   Property  |              Value               |
 +-------------+----------------------------------+
 | description |          Service Tenant          |
 |   enabled   |               True               |
-|      id     | 3fb14bc2d9f149e18991c7bd0f67b7f6 |
+|      id     | 0f42215b747c41f4b4d1a45117401598 |
 |     name    |             service              |
 +-------------+----------------------------------+
 
@@ -318,42 +321,43 @@ $ keystone endpoint-create \
 
 实践部分:
 (1)既然注册服务使用到 hostname 代替ip，那么,我们需要修改本地hosts文件，使得hostname解析为对应管理IP
-[root@controller ~]# echo "10.160.0.116   controller" >> /etc/hosts
-[root@controller ~]# echo "10.160.0.117   compute" >> /etc/hosts
-[root@controller ~]# echo "10.160.0.149   network" >> /etc/hosts
+[root@master116.openstack.org ~]# echo "10.160.0.116   controller" >> /etc/hosts
+[root@master116.openstack.org ~]# echo "10.160.0.117   compute" >> /etc/hosts
+[root@master116.openstack.org ~]# echo "10.160.0.149   network" >> /etc/hosts
 并分发到各个节点上:
-[root@controller ~]# scp /etc/hosts root@network:/etc/hosts
-[root@controller ~]# scp /etc/hosts root@compute:/etc/hosts
+[root@master116.openstack.org ~]# scp /etc/hosts root@network:/etc/hosts
+[root@master116.openstack.org ~]# scp /etc/hosts root@compute:/etc/hosts
 (2) 注册服务以及endpoint
-[root@controller ~]# keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
+[root@master116 ~]# keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
 +-------------+----------------------------------+
 |   Property  |              Value               |
 +-------------+----------------------------------+
 | description |        OpenStack Identity        |
 |   enabled   |               True               |
-|      id     | 608a8412ac4b43cb923c8eb4436f7948 |
+|      id     | 2ea994f5a9e64e93a7a7f5090778b209 |
 |     name    |             keystone             |
 |     type    |             identity             |
 +-------------+----------------------------------+
-
-[root@controller ~]# keystone endpoint-create --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
-                                    --publicurl=http://controller:5000/v2.0 --internalurl=http://controller:5000/v2.0 \
-                                    --adminurl=http://controller:35357/v2.0
-+-------------+----------------------------------+
-|   Property  |              Value               |
-+-------------+----------------------------------+
-|   adminurl  |   http://controller:35357/v2.0   |
-|      id     | 85c7965d7359421e926e2b470cfec697 |
-| internalurl |   http://controller:5000/v2.0    |
-|  publicurl  |   http://controller:5000/v2.0    |
-|    region   |            regionOne             |
-|  service_id | 608a8412ac4b43cb923c8eb4436f7948 |
-+-------------+----------------------------------+
+[root@master116 ~]# keystone endpoint-create \
+>   --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
+>   --publicurl=http://master116.openstack.org:5000/v2.0 \
+>   --internalurl=http://master116.openstack.org:5000/v2.0 \
+>   --adminurl=http://master116.openstack.org:35357/v2.0
++-------------+-------------------------------------------+
+|   Property  |                   Value                   |
++-------------+-------------------------------------------+
+|   adminurl  | http://master116.openstack.org:35357/v2.0 |
+|      id     |      f7a46748fc2b42a7ba4b0d1157d6c5fb     |
+| internalurl |  http://master116.openstack.org:5000/v2.0 |
+|  publicurl  |  http://master116.openstack.org:5000/v2.0 |
+|    region   |                 regionOne                 |
+|  service_id |      2ea994f5a9e64e93a7a7f5090778b209     |
++-------------+-------------------------------------------+
 
 # 此时知道 Identity 服务尚有对tcp:5000端口的监听,特此添加防火墙例外;
-[root@controller ~]# netstat -ano | grep ":5000"
+[root@master116.openstack.org ~]# netstat -ano | grep ":5000"
 tcp        0      0 0.0.0.0:5000            0.0.0.0:*               LISTEN      off (0.00/0/0)
-[root@controller ~]# iptables -I INPUT -p tcp --dport 5000 -j ACCEPT
+[root@master116.openstack.org ~]# iptables -I INPUT -p tcp --dport 5000 -j ACCEPT
 
 
 ################################################ NO.4 Identity服务验收 #######################################################
@@ -409,10 +413,10 @@ $ keystone user-role-list --user admin --tenant admin
 
 
 实践部分:
-[root@controller ~]# unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
-[root@controller ~]# keystone --os-username=admin \
-                              --os-password=d65c077ed7332d8aa238 \
-                              --os-auth-url=http://controller:35357/v2.0 token-get
+[root@master116 ~]# unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
+[root@master116 ~]# keystone --os-username=admin \
+                                           --os-password=d65c077ed7332d8aa238 \
+                                           --os-auth-url=http://master116.openstack.org:35357/v2.0 token-get
 +----------+----------------------------------+
 | Property |              Value               |
 +----------+----------------------------------+
@@ -421,7 +425,7 @@ $ keystone user-role-list --user admin --tenant admin
 | user_id  | cb219e333530474e91cff19857c117c1 |
 +----------+----------------------------------+
 
-[root@controller ~]# keystone --os-username=admin \
+[root@master116 ~]# keystone --os-username=admin \
                               --os-password=d65c077ed7332d8aa238 \
                               --os-tenant-name=admin \
                               --os-auth-url=http://controller:35357/v2.0 token-get
@@ -434,30 +438,29 @@ $ keystone user-role-list --user admin --tenant admin
 |  user_id  | cb219e333530474e91cff19857c117c1 |
 +-----------+----------------------------------+
 
-[root@controller ~]# echo "export OS_USERNAME=admin" >> keystonerc_admin
-[root@controller ~]# echo "export OS_PASSWORD=d65c077ed7332d8aa238" >> keystonerc_admin
-[root@controller ~]# echo "export OS_TENANT_NAME=admin" >> keystonerc_admin
-[root@controller ~]# echo "export OS_AUTH_URL=http://controller:35357/v2.0" >> keystonerc_admin
-[root@controller ~]# echo "export PS1='[\u@\h \W(keystonerc_admin)]\$ '" >> keystonerc_admin
-[root@controller ~]# sh keystonerc_admin 
-[root@controller ~]# echo $OS_TENANT_NAME
+[root@master116 ~]# echo "export OS_USERNAME=admin" >> keystonerc_admin
+[root@master116 ~]# echo "export OS_PASSWORD=d65c077ed7332d8aa238" >> keystonerc_admin
+[root@master116 ~]# echo "export OS_TENANT_NAME=admin" >> keystonerc_admin
+[root@master116 ~]# echo "export OS_AUTH_URL=http://master116.openstack.org:35357/v2.0" >> keystonerc_admin
+[root@master116 ~]# echo "export PS1='[\u@\h \W(keystonerc_admin)]\$ '" >> keystonerc_admin
+[root@master116 ~]# sh keystonerc_admin 
+[root@master116 ~]# echo $OS_TENANT_NAME
 
-[root@controller ~]# source  keystonerc_admin   # source 导入环境变量而不是 sh
-[root@controller ~]# echo $OS_TENANT_NAME
+[root@master116 ~]# source  keystonerc_admin   # source 导入环境变量而不是 sh
+[root@master116 ~]# echo $OS_TENANT_NAME
 admin
-[root@controller ~]# keystone user-list
-[root@controller ~(keystonerc_admin)]$ keystone user-list
+[root@master116 ~(keystonerc_admin)]$ keystone user-list
 +----------------------------------+-------+---------+-----------------+
 |                id                |  name | enabled |      email      |
 +----------------------------------+-------+---------+-----------------+
-| a99a065803a34852bca96c53385efc4c | admin |   True  | admin@qqvps.com |
-| be2ccbd63de7460dbd556c5b5f99e9d7 |  demo |   True  |  demo@qqvps.com |
+| 1c1c1298fe3e469f95b9d84f6b21fb0c | admin |   True  | admin@qqvps.com |
+| a0acdf7594404a008a0826bacee89200 |  demo |   True  |  demo@qqvps.com |
 +----------------------------------+-------+---------+-----------------+
 
-[root@controller ~(keystonerc_admin)]$ keystone user-role-list --user admin --tenant admin
+[root@master116 ~(keystonerc_admin)]$ keystone user-role-list --user admin --tenant admin
 +----------------------------------+----------+----------------------------------+----------------------------------+
 |                id                |   name   |             user_id              |            tenant_id             |
 +----------------------------------+----------+----------------------------------+----------------------------------+
-| 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | a99a065803a34852bca96c53385efc4c | e068b28f4d09487a91df3f1e02aa645f |
-| 93196a5b2b0c4ae3b5da4833df163c6e |  admin   | a99a065803a34852bca96c53385efc4c | e068b28f4d09487a91df3f1e02aa645f |
+| 9fe2ff9ee4384b1894a90878d3e92bab | _member_ | 1c1c1298fe3e469f95b9d84f6b21fb0c | ef6a0abf2a744545add53f78716fdd84 |
+| d031e7d9c86247e1b16262ad7eaea197 |  admin   | 1c1c1298fe3e469f95b9d84f6b21fb0c | ef6a0abf2a744545add53f78716fdd84 |
 +----------------------------------+----------+----------------------------------+----------------------------------+
