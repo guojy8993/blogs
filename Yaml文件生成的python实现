@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+class YamlNode(object):
+    def __init__(self, header, inherit_space=4, generation_gap_space=4, child_nodes=[]):
+        self._hdr = header
+        self.space_as_parent = inherit_space
+        self.children = child_nodes
+        self.diff_space = generation_gap_space
+
+    def set_space(self, space):
+        self.space_as_parent = space
+        
+    def dump(self):
+        for child in self.children:
+            child.set_space(self.space_as_parent + self.diff_space)
+        
+        sons = ""
+        for son in self.children:
+            sons = "%s%s" % (sons, "%s%s" % (' '*self.space_as_parent, son.dump()))
+
+        result = "%s%s%s\n%s" % (' '*self.space_as_parent, 
+                                 self._hdr, 
+                                 ":" if len(self.children) > 0 else "" , 
+                                 sons)
+        return result
+
+    def genYaml(self, fd):
+        fd.write(self.dump())
+        fd.close()
+
+
+if __name__ == "__main__":
+    
+    lls = YamlNode("llJim", 4, 4, [])
+    grands01 = YamlNode("Jim", 4, 4, [lls])
+
+    # grands01 = YamlNode("Jim", 14, 14, [])
+
+    lld = YamlNode("Aim", 4, 4, [])
+    grands02 = YamlNode("Lily", 4, 4, [lld])
+
+    # grands02 = YamlNode("Lily", 4, 4, [])
+    father   = YamlNode("BigTom", 4, 4, [grands01,grands02])
+    
+    grands03 = YamlNode("Jesy", 4, 4, [])
+    grands04 = YamlNode("Deken", 4, 4, [])
+    uncle   = YamlNode("LittleJone", 4, 4, [grands03,grands04])
+
+    grandf   = YamlNode("OldTom", 0, 4, [father,uncle])
+
+    # fd = open("/root/1", "a")
+    # grandf.genYaml(fd)
+    print grandf.dump()
+
+
+++++++++++++++++++++++
+生成文件效果:
+
+[root@dev ~]# python genYaml 
+OldTom:
+    BigTom:
+            Jim:
+                    llJim
+            Lily:
+                    Aim
+    LittleJone:
+            Jesy
+            Deken
