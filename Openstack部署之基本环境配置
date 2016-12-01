@@ -31,8 +31,13 @@ Network       CentOS7-X86_64   4        4096      100     ens160      internal-n
                                                           ens224      data-net01       172.172.172.149 # 隧道网络
 ----------------------------------------------------------------------------------------------------------------------------
 Compute       CentOS7-X86_64   16       16*1024   100     ens160      internal-net
-                                                          ens160.610  (vlan)           10.160.0.117    # 管理网络
-                                                          ens192      data-net01       172.172.172.117 # 隧道网络
+                                                          ens160.610  (vlan)           10.160.0.118    # 管理网络
+                                                          ens192      data-net01       172.172.172.118 # 
+----------------------------------------------------------------------------------------------------------------------------
+Compute       CentOS7-X86_64   16       16*1024   100     ens160      internal-net
+                                                          ens160.610  (vlan)           10.160.0.119    # 管理网络
+                                                          ens192      data-net01       172.172.172.119 # 隧道网络
+
 # 注意:鉴于工作环境,虚拟宿主外网网络与管理网络均使用internal-net，
 #      而隧道网络使用data-net01标签,后期的存储集群使用 data-net02标签.
 
@@ -61,11 +66,12 @@ Compute       CentOS7-X86_64   16       16*1024   100     ens160      internal-n
 [root@localhost ~]# echo "proxy=http://10.120.45.67:3128" >> /etc/yum.conf
 各自设置hostname:
 (1)主控节点:
-[root@localhost ~]# echo "controller" >> /etc/hostname
+[root@localhost ~]# echo "master116.openstack.org" >> /etc/hostname
 (2)网络节点:
-[root@localhost ~]# echo "network" >> /etc/hostname
+[root@localhost ~]# echo "net149.openstack.org" >> /etc/hostname
 (3)计算节点:
-[root@localhost ~]# echo "compute" >> /etc/hostname
+[root@localhost ~]# echo "comp118.openstack.org" >> /etc/hostname
+此处仅以118为例
 
 ################################################ NO.1 网络         ##########################################################
 理论部分:
@@ -336,12 +342,12 @@ auth=no
 
 实践部分:
 # 参考"RabbitMQ安装与使用"进行操作
-[root@controller ~]# yum install -y rabbitmq-server.noarch
-[root@controller rabbitmq]# pwd
+[root@master116.openstack.org ~]# yum install -y rabbitmq-server.noarch
+[root@master116.openstack.org rabbitmq]# pwd
 /etc/rabbitmq
-[root@controller rabbitmq]# cp rabbitmq.config rabbitmq.config.backup
-[root@controller rabbitmq]# echo '' > rabbitmq.config
-[root@controller rabbitmq]# vi rabbitmq.config
+[root@master116.openstack.org rabbitmq]# cp rabbitmq.config rabbitmq.config.backup
+[root@master116.openstack.org rabbitmq]# echo '' > rabbitmq.config
+[root@master116.openstack.org rabbitmq]# vi rabbitmq.config
 --------------------------------------------------------------
 % This file managed by Puppet
 % Template Path: rabbitmq/templates/rabbitmq.config
@@ -366,14 +372,14 @@ auth=no
 ].
 % EOF
 --------------------------------------------------------------
-[root@controller rabbitmq]# echo "RABBITMQ_NODE_PORT=5672" > /etc/rabbitmq/rabbitmq-env.conf
-[root@controller rabbitmq]# systemctl enable rabbitmq-server
-[root@controller rabbitmq]# systemctl start rabbitmq-server
-[root@controller rabbitmq]# systemctl status rabbitmq-server
-[root@controller ~]# netstat -ano | grep 5672
+[root@master116.openstack.org rabbitmq]# echo "RABBITMQ_NODE_PORT=5672" > /etc/rabbitmq/rabbitmq-env.conf
+[root@master116.openstack.org rabbitmq]# systemctl enable rabbitmq-server
+[root@master116.openstack.org rabbitmq]# systemctl start rabbitmq-server
+[root@master116.openstack.org rabbitmq]# systemctl status rabbitmq-server
+[root@master116.openstack.org ~]# netstat -ano | grep 5672
 tcp        0      0 0.0.0.0:25672           0.0.0.0:*               LISTEN      off (0.00/0/0)
 tcp6       0      0 :::5672                 :::*                    LISTEN      off (0.00/0/0)
-[root@controller ~]# iptables -I INPUT -p tcp --dport 5672 -j ACCEPT
+[root@master116.openstack.org ~]# iptables -I INPUT -p tcp --dport 5672 -j ACCEPT
 
 # 使用 "RestfulAPI的设计与实现及应用: 搭建 Restful API" 中提供的脚本测试 rabbitmq 是否可用;
 # 注意修改对应的rabbitmq_host
