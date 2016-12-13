@@ -1,0 +1,89 @@
+[文章章节目录]
+第一部分  磁盘管理
+第二部分  快照管理
+
+## 第一部分  磁盘管理 ##
+1.创建逻辑卷
+# 查看可用默认卷组及其容量
+[root@dev ~]# vgs
+  VG             #PV #LV #SN Attr   VSize  VFree 
+  centos           1   3   0 wz--n- 99.51g     0 
+  cinder-volumes   1   2   1 wz--n- 20.00g 16.00g
+[root@dev ~]# vgs --noheadings --unit=g -o name,size,free,lv_count,uuid --separator : --nosuffix cinder-volumes
+  cinder-volumes:20.00:16.00:2:3dLASY-BPBX-D1l2-MNhD-lBPR-vXpc-58poRz
+
+# 在指定卷组中创建逻辑卷
+[root@dev ~]# lvcreate -n volume-8352d3f4-495e-4f68-90b2-d8f91284412f cinder-volumes -L 1g
+  Logical volume "volume-8352d3f4-495e-4f68-90b2-d8f91284412f" created.
+
+2.逻辑卷扩容
+[root@dev ~]# lvextend -L 2g cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f
+  Size of logical volume cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f changed from 1.00 GiB (256 extents)\
+  to 2.00 GiB (512 extents).
+  Logical volume volume-8352d3f4-495e-4f68-90b2-d8f91284412f successfully resized.
+
+3.删除逻辑卷
+[root@dev ~]# dd if=/dev/zero of=/dev/mapper/cinder--volumes-volume--8352d3f4--495e--4f68--90b2--d8f91284412f \
+                 count=2048 bs=1M conv=fdatasync
+2048+0 records in
+2048+0 records out
+2147483648 bytes (2.1 GB) copied, 7.39024 s, 291 MB/s
+[root@dev ~]# lvremove --config 'activation { retry_deactivation = 1} ' \
+                       -f cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f
+  Logical volume "volume-8352d3f4-495e-4f68-90b2-d8f91284412f" successfully removed
+
+4.从镜像创建逻辑卷作为系统盘
+# 使用 image_utils 由 image service client从glance下载指定镜像到image_conversion_dir下的临时文件(下附debug日志)
+# 2016-12-13 11:29:08.175 16985 DEBUG cinder.image.image_utils [req-b30fa554-3f2a-475b-824f-293b33eb832a 3
+# af2c62dcb7549c2bdc5bbb60b82da5b c4f5861298e0431cbe57358f7fca314d - - -] ## Path: /var/lib/cinder/conversion/tmpKKMmoR
+
+# 对比指定逻辑卷大小与镜像要求的最小卷大小,获取合适的逻辑卷尺寸并生成空白逻辑卷
+[root@dev ~]# lvcreate -n volume-762d6255-49db-4c1b-98ed-601e6f081179 cinder-volumes -L 1g
+# 使用 qemu-img convert 将镜像文件转换为逻辑卷数据
+[root@dev ~]# qemu-img convert -O raw /var/lib/cinder/conversion/tmpKKMmoR /dev/mapper/cinder--volumes-volume--762d6255-\
+                  -49db--4c1b--98ed--601e6f081179
+
+5.从既有逻辑卷创建新的逻辑卷
+# 对既有逻辑卷创建快照
+[root@dev ~]# lvcreate --name clone-snap-9cf5b12a-7191-4a65-8df5-27f540a26c03 --snapshot cinder-volumes/volume-1c32a5c8-\
+                  8ff2-4ab0-898d-d255ac50fed1 -L 1.00g
+# 按既有逻辑卷大小创建新的逻辑卷
+[root@dev ~]# lvcreate -n volume-9cf5b12a-7191-4a65-8df5-27f540a26c03 cinder-volumes -L 1g
+# 激活并忽略"处于激活中则跳过逻辑卷"标志位
+[root@dev ~]# lvchange -a y --yes -K cinder-volumes/clone-snap-9cf5b12a-7191-4a65-8df5-27f540a26c03
+# 将快照数据写入新建空白逻辑卷
+[root@dev ~]# dd if=/dev/mapper/cinder--volumes-clone--snap--9cf5b12a--7191--4a65--8df5--27f540a26c03 of=/dev/mapper/\
+                   cinder--volumes-volume--9cf5b12a--7191--4a65--8df5--27f540a26c03 count=1024 bs=1M iflag=direct oflag=direct
+# 删除快照
+[root@dev ~]# dd if=/dev/zero of=/dev/mapper/cinder--volumes-clone--snap--9cf5b12a--7191--4a65--8df5--27f540a26c03-cow \
+                   count=1024 bs=1M conv=fdatasync
+[root@dev ~]# lvremove --config activation { retry_deactivation = 1}  -f cinder-volumes/clone-snap-9cf5b12a-7191-4a65-\
+                   8df5-27f540a26c03
+
+
+## 第二部分  快照管理 ##
+1.创建磁盘快照
+# 逻辑卷创建快照
+[root@dev ~]# lvcreate --name _snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04 \
+                       --snapshot cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f -L 2g
+  Logical volume "_snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04" created.
+
+# 查看逻辑卷
+[root@dev ~]# lvs --noheadings --unit=g -o vg_name,name,size --nosuffix cinder-volumes
+  cinder-volumes _snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04  2.00
+  cinder-volumes volume-8352d3f4-495e-4f68-90b2-d8f91284412f     2.00
+
+2.删除磁盘快照
+dd if=/dev/zero of=/dev/mapper/cinder--volumes-_snapshot--fd92b2bb--13f0--440c--af3c--65dda94f9e04-cow count=2048 \
+   bs=1M conv=fdatasync
+
+[root@dev ~]# lvremove --config 'activation { retry_deactivation = 1}' -f cinder-volumes/_snapshot-fd92b2bb-13f0\
+                       -440c-af3c-65dda94f9e04
+  Logical volume "_snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04" successfully removed
+
+
+辅助阅读:
+1.http://blog.csdn.net/cywosp/article/details/8767327   # fdatasync
+2.cat /etc/lvm/lvm.conf | grep retry_deactivation 了解更多
+
+
