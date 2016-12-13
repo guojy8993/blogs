@@ -2,6 +2,7 @@
 第一部分  磁盘管理
 第二部分  快照管理
 
+------------------------------------------------------------------------------------------------------------------------------
 ## 第一部分  磁盘管理 ##
 1.创建逻辑卷
 # 查看可用默认卷组及其容量
@@ -11,17 +12,17 @@
   cinder-volumes   1   2   1 wz--n- 20.00g 16.00g
 [root@dev ~]# vgs --noheadings --unit=g -o name,size,free,lv_count,uuid --separator : --nosuffix cinder-volumes
   cinder-volumes:20.00:16.00:2:3dLASY-BPBX-D1l2-MNhD-lBPR-vXpc-58poRz
-
+------------------------------------------------------------------------------------------------------------------------------
 # 在指定卷组中创建逻辑卷
 [root@dev ~]# lvcreate -n volume-8352d3f4-495e-4f68-90b2-d8f91284412f cinder-volumes -L 1g
   Logical volume "volume-8352d3f4-495e-4f68-90b2-d8f91284412f" created.
-
+------------------------------------------------------------------------------------------------------------------------------
 2.逻辑卷扩容
 [root@dev ~]# lvextend -L 2g cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f
   Size of logical volume cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f changed from 1.00 GiB (256 extents)\
   to 2.00 GiB (512 extents).
   Logical volume volume-8352d3f4-495e-4f68-90b2-d8f91284412f successfully resized.
-
+------------------------------------------------------------------------------------------------------------------------------
 3.删除逻辑卷
 [root@dev ~]# dd if=/dev/zero of=/dev/mapper/cinder--volumes-volume--8352d3f4--495e--4f68--90b2--d8f91284412f \
                  count=2048 bs=1M conv=fdatasync
@@ -31,7 +32,7 @@
 [root@dev ~]# lvremove --config 'activation { retry_deactivation = 1} ' \
                        -f cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f
   Logical volume "volume-8352d3f4-495e-4f68-90b2-d8f91284412f" successfully removed
-
+------------------------------------------------------------------------------------------------------------------------------
 4.从镜像创建逻辑卷作为系统盘
 # 使用 image_utils 由 image service client从glance下载指定镜像到image_conversion_dir下的临时文件(下附debug日志)
 # 2016-12-13 11:29:08.175 16985 DEBUG cinder.image.image_utils [req-b30fa554-3f2a-475b-824f-293b33eb832a 3
@@ -42,7 +43,7 @@
 # 使用 qemu-img convert 将镜像文件转换为逻辑卷数据
 [root@dev ~]# qemu-img convert -O raw /var/lib/cinder/conversion/tmpKKMmoR /dev/mapper/cinder--volumes-volume--762d6255-\
                   -49db--4c1b--98ed--601e6f081179
-
+------------------------------------------------------------------------------------------------------------------------------
 5.从既有逻辑卷创建新的逻辑卷
 # 对既有逻辑卷创建快照
 [root@dev ~]# lvcreate --name clone-snap-9cf5b12a-7191-4a65-8df5-27f540a26c03 --snapshot cinder-volumes/volume-1c32a5c8-\
@@ -59,46 +60,62 @@
                    count=1024 bs=1M conv=fdatasync
 [root@dev ~]# lvremove --config activation { retry_deactivation = 1}  -f cinder-volumes/clone-snap-9cf5b12a-7191-4a65-\
                    8df5-27f540a26c03
-                   
+
+------------------------------------------------------------------------------------------------------------------------------
 6.将磁盘挂载到计算节点的业务虚拟机上
- # 添加远程开放target条目
+(1) 存储节点发布iscsi target
+# 存储节点添加targets(使用xml配置文件定义target,并放置于指定targets文件夹,热生效)
+[root@iscsi123 ~]# cat /etc/tgt/targets.conf | egrep -v "^#|^$"
+default-driver iscsi
+include /etc/cinder/volumes/*
+------------------------------------------------------------------------------------------------------------------------------
+[root@iscsi123 ~]# cat > /etc/cinder/volumes/volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 << EOF
+<target iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2>
+backing-store /dev/cinder-volumes/volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2
+lld iscsi
+IncomingUser YCDsE3E4T8KJBYMAriiX aaix8v7wLgDXefHREQdy
+</target>
+EOF
+------------------------------------------------------------------------------------------------------------------------------
+[root@iscsi123 ~]# tgtadm --op show --mode target | grep 45a21e5c-47b3-4984-98c9-7959e0fadfe2
+Target 2: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2
+            Backing store path: /dev/cinder-volumes/volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2
+------------------------------------------------------------------------------------------------------------------------------
+(2) 计算节点发现并登录远程target
+# 添加远程开放target条目
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
                            -p 10.160.0.123:3260 --op new
 New iSCSI node [tcp:[hw=,ip=,net_if=,iscsi_if=default] 10.160.0.123,3260,-1 iqn.2010-10.org.openstack:volume-
 45a21e5c-47b3-4984-98c9-7959e0fadfe2] added
-
+------------------------------------------------------------------------------------------------------------------------------
 # 更新认证(auth)信息(auth_method:user:passwd)
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
                            -p 10.160.0.123:3260 --op update -n node.session.auth.authmethod -v CHAP
 [root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
 ,3260 | grep authmethod
 node.session.auth.authmethod = CHAP
-
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260\
                            --op update -n node.session.auth.username -v YCDsE3E4T8KJBYMAriiX
 [root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
                            ,3260 | grep username
 node.session.auth.username = YCDsE3E4T8KJBYMAriiX
-
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260 \
                   --op update -n node.session.auth.password -v aaix8v7wLgDXefHREQdy
 [root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
 ,3260 | grep password
 node.session.auth.password = aaix8v7wLgDXefHREQdy
-
+------------------------------------------------------------------------------------------------------------------------------
 # 登录远程存储节点发布的target
 [root@comp118 ~]# iscsiadm -m session
 iscsiadm: No active sessions.
-
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260 --login
 Logging in to [iface: default, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, 
 portal: 10.160.0.123,3260] (multiple)
 Login to [iface: default, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, 
 portal: 10.160.0.123,3260] successful.
-
 [root@comp118 ~]# iscsiadm -m session
 tcp: [2] 10.160.0.123:3260,1 iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 (non-flash)
-
+------------------------------------------------------------------------------------------------------------------------------
 # 设置该宿主(iscsi-initiator)开机启动
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
 -p 10.160.0.123:3260 --op update -n node.startup -v automatic
@@ -106,7 +123,7 @@ tcp: [2] 10.160.0.123:3260,1 iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984
 ,3260 | grep startup
 node.startup = automatic
 node.conn[0].startup = manual
-
+------------------------------------------------------------------------------------------------------------------------------
 # 重新扫描targets
 [root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260 --rescan
 Rescanning session [sid: 2, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, portal: 10.160.0.123,3260]
@@ -119,7 +136,7 @@ Rescanning session [sid: 2, target: iqn.2010-10.org.openstack:volume-45a21e5c-47
 [root@dev ~]# lvcreate --name _snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04 \
                        --snapshot cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f -L 2g
   Logical volume "_snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04" created.
-
+------------------------------------------------------------------------------------------------------------------------------
 # 查看逻辑卷
 [root@dev ~]# lvs --noheadings --unit=g -o vg_name,name,size --nosuffix cinder-volumes
   cinder-volumes _snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04  2.00
@@ -133,9 +150,11 @@ dd if=/dev/zero of=/dev/mapper/cinder--volumes-_snapshot--fd92b2bb--13f0--440c--
                        -440c-af3c-65dda94f9e04
   Logical volume "_snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04" successfully removed
 
+------------------------------------------------------------------------------------------------------------------------------
 
 辅助阅读:
 1.http://blog.csdn.net/cywosp/article/details/8767327   # fdatasync
 2.cat /etc/lvm/lvm.conf | grep retry_deactivation 了解更多
+3.https://segmentfault.com/a/1190000002717726     # iscsi存储后端管理
 
-
+PS:特别注意,iscsi发布target的方式(以xml定义target,由tgtd热检测新加target并自动分配tid并对外发布,单独的lvm单独的target定义) !!!!!
