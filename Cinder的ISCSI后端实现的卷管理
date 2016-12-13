@@ -59,8 +59,60 @@
                    count=1024 bs=1M conv=fdatasync
 [root@dev ~]# lvremove --config activation { retry_deactivation = 1}  -f cinder-volumes/clone-snap-9cf5b12a-7191-4a65-\
                    8df5-27f540a26c03
+                   
+6.将磁盘挂载到计算节点的业务虚拟机上
+ # 添加远程开放target条目
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
+                           -p 10.160.0.123:3260 --op new
+New iSCSI node [tcp:[hw=,ip=,net_if=,iscsi_if=default] 10.160.0.123,3260,-1 iqn.2010-10.org.openstack:volume-
+45a21e5c-47b3-4984-98c9-7959e0fadfe2] added
 
+# 更新认证(auth)信息(auth_method:user:passwd)
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
+                           -p 10.160.0.123:3260 --op update -n node.session.auth.authmethod -v CHAP
+[root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
+,3260 | grep authmethod
+node.session.auth.authmethod = CHAP
 
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260\
+                           --op update -n node.session.auth.username -v YCDsE3E4T8KJBYMAriiX
+[root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
+                           ,3260 | grep username
+node.session.auth.username = YCDsE3E4T8KJBYMAriiX
+
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260 \
+                  --op update -n node.session.auth.password -v aaix8v7wLgDXefHREQdy
+[root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
+,3260 | grep password
+node.session.auth.password = aaix8v7wLgDXefHREQdy
+
+# 登录远程存储节点发布的target
+[root@comp118 ~]# iscsiadm -m session
+iscsiadm: No active sessions.
+
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260 --login
+Logging in to [iface: default, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, 
+portal: 10.160.0.123,3260] (multiple)
+Login to [iface: default, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, 
+portal: 10.160.0.123,3260] successful.
+
+[root@comp118 ~]# iscsiadm -m session
+tcp: [2] 10.160.0.123:3260,1 iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 (non-flash)
+
+# 设置该宿主(iscsi-initiator)开机启动
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
+-p 10.160.0.123:3260 --op update -n node.startup -v automatic
+[root@comp118 ~]# cat /var/lib/iscsi/nodes/iqn.2010-10.org.openstack\:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2/10.160.0.123\
+,3260 | grep startup
+node.startup = automatic
+node.conn[0].startup = manual
+
+# 重新扫描targets
+[root@comp118 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 -p 10.160.0.123:3260 --rescan
+Rescanning session [sid: 2, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, portal: 10.160.0.123,3260]
+ 
+ 
+ 
 ## 第二部分  快照管理 ##
 1.创建磁盘快照
 # 逻辑卷创建快照
