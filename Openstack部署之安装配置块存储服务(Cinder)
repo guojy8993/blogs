@@ -1,1 +1,200 @@
+### 块存储服务 ###
+第0部分:  块存储
+第1部分:  配置块存储服务主控节点
+第2部分:  配置块存储服务存储节点
+第3部分:  块存储服务的安装的验收
+第4部分:  启动虚拟机测试块存储服务
 
+############################################# 第0部分:  块存储 ###############################################################
+    Openstack的块存储服务通过一些列寄居在宿主内的 cinder-*守护进程的交互以实现.我们可以在单节点/跨节点场景下运行cinder服
+务的二进制文件.也可以与Openstack的其他服务运行于相同的节点.后续的章节将会介绍块存储服务的组件与理念,并展示如何安装与配
+置块存储服务.
+    块存储服务实现对逻辑卷,逻辑卷快照,逻辑卷类型的管理.它包含如下组件:
+    * cinder-api: 接受api请求,并将其路由到cinder-volume以实现功能.
+    * cinder-volume: 响应读/写块存储数据库的请求以维护状态,通过消息队列与其他进程交互,直接基于宿主块存储以提供软件或硬件(直接负责分割
+      宿主存储资源对虚拟机实例提供存储).通过驱动架构,该服务还可以与各式各样存储提供商交互.
+    * cinder-scheduler daemon: 与nova-scheduler类似,负责挑选最理想的块存储服务节点,以便后续将在这些节点上创建实例的逻辑卷.
+    * messaging queue: 在块存储服务的各个服务进程间路由消息.
+    块存储服务与Compute服务交互并为后者的虚拟机实例提供逻辑卷.
+
+############################################## 第1部分:  配置块存储服务主控节点 ##################################################
+# NOTE:
+# 该场景在主控节点上配置OpenStack块存储服务,并假设有专门的存储节点通过cinder-volume服务提供存储.
+# 如想了解如何配置"存储节点",参考 "第2部分:  配置块存储服务存储节点"
+# 本文展示的主控节点是 master116.openstack.org,存储节点是 iscsi123.openstack.org
+OpenStack支持各种各样的存储系统,如下示例使用LVM.
+
+1. 安装对应的块存储服务二进制安装包
+[root@master116 ~]# yum install openstack-cinder -y
+
+2. 为块存储服务配置数据库连接
+# 运行如下命令设置/etc/cinder/cinder.conf文件 [database] 区域的 connection 选项,
+# 使用合适的密码(后续创建)替换CINDER_DBPASS:
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf database connection \
+                                             mysql://cinder:CINDER_DBPASS@master116.openstack.org/cinder
+
+3. 使用root密码登录数据库,创建块存储服务使用的数据库,并设置密码(同前CINDER_DBPASS,此处以admin示范)
+[root@master116 ~]#  mysql -u root -p
+...
+mysql> CREATE DATABASE cinder;
+mysql> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY 'admin';
+mysql> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'admin';
+
+4. 为块存储服务初始化数据库表:
+[root@master116 ~]# su -s /bin/sh -c "cinder-manage db sync" cinder
+
+5. 创建cinder用户
+# 块存储服务使用该用户以从Keystone服务处获取认证.
+# 将用户分配到service租户下并赋予admin角色:
+[root@master116 ~]# source keystone_admin
+[root@master116 ~]# keystone user-create --name=cinder --pass=admin --email=cinder@vip.qq.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |        cinder@vip.qq.com         |
+| enabled  |               True               |
+|    id    | cd74e4704de8450b866ef18f45312e9a |
+|   name   |              cinder              |
+| username |              cinder              |
++----------+----------------------------------+
+
+[root@master116 ~]# keystone user-role-add --user=cinder --tenant=service --role=admin
+
+6.使用 openstack-config 编辑 cinder.conf 配置 keystone 认证信息:
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_uri \
+                                                                           http://master116.openstack.org:5000
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_host master116.openstack.org
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_protocol http
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_port 35357
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_user cinder
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_tenant_name service
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_password admin
+
+7. 修改 cinder.conf 配置使用rqbbitmq 消息队列:
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT rpc_backend rabbit
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host master116.openstack.org
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port 5672
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_userid rabbitmq
+[root@master116 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_password admin
+
+8. 向Keystone注册块存储服务(v1/v2)
+#  后续其他的OpenStack服务可以通过keystone catalog获取块存储endpoints
+[root@master116 ~]# keystone service-create --name=cinder --type=volume --description="OpenStack Block Storage"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |     OpenStack Block Storage      |
+|   enabled   |               True               |
+|      id     | aa2b4ef6d2c14b058cdc9862f8f24f30 |
+|     name    |              cinder              |
+|     type    |              volume              |
++-------------+----------------------------------+
+[root@master116 ~]# keystone endpoint-create \
+>   --service-id=$(keystone service-list | awk '/ volume / {print $2}') \
+>   --publicurl=http://master116.openstack.org:8776/v1/%\(tenant_id\)s \
+>   --internalurl=http://master116.openstack.org:8776/v1/%\(tenant_id\)s \
+>   --adminurl=http://master116.openstack.org:8776/v1/%\(tenant_id\)s
++-------------+------------------------------------------------------+
+|   Property  |                        Value                         |
++-------------+------------------------------------------------------+
+|   adminurl  | http://master116.openstack.org:8776/v1/%(tenant_id)s |
+|      id     |           16169bd70a5240c68cb4d6b230a07d29           |
+| internalurl | http://master116.openstack.org:8776/v1/%(tenant_id)s |
+|  publicurl  | http://master116.openstack.org:8776/v1/%(tenant_id)s |
+|    region   |                      regionOne                       |
+|  service_id |           aa2b4ef6d2c14b058cdc9862f8f24f30           |
++-------------+------------------------------------------------------+
+
+[root@master116 ~]# keystone service-create --name=cinderv2 --type=volumev2 --description="OpenStack Block Storage v2"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |    OpenStack Block Storage v2    |
+|   enabled   |               True               |
+|      id     | 91a4a9670b4c4c0f83cf0b7e892b954e |
+|     name    |             cinderv2             |
+|     type    |             volumev2             |
++-------------+----------------------------------+
+
+[root@master116 ~]# keystone endpoint-create \
+>   --service-id=$(keystone service-list | awk '/ volumev2 / {print $2}') \
+>   --publicurl=http://master116.openstack.org:8776/v2/%\(tenant_id\)s \
+>   --internalurl=http://master116.openstack.org:8776/v2/%\(tenant_id\)s \
+>   --adminurl=http://master116.openstack.org:8776/v2/%\(tenant_id\)s
++-------------+------------------------------------------------------+
+|   Property  |                        Value                         |
++-------------+------------------------------------------------------+
+|   adminurl  | http://master116.openstack.org:8776/v2/%(tenant_id)s |
+|      id     |           d4d0289ea79f4ca0824ebbe23641bd26           |
+| internalurl | http://master116.openstack.org:8776/v2/%(tenant_id)s |
+|  publicurl  | http://master116.openstack.org:8776/v2/%(tenant_id)s |
+|    region   |                      regionOne                       |
+|  service_id |           91a4a9670b4c4c0f83cf0b7e892b954e           |
++-------------+------------------------------------------------------+
+
+9. 启动块存储服务并设置该服务开机自启:
+[root@master116 ~]# systemctl start openstack-cinder-api
+[root@master116 ~]# systemctl start openstack-cinder-scheduler
+[root@master116 ~]# systemctl enable openstack-cinder-api
+[root@master116 ~]# systemctl enable openstack-cinder-scheduler
+
+
+############################################ 第2部分:  配置块存储服务存储节点 ####################################################
+
+    在主控节点配置服务(api/scheduler)之后,配置另一个节点作为专门的块存储服务节点.该节点包含提供虚拟机逻辑卷的物理磁盘设备.
+Openstack支持各种存储后端,此处仅以LVM为例说明.
+
+1. 使用之前第2章介绍的节点基础环境配置说明初始化节点需要注意该节点与主控节点安装的不同之处.设置hostname以及对外提供iscsi
+服务的ip(此处使用管理ip). 确保主控节点/etc/hosts与存储节点相同,并包含主控节点/存储节点的hostrname与ip的对应关系. 按照前文
+介绍的节点ntp服务配置说明安装配置ntp服务,并与主控节点保持时间同步.
+
+2. 创建LVM物理与逻辑卷.此处假设使用系统的/dev/sdb用于提供存储:
+[root@iscsi123 ~]# pvcreate /dev/sdb
+  Physical volume "/dev/sdb" successfully created
+
+[root@iscsi123 ~]# vgcreate cinder-volumes /dev/sdb 
+  Volume group "cinder-volumes" successfully created
+
+3. 编辑 /etc/lvm/lvm.conf 文件,添加过滤规则决定lvm扫描哪些LVM设备:
+devices {
+    ...
+    filter = [ "a/sda1/", "a/sdb/", "r/.*/"]
+    ...
+}
+
+# NOTE:
+# 注意必须接受(a)存储节点系统LVM需求的物理卷,运行pvdisplay命令行获取物理卷列表
+
+# Filter 数组的每一项要么以"a"开头(代表接受),要么以"r"开头(代表拒绝).存储节点宿主系统本身运行的lvm需要以"a"开头
+# 出现在filter数组中.并拒绝任何未出现在pvs列表中的设备. 在该示例中, /de/sda1 是当前宿主系统运行之所,而 /de/sdb 
+# 是 cinder-volumes 的保留卷.
+
+4.在配置完操作系统之后,安装正确的块存储服务包:
+[root@iscsi123 ~]# yum install openstack-cinder scsi-target-utils -y
+
+# 从主控节点拷贝cinder.conf到存储节点,或执行下述步骤设置对应keystone认证凭据.
+5. 设置 keystone 认证凭据(参考前文,略)
+6. 设置 keystone 使用rabbitmq消息队列(参考前文,略)
+7. 设置 cinder 数据库连接(参考前文,略)
+
+8. 编辑cinder.conf文件,在[DEFAULT]区域下配置my_ip(存储节点管理ip)项:
+[root@iscsi123 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT my_ip 10.160.0.123
+
+替换 MANAGEMENT_INTERFACE_IP_ADDRESS 为存储节点的管理 ip.
+配置块存储使用的镜像服务.块存储通过镜像服务获取镜像以创建可启动的卷.
+
+9. 编辑cinder.conf文件,更新[DEFAULT]区域下的 glance_host 选项:
+[root@iscsi123 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host master116.openstack.org
+
+10.配置快存储节点使用tgtadm管理iscsi服务:
+[root@iscsi123 ~]# openstack-config --set /etc/cinder/cinder.conf DEFAULT iscsi_helper tgtadm
+
+11.编辑 /etc/tgt/targets.conf 文件,确保存在如下配置:
+include /etc/cinder/volumes/*
+
+12.启动cinder-volumne,tgtd服务,并配置服务开机自启动:
+[root@iscsi123 ~]# systemctl start openstack-cinder-volume
+[root@iscsi123 ~]# systemctl start tgtd
+[root@iscsi123 ~]# systemctl enable openstack-cinder-volume
+[root@iscsi123 ~]# systemctl enable tgtd
