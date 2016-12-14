@@ -64,7 +64,7 @@
 ------------------------------------------------------------------------------------------------------------------------------
 6.将磁盘挂载到计算节点的业务虚拟机上
 (1) 存储节点发布iscsi target
-# 存储节点添加targets(使用xml配置文件定义target,并放置于指定targets文件夹,热生效)
+# 存储节点添加targets(使用xml配置文件定义target,并放置于指定targets文件夹,'tgt-admin --update <target>'热生效)
 [root@iscsi123 ~]# cat /etc/tgt/targets.conf | egrep -v "^#|^$"
 default-driver iscsi
 include /etc/cinder/volumes/*
@@ -76,6 +76,10 @@ lld iscsi
 IncomingUser YCDsE3E4T8KJBYMAriiX aaix8v7wLgDXefHREQdy
 </target>
 EOF
+
+[root@iscsi123 volumes]# tgt-admin --update iqn.2010-10.org.openstack:volume-7518d085-e0c7-4042-90e7-7c16c4654203
+File /etc/cinder/volumes/volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 already loaded.  Use -IncludeAgain to load it again.
+...
 ------------------------------------------------------------------------------------------------------------------------------
 [root@iscsi123 ~]# tgtadm --op show --mode target | grep 45a21e5c-47b3-4984-98c9-7959e0fadfe2
 Target 2: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2
@@ -153,7 +157,27 @@ vda        /var/lib/nova/instances/b9b56425-cd33-453e-9e11-72739cc5b43e/disk
 vdb        /dev/disk/by-path/ip-10.160.0.123:3260-iscsi-iqn.2010-10.org.openstack:volume-b6d143ff-6ffe-467d-a336-474cf715d810-lun-1
 vdc        /dev/disk/by-path/ip-10.160.0.123:3260-iscsi-iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2-lun-1
 ------------------------------------------------------------------------------------------------------------------------------
- 
+
+7.将iscsi磁盘从计算节点的业务虚拟机上卸载
+(1) 计算节点上将磁盘设备从业务虚拟机上卸载
+[root@comp119 ~]# virsh detach-device instance-00000007 /root/attach-disk.xml --config --live
+Device detached successfully
+(2) 计算节点上从之前登录的target登出
+[root@comp119 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
+                           -p 10.160.0.123:3260 --logout
+Logging out of session [sid: 8, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2,\
+portal: 10.160.0.123,3260]
+Logout of [sid: 8, target: iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2, portal: 10.160.0.123,3260]\
+successful.
+(3) 计算节点将target条目从当前节点的 open-iscsi database移除
+[root@comp119 ~]# iscsiadm -m node -T iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2 \
+                           -p 10.160.0.123:3260 --op delete
+
+(4) 存储节点删除target的配置文件并更新targets
+[root@iscsi123 ~]# rm -rf /etc/cinder/volumes/volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2
+[root@iscsi123 volumes]# tgt-admin --update iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2
+------------------------------------------------------------------------------------------------------------------------------
+
 ## 第二部分  快照管理 ##
 1.创建磁盘快照
 # 逻辑卷创建快照
