@@ -1,10 +1,20 @@
 [文章章节目录]
 第一部分  磁盘管理
+1.创建卷
+2.卷扩容
+3.删除卷
+4.从镜像创建卷作为系统盘
+5.从既有卷创建新卷
+6.将存储节点的数据卷挂载到计算节点的虚拟机
+7.计算节点的虚拟机卸载存储节点的数据卷
+
 第二部分  快照管理
+1.创建卷快照
+2.删除卷快照
 
 ------------------------------------------------------------------------------------------------------------------------------
 ## 第一部分  磁盘管理 ##
-1.创建逻辑卷
+1.创建卷
 # 查看可用默认卷组及其容量
 [root@dev ~]# vgs
   VG             #PV #LV #SN Attr   VSize  VFree 
@@ -17,13 +27,15 @@
 [root@dev ~]# lvcreate -n volume-8352d3f4-495e-4f68-90b2-d8f91284412f cinder-volumes -L 1g
   Logical volume "volume-8352d3f4-495e-4f68-90b2-d8f91284412f" created.
 ------------------------------------------------------------------------------------------------------------------------------
-2.逻辑卷扩容
+
+2.卷扩容
 [root@dev ~]# lvextend -L 2g cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f
   Size of logical volume cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f changed from 1.00 GiB (256 extents)\
   to 2.00 GiB (512 extents).
   Logical volume volume-8352d3f4-495e-4f68-90b2-d8f91284412f successfully resized.
 ------------------------------------------------------------------------------------------------------------------------------
-3.删除逻辑卷
+
+3.删除卷
 [root@dev ~]# dd if=/dev/zero of=/dev/mapper/cinder--volumes-volume--8352d3f4--495e--4f68--90b2--d8f91284412f \
                  count=2048 bs=1M conv=fdatasync
 2048+0 records in
@@ -33,7 +45,8 @@
                        -f cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f
   Logical volume "volume-8352d3f4-495e-4f68-90b2-d8f91284412f" successfully removed
 ------------------------------------------------------------------------------------------------------------------------------
-4.从镜像创建逻辑卷作为系统盘
+
+4.从镜像创建卷作为系统盘
 # 使用 image_utils 由 image service client从glance下载指定镜像到image_conversion_dir下的临时文件(下附debug日志)
 # 2016-12-13 11:29:08.175 16985 DEBUG cinder.image.image_utils [req-b30fa554-3f2a-475b-824f-293b33eb832a 3
 # af2c62dcb7549c2bdc5bbb60b82da5b c4f5861298e0431cbe57358f7fca314d - - -] ## Path: /var/lib/cinder/conversion/tmpKKMmoR
@@ -44,7 +57,8 @@
 [root@dev ~]# qemu-img convert -O raw /var/lib/cinder/conversion/tmpKKMmoR /dev/mapper/cinder--volumes-volume--762d6255-\
                   -49db--4c1b--98ed--601e6f081179
 ------------------------------------------------------------------------------------------------------------------------------
-5.从既有逻辑卷创建新的逻辑卷
+
+5.从既有卷创建新卷
 # 对既有逻辑卷创建快照
 [root@dev ~]# lvcreate --name clone-snap-9cf5b12a-7191-4a65-8df5-27f540a26c03 --snapshot cinder-volumes/volume-1c32a5c8-\
                   8ff2-4ab0-898d-d255ac50fed1 -L 1.00g
@@ -62,7 +76,8 @@
                    8df5-27f540a26c03
 
 ------------------------------------------------------------------------------------------------------------------------------
-6.将磁盘挂载到计算节点的业务虚拟机上
+
+6.将存储节点的数据卷挂载到计算节点的虚拟机
 (1) 存储节点发布iscsi target
 # 存储节点添加targets(使用xml配置文件定义target,并放置于指定targets文件夹,'tgt-admin --update <target>'热生效)
 [root@iscsi123 ~]# cat /etc/tgt/targets.conf | egrep -v "^#|^$"
@@ -158,7 +173,7 @@ vdb        /dev/disk/by-path/ip-10.160.0.123:3260-iscsi-iqn.2010-10.org.openstac
 vdc        /dev/disk/by-path/ip-10.160.0.123:3260-iscsi-iqn.2010-10.org.openstack:volume-45a21e5c-47b3-4984-98c9-7959e0fadfe2-lun-1
 ------------------------------------------------------------------------------------------------------------------------------
 
-7.将iscsi磁盘从计算节点的业务虚拟机上卸载
+7.计算节点的虚拟机卸载存储节点的数据卷
 (1) 计算节点上将磁盘设备从业务虚拟机上卸载
 [root@comp119 ~]# virsh detach-device instance-00000007 /root/attach-disk.xml --config --live
 Device detached successfully
@@ -179,7 +194,7 @@ successful.
 ------------------------------------------------------------------------------------------------------------------------------
 
 ## 第二部分  快照管理 ##
-1.创建磁盘快照
+1.创建卷快照
 # 逻辑卷创建快照
 [root@dev ~]# lvcreate --name _snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04 \
                        --snapshot cinder-volumes/volume-8352d3f4-495e-4f68-90b2-d8f91284412f -L 2g
@@ -190,7 +205,7 @@ successful.
   cinder-volumes _snapshot-fd92b2bb-13f0-440c-af3c-65dda94f9e04  2.00
   cinder-volumes volume-8352d3f4-495e-4f68-90b2-d8f91284412f     2.00
 
-2.删除磁盘快照
+2.删除卷快照
 dd if=/dev/zero of=/dev/mapper/cinder--volumes-_snapshot--fd92b2bb--13f0--440c--af3c--65dda94f9e04-cow count=2048 \
    bs=1M conv=fdatasync
 
