@@ -118,7 +118,7 @@ eypair-add --pub-key ~/.ssh/id_rsa.pub demo-key
 
 # 远程访问虚拟机[该部分未测试,仅照搬官方文档示例]
 1.为默认安全组添加规则允许ping
-$ nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
+[root@master116 ~]# nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
 +-------------+-----------+---------+-----------+--------------+
 | IP Protocol | From Port | To Port | IP Range  | Source Group |
 +-------------+-----------+---------+-----------+--------------+
@@ -126,7 +126,7 @@ $ nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
 +-------------+-----------+---------+-----------+--------------+
 
 2.为默认安全组添加规则允许ssh登录
-$ nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
+[root@master116 ~]# nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
 +-------------+-----------+---------+-----------+--------------+
 | IP Protocol | From Port | To Port | IP Range  | Source Group |
 +-------------+-----------+---------+-----------+--------------+
