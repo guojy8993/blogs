@@ -198,3 +198,36 @@ include /etc/cinder/volumes/*
 [root@iscsi123 ~]# systemctl start tgtd
 [root@iscsi123 ~]# systemctl enable openstack-cinder-volume
 [root@iscsi123 ~]# systemctl enable tgtd
+
+############################################## 第3部分:  块存储服务的安装的验收 ##################################################
+为了验证块存储服务的安装与配置是否正确,我们需要创建一个卷来测试.
+1. Source keystone_demo 设置将demo用户的认证信息设置入环境变量，并使用 'cinder create' 命令创建卷
+[root@master116 ~]# source keystone_demo
+[root@master116 ~]# cinder create --display-name volume00 1
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|     attachments     |                  []                  |
+|  availability_zone  |                 nova                 |
+|       bootable      |                false                 |
+|      created_at     |      2016-12-07T05:59:00.974685      |
+| display_description |                 None                 |
+|     display_name    |               volume00               |
+|      encrypted      |                False                 |
+|          id         | e36a20fb-194d-4f41-84a6-7fabfd392065 |
+|       metadata      |                  {}                  |
+|         size        |                  1                   |
+|     snapshot_id     |                 None                 |
+|     source_volid    |                 None                 |
+|        status       |               creating               |
+|     volume_type     |                 None                 |
++---------------------+--------------------------------------+
+
+2.查看创建出的卷的状态,确保状态为 available 
+[root@master116 ~]# cinder list
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+|                  ID                  |   Status  | Display Name | Size | Volume Type | Bootable | Attached to |
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+| e36a20fb-194d-4f41-84a6-7fabfd392065 | available |   volume00   |  1   |     None    |  false   |             |
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+# 如果卷状态不是available,那么卷的创建就失败.检查主控与存储节点下 /var/log/cinder/ 目录中的日志查看失败原因.
