@@ -1,1 +1,67 @@
+    Dashboard允许基于web的通过api调用来实现的与Openstack云计算控制器的交互.该操作指南展示了基于apache web server的部署实例.在安装与配置dashboard
+之后,我们可以完成如下的任务:
+(1) 定制dashboard: 参考<<OpenStack Cloud Administrator Guide>>手册定制Openstack Dashboard
+(2) 设置session存储: 参考<<OpenStack Cloud Administrator Guide>>设置session存储
 
+系统要求
+在安装OpenStack dashboard之前,我们必须确保下述需求满足:
+(1) Openstack Compute服务安装,以及Keystone服务启用(可以管理用户与租户).注意keystone服务与Compute服务的endpoints.
+(2) Keystone 服务的用户应拥有sudo权限.因为apache不是以root用户提供服务的,因此用户必须以sudo权限的keystone用户运
+    行dashboard.
+(3) Python版本2.6/2.7.Python版本需要支持Django
+
+在一个可以访问keystone服务的节点上安装配置dashboard,对用户提供以下信息确保其可通过web浏览器在他们的本地机器上访问dashboard:
+(1) 访问dashboard的公网ip
+(2) 登录dashborad需要的username/password
+
+管理员与用户的浏览器都需要支持html5并允许cookies和javascript. 同时,由于dashboard使用vnc客户端,所以浏览器需要支持html5 canvas
+以及 html5 websockets
+
+
+
+安装dashboard
+在你安装与配置dashboard之前,确保系统满足前文所述的"系统要求".
+如想更多了解dashboard的安装,参考开发者文档中部署主题相关信息.
+
+1. 在合适的节点(可以访问keystone服务)安装dashboard
+[root@master116 ~]# yum install memcached python-memcached mod_wsgi openstack-dashboard
+
+2.配置session存储使用memcached后端
+# 修改配置文件/etc/openstack-dashboard/local_settings中CACHES['default']['LOCATION']
+# 的值与 memcached 配置 /etc/sysconfig/memcached 中的信息一致,确保信息如下:
+CACHES = {
+    'default': {
+        'BACKEND' : 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION' : '127.0.0.1:11211'
+    }
+}
+
+# NOTE:
+# 'LOCATION'配置的ip:port需要与 /etc/sysconfig/memcached 一致.
+# 如果修改memcached的配置,相应地必须重启apache服务以使修改生效.
+# 你可以通过修改 SESSION_ENGINE 选项以使用其他的session storage后端.
+# 修改 /etc/openstack-dashboard/local_settings 中的 TIME_ZONE 选项 以与系统一致,此处以'Asia/Shanghai'为例.
+
+3.更新 local_settings.py 中的 ALLOWED_HOSTS 选项,以添加dashboard ACL
+编辑 /etc/openstack-dashboard/local_settings 配置:
+[root@master116 ~]# cat /etc/openstack-dashboard/local_settings | grep ALLOWED_HOSTS
+ALLOWED_HOSTS = ['*',]
+
+4.本篇文章假设你在主控节点运行dashboard.当然我们可以通过修改 OPENSTACK_HOST 选项在另外的机器上运行dashboard
+编辑 /etc/openstack-dashboard/local_settings 并修改 OPENSTACK_HOST 为 keystone服务器的hostname:
+[root@master116 ~]# cat /etc/openstack-dashboard/local_settings | grep OPENSTACK_HOST
+OPENSTACK_HOST = "master116.openstack.org"
+
+5.确保系统的selinux策略允许http server的网络连接
+[root@master116 ~]# setsebool -P httpd_can_network_connect on
+# NOTE: 如何在selinux enabled的情况下有选择地为某应用开启某允许策略?selinux支持某应用的策略名字如何查询?
+# 获取selinux 的key_name: getsebool -a | grep httpd
+# 设置selinux 的key_name的value: setsebool -P <KEY> <on/off>
+
+6.开启apache服务以及memcached服务并设置开机启动
+[root@master116 ~]# systemctl start httpd
+[root@master116 ~]# systemctl enable httpd
+[root@master116 ~]# systemctl start memcached
+[root@master116 ~]# systemctl enable memcached
+
+7.通过url访问dashboard,并使用由keystone创建的用户登录
