@@ -1,1 +1,175 @@
+使用Neutron网络启动一个虚拟机实例
+ 
+# 生成keypair
+# 多数的cloud镜像支持public key认证而不是 username/password认证.在启动一个虚拟机实例之前,
+# 我们需要使用ssh-keygen生成公钥/私钥对,并将公钥添加到Openstack环境中.
+1.Source keystone_demo以设置凭据信息到环境变量
+[root@master116 ~]# source keystone_demo
 
+2.生成sskkey
+[root@master116 ~]# ssh-keygen -t rsa
+
+3.添加公钥到Openstack环境
+[root@master116 ~]# nova keypair-add demo-key --pub-key ~/.ssh/id_rsa.pub
+eypair-add --pub-key ~/.ssh/id_rsa.pub demo-key
+
+4.验证添加的公钥
+[root@master116 ~]# nova keypair-list
++----------+-------------------------------------------------+
+| Name     | Fingerprint                                     |
++----------+-------------------------------------------------+
+| demo-key | 9b:9b:34:18:94:d9:ed:2d:8f:b5:10:03:3e:88:a3:82 |
++----------+-------------------------------------------------+
+
+
+# 启动虚拟机实例
+# 如要启动实例,你需要至少指定套餐,镜像名,网络,安全组,公钥,虚拟机名
+1.套餐指定虚拟的资源分配信息包括:处理器核心数,内存,存储
+列出所有套餐:
+[root@master116 ~]# nova flavor-list
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| 1  | m1.tiny   | 512       | 1    | 0         |      | 1     | 1.0         | True      |
+| 2  | m1.small  | 2048      | 20   | 0         |      | 1     | 1.0         | True      |
+| 3  | m1.medium | 4096      | 40   | 0         |      | 2     | 1.0         | True      |
+| 4  | m1.large  | 8192      | 80   | 0         |      | 4     | 1.0         | True      |
+| 5  | m1.xlarge | 16384     | 160  | 0         |      | 8     | 1.0         | True      |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+
+2.列出所有可用镜像的信息
+[root@master116 ~]# nova image-list
++--------------------------------------+--------+--------+--------+
+| ID                                   | Name   | Status | Server |
++--------------------------------------+--------+--------+--------+
+| cb69ae0b-4b89-4bfe-b9b7-e190e21ba02e | cirros | ACTIVE |        |
++--------------------------------------+--------+--------+--------+
+
+3.列出所有可用的网络的信息
+[root@master116 ~]# neutron net-list
++--------------------------------------+----------+-------------------------------------------------------+
+| id                                   | name     | subnets                                               |
++--------------------------------------+----------+-------------------------------------------------------+
+| de820445-3350-4bc4-8c54-55d531fc84e8 | demo-net | f654e9ce-46ff-4a9d-8818-d292feb07ffc 192.168.100.0/24 |
+| defde47c-0a86-4975-8269-3a5eb2da1477 | ext-net  | d42b43f9-c6ed-4e4a-843f-4bcee0ed7ece 10.160.0.0/16    |
++--------------------------------------+----------+-------------------------------------------------------+
+
+4.列出所有可用安全组
+[root@master116 ~]# nova secgroup-list
++--------------------------------------+---------+-------------+
+| Id                                   | Name    | Description |
++--------------------------------------+---------+-------------+
+| 0b5ac74d-5dc8-4583-b062-137f99bb5b61 | default | default     |
++--------------------------------------+---------+-------------+
+
+5.使用 m1.tiny套餐,cirros镜像,demo-net,以及default安全组,demo-key启动名为demo-inst00的虚拟机
+[root@master116 ~]# nova boot --flavor m1.tiny --image cirros \
+                              --nic net-id=de820445-3350-4bc4-8c54-55d531fc84e8 \
+                              --security-group default --key-name demo-key demo-inst00
++--------------------------------------+------------------------------------------------------------+
+| Property                             | Value                                                      |
++--------------------------------------+------------------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                                     |
+| OS-EXT-AZ:availability_zone          | nova                                                       |
+| OS-EXT-STS:power_state               | 0                                                          |
+| OS-EXT-STS:task_state                | scheduling                                                 |
+| OS-EXT-STS:vm_state                  | building                                                   |
+| OS-SRV-USG:launched_at               | -                                                          |
+| OS-SRV-USG:terminated_at             | -                                                          |
+| accessIPv4                           |                                                            |
+| accessIPv6                           |                                                            |
+| adminPass                            | vFW7Bp8PQGNo                                               |
+| config_drive                         |                                                            |
+| created                              | 2016-12-09T19:24:27Z                                       |
+| flavor                               | m1.tiny (1)                                                |
+| hostId                               |                                                            |
+| id                                   | b9b56425-cd33-453e-9e11-72739cc5b43e                       |
+| image                                | cirros (cb69ae0b-4b89-4bfe-b9b7-e190e21ba02e)              |
+| key_name                             | demo-key                                                   |
+| metadata                             | {}                                                         |
+| name                                 | demo-instance1                                             |
+| os-extended-volumes:volumes_attached | []                                                         |
+| progress                             | 0                                                          |
+| security_groups                      | default                                                    |
+| status                               | BUILD                                                      |
+| tenant_id                            | 7cf50047f8df4824bc76c2fdf66d11ec                           |
+| updated                              | 2016-12-09T19:24:27Z                                       |
+| user_id                              | 0e47686e72114d7182f7569d70c519c9                           |
++--------------------------------------+------------------------------------------------------------+
+
+6.检查新建虚拟机的状态:
+[root@master116 ~]# nova list 
++--------------------------------------+-------------+--------+------------+-------------+-------------------------+
+| ID                                   | Name        | Status | Task State | Power State | Networks                |
++--------------------------------------+-------------+--------+------------+-------------+-------------------------+
+| b9b56425-cd33-453e-9e11-72739cc5b43e | demo-inst00 | ACTIVE | -          | Running     | demo-net=192.168.100.12 |
++--------------------------------------+-------------+--------+------------+-------------+-------------------------+
+当虚拟机build过程完成之后,状态会由BUILD变为ACTIVE
+ 
+7.使用vnc console访问虚拟机
+# 使用VNC session url通过web浏览器访问虚拟机
+[root@master116 ~]#  nova get-vnc-console demo-inst00 novnc
++-------+-------------------------------------------------------------------------------------------------+
+| Type  | Url                                                                                             |
++-------+-------------------------------------------------------------------------------------------------+
+| novnc | http://master116.openstack.org:6080/vnc_auto.html?token=2f6dd985-f906-4bfc-b566-e87ce656375b    |
++-------+-------------------------------------------------------------------------------------------------+
+
+
+# 远程访问虚拟机[该部分未测试,仅照搬官方文档示例]
+1.为默认安全组添加规则允许ping
+$ nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
++-------------+-----------+---------+-----------+--------------+
+| IP Protocol | From Port | To Port | IP Range  | Source Group |
++-------------+-----------+---------+-----------+--------------+
+| icmp        | -1        | -1      | 0.0.0.0/0 |              |
++-------------+-----------+---------+-----------+--------------+
+
+2.为默认安全组添加规则允许ssh登录
+$ nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
++-------------+-----------+---------+-----------+--------------+
+| IP Protocol | From Port | To Port | IP Range  | Source Group |
++-------------+-----------+---------+-----------+--------------+
+| tcp         | 22        | 22      | 0.0.0.0/0 |              |
++-------------+-----------+---------+-----------+--------------+
+
+3.在公网资源池创建浮动ip
+$ neutron floatingip-create ext-net
+Created a new floatingip:
++---------------------+--------------------------------------+
+| Field               | Value                                |
++---------------------+--------------------------------------+
+| fixed_ip_address    |                                      |
+| floating_ip_address | 203.0.113.102                        |
+| floating_network_id | 9bce64a3-a963-4c05-bfcd-161f708042d1 |
+| id                  | 05e36754-e7f3-46bb-9eaa-3521623b3722 |
+| port_id             |                                      |
+| router_id           |                                      |
+| status              | DOWN                                 |
+| tenant_id           | 7cf50047f8df4824bc76c2fdf66d11ec     |
++---------------------+--------------------------------------+
+
+4.关联浮动ip到虚拟机的固定ip
+$ nova floating-ip-associate demo-instance1 203.0.113.102
+检查浮动ip绑定情况
+$ nova list
++--------------------------------------+----------------+--------+------------+-------------+-----------------------------------------+
+| ID                                   | Name           | Status | Task State | Power State | Networks                                |
++--------------------------------------+----------------+--------+------------+-------------+-----------------------------------------+
+| 05682b91-81a1-464c-8f40-8b3da7ee92c5 | demo-instance1 | ACTIVE | -          | Running     | demo-net=192.168.1.3, 203.0.113.102     |
++--------------------------------------+----------------+--------+------------+-------------+-----------------------------------------+
+
+5.测试网络联通性
+$ ping -c 4 203.0.113.102
+PING 203.0.113.102 (203.0.113.112) 56(84) bytes of data.
+64 bytes from 203.0.113.102: icmp_req=1 ttl=63 time=3.18 ms
+64 bytes from 203.0.113.102: icmp_req=2 ttl=63 time=0.981 ms
+64 bytes from 203.0.113.102: icmp_req=3 ttl=63 time=1.06 ms
+64 bytes from 203.0.113.102: icmp_req=4 ttl=63 time=0.929 ms
+
+$ ssh cirros@203.0.113.102
+The authenticity of host '203.0.113.102 (203.0.113.102)' can't be established.
+RSA key fingerprint is ed:05:e9:e7:52:a0:ff:83:68:94:c7:d1:f2:f8:e2:e9.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '203.0.113.102' (RSA) to the list of known hosts.
+$ exit
