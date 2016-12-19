@@ -18,7 +18,7 @@ ii. 给ens224配置vlan设备(e.g:610): ip link add link ens224 name ens224.610 
 iii.创建linux网桥br0,连接vlan设备ens224.610: brctl addbr br0 && ip link set br0 up && brctl addif br0 ens224.610
 iv. 创建模板系统盘: qemu-img create -f qcow2 /tmp/centos.qcow2 10G
 vi. 启动虚拟机并连接到br0网桥:
-	  [root@dev ~]# virt-install --name centos --ram 4096 --vcpus 4 \
+    [root@dev ~]# virt-install --name centos --ram 4096 --vcpus 4 \
 					           --boot hd \
 					           --disk /tmp/centos.qcow2,format=qcow2 \
 					           --network bridge:br0,model=virtio \
@@ -61,9 +61,9 @@ ii. 反注册虚拟机 virsh undefine centos
 
 (5) 上传系统模板并启动虚拟机测试:
     [root@master116 ~]# cat > userdata << EOF
-	  #!/bin/bash
-	  echo root | passwd --stdin root
-	  echo "10.160.0.116 master116.openstack.org" >> /etc/hosts
+    #!/bin/bash
+    echo root | passwd --stdin root
+    echo "10.160.0.116 master116.openstack.org" >> /etc/hosts
     EOF
     [root@master116 ~]# source /root/keystone_demo \
     && scp root@dev:/tmp/centos.qcow2 /root/centos1216-final.qcow2 \
@@ -112,4 +112,42 @@ Last login: Mon Dec 19 09:04:06 2016 from 10.160.0.144
        valid_lft forever preferred_lft forever
 [root@cloudinit-dev ~]# ls
 userdata
+
+[root@cloudinit-dev ~]# cat /var/log/cloud-init.log
+...
+Dec 18 19:31:15 localhost cloud-init: Cloud-init v. 0.7.5 running 'modules:config' at Sun, 18 Dec 2016 11:31:11 +0000. \
+Up 425.09 seconds.
+Dec 18 19:31:29 localhost cloud-init: Cloud-init v. 0.7.5 running 'modules:final' at Sun, 18 Dec 2016 11:31:25 +0000. \
+Up 439.09 seconds.
+Dec 18 19:31:29 localhost cloud-init: Cloud-init v. 0.7.5 finished at Sun, 18 Dec 2016 11:31:29 +0000. Datasource DataSourceNone.\
+Up 442.58 seconds
+Dec 18 19:31:29 localhost cloud-init: 2016-12-18 19:31:29,198 - cc_final_message.py[WARNING]: Used fallback datasource
+Dec 18 20:59:13 localhost cloud-init: Cloud-init v. 0.7.5 running 'init-local' at Sun, 18 Dec 2016 12:59:06 +0000. \
+Up 170.46 seconds.
+Dec 18 21:00:44 localhost cloud-init: Cloud-init v. 0.7.5 running 'init' at Sun, 18 Dec 2016 13:00:32 +0000. \
+Up 256.72 seconds.
+Dec 18 21:00:48 localhost cloud-init: ci-info: +++++++++++++++++++++++++++Net device info++++++++++++++++++++++++++++
+Dec 18 21:00:48 localhost cloud-init: ci-info: +--------+------+----------------+---------------+-------------------+
+Dec 18 21:00:48 localhost cloud-init: ci-info: | Device |  Up  |    Address     |      Mask     |     Hw-Address    |
+Dec 18 21:00:48 localhost cloud-init: ci-info: +--------+------+----------------+---------------+-------------------+
+Dec 18 21:00:48 localhost cloud-init: ci-info: |  lo:   | True |   127.0.0.1    |   255.0.0.0   |         .         |
+Dec 18 21:00:48 localhost cloud-init: ci-info: | eth0:  | True | 192.168.100.21 | 255.255.255.0 | fa:16:3e:a3:9a:ee |
+Dec 18 21:00:48 localhost cloud-init: ci-info: +--------+------+----------------+---------------+-------------------+
+Dec 18 21:00:48 localhost cloud-init: ci-info: +++++++++++++++++++++++++++++++++Route info++++++++++++++++++++++++++++++++++
+Dec 18 21:00:48 localhost cloud-init: ci-info: +-------+---------------+---------------+---------------+-----------+-------+
+Dec 18 21:00:48 localhost cloud-init: ci-info: | Route |  Destination  |    Gateway    |    Genmask    | Interface | Flags |
+Dec 18 21:00:48 localhost cloud-init: ci-info: +-------+---------------+---------------+---------------+-----------+-------+
+Dec 18 21:00:48 localhost cloud-init: ci-info: |   0   |    0.0.0.0    | 192.168.100.1 |    0.0.0.0    |    eth0   |   UG  |
+Dec 18 21:00:48 localhost cloud-init: ci-info: |   1   | 192.168.100.0 |    0.0.0.0    | 255.255.255.0 |    eth0   |   U   |
+Dec 18 21:00:49 localhost cloud-init: ci-info: +-------+---------------+---------------+---------------+-----------+-------+
+Dec 18 21:02:17 localhost cloud-init: Cloud-init v. 0.7.5 running 'modules:config' at Sun, 18 Dec 2016 13:02:10 +0000. \
+Up 354.30 seconds.
+Dec 18 21:02:54 localhost cloud-init: Cloud-init v. 0.7.5 running 'modules:final' at Sun, 18 Dec 2016 13:02:48 +0000. \
+Up 392.07 seconds.
+Dec 18 21:02:56 localhost cloud-init: Changing password for user root.
+Dec 18 21:02:56 localhost cloud-init: passwd: all authentication tokens updated successfully.
+Dec 18 21:02:57 localhost cloud-init: ci-info: no authorized ssh keys fingerprints found for user root.
+Dec 18 21:02:59 localhost cloud-init: Cloud-init v. 0.7.5 finished at Sun, 18 Dec 2016 13:02:59 +0000. \
+Datasource DataSourceOpenStack [net,ver=2].  Up 403.34 seconds
+
 #userdata脚本以及文件注入全部成功
