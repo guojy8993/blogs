@@ -1,0 +1,115 @@
+本文档目录说明
+第一部分  获取镜像
+第二部分  启动模版虚拟机
+第三部分  模板虚拟机内部配置
+第四部分  导出系统模板
+第五部分  上传系统模板并启动虚拟机测试
+第六部分  给虚拟机绑定外网ip
+第七部分  使用外网ip登录虚拟机检查信息注入
+
+(1) 获取镜像
+i.  访问 http://isoredirect.centos.org/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1611.iso 获取CentOS7镜像下载链接
+ii. 使用迅雷下载,例如 http://mirrors.163.com/centos/7/isos/x86_64/CentOS-7-x86_64-Minimal-1611.iso,然后上传到配置有虚
+    拟化环境的服务器上
+
+(2) 启动模版虚拟机
+i.  服务器的ens224网卡连接外网或者管理内网(总之就是允许yum安装软件)
+ii. 给ens224配置vlan设备(e.g:610): ip link add link ens224 name ens224.610 type vlan id 610 && ip link set ens224.610 up
+iii.创建linux网桥br0,连接vlan设备ens224.610: brctl addbr br0 && ip link set br0 up && brctl addif br0 ens224.610
+iv. 创建模板系统盘: qemu-img create -f qcow2 /tmp/centos.qcow2 10G
+vi. 启动虚拟机并连接到br0网桥:
+	  [root@dev ~]# virt-install --name centos --ram 4096 --vcpus 4 \
+					           --boot hd \
+					           --disk /tmp/centos.qcow2,format=qcow2 \
+					           --network bridge:br0,model=virtio \
+					           --graphics vnc,listen=0.0.0.0 --noautoconsole
+
+(3) 模板虚拟机内部配置
+i.  使用vnc视图进入系统安装界面,调整时区为Asia/Shanghai,设置虚拟机网络网卡on,设置磁盘
+    自动分区(专业人士可自行设置),开始安装,并设置初始用户名密码(后续使用)
+ii. 等系统提示安装完毕需要重启的时机,点按钮重启之(后续机器并不会重启)
+iii.在宿主下使用"virsh edit centos"修改虚拟机配置文件,移除CDROM设备,保存.
+iv. 使用"virsh start centos"启动虚拟机,进入vnc视图:使用初始用户名密码登录虚拟机:
+    修改eth0配置文件设置ip,e.g:10.130.0.151/16(vlan610)          # 模板制作完毕需要恢复设置(BOOTPROTO=dhcp,ONBOOT=yes)
+    修改eth0配置文件设置mtu为1450                                # 模板制作完毕需要保留在模板中
+v.  配置yum代理,更新系统:yum update -y
+vi. 使用yum安装acpid,并设置acpid开机自启
+vii.使用yum安装cloud-init.x86_64,修改 /etc/cloud/cloud.cfg:
+    disable_root: 0
+    ssh_pwauth:   1
+    说明: ssh_pwauth默认为0,有必要设置为1,原因是cloud-init在虚拟机首次启动的时机初始化环境,包括对sshd_config的
+          重新设置. 如果设置为0,sshd配置将被被配置拒绝密码登陆;设置为0,则cloud-init跳过对sshd模块的初始化.
+    添加配置:
+    echo "user: root" >> /etc/cloud/cloud.cfg
+
+viii. 修改 NOZEROCONF 配置: echo "NOZEROCONF=yes" >> /etc/sysconfig/network
+      说明:路由表添加默认路由169.254.0.0/255.255.0.0,配合后续cloud-init请求
+           http://169.254.169.254/latest/meta-data,获取虚拟机信息
+ix. 修改/etc/default/grub文件,设定控制台输出信息重定向设备:
+    删除 rhgb quiet,添加 console=tty0 console=ttyS0,115200n8,如下:
+    ...
+    GRUB_CMDLINE_LINUX="crashkernel=auto console=tty0 console=ttyS0,115200n8"
+    ...
+    并保存对grub的修改:
+    grub2-mkconfig -o /boot/grub2/grub.cfg
+xi. 清除yum代理信息,清除eth0的ip信息,设置eth0选项: BOOTPROTO=dhcp,ONBOOT=yes,MTU=1450
+xii.关闭虚拟机: init 0
+
+(4) 导出系统模板
+i.  清除模板信息(net-hostname,lvmid,lvm-uuids,rpmdb,logfiles...): virt-sysprep -d centos
+ii. 反注册虚拟机 virsh undefine centos
+
+(5) 上传系统模板并启动虚拟机测试:
+    [root@master116 ~]# cat > userdata << EOF
+	  #!/bin/bash
+	  echo root | passwd --stdin root
+	  echo "10.160.0.116 master116.openstack.org" >> /etc/hosts
+    EOF
+    [root@master116 ~]# source /root/keystone_demo \
+    && scp root@dev:/tmp/centos.qcow2 /root/centos1216-final.qcow2 \
+    && glance image-create --progress --human-readable --is-public True \
+                           --file /root/centos1216-final.qcow2 \
+                           --name CentOS7.2-x86_64 --disk-format qcow2 --min-disk 20 --min-ram 1024 \
+                           --container-format bare \
+    && nova boot cloudinit-dev --nic net-id=de820445-3350-4bc4-8c54-55d531fc84e8 --flavor m1.small \
+                               --image $(glance image-list | grep CentOS | awk '{print $2}') \
+                               --availability-zone nova --security-groups default --user-data /root/userdata
+                               --file /root/userdata=/root/userdata
+
+(6) 给虚拟机绑定外网ip(使用管理网络ip替代):
+[root@master116 ~]# neutron port-list | grep 192.168.100.21 | awk '{print $2}'
+fdaba6a5-3e54-4dc5-a520-7f431a7a2a39
+[root@master116 ~]# neutron floatingip-list
++--------------------------------------+------------------+---------------------+---------+
+| id                                   | fixed_ip_address | floating_ip_address | port_id |
++--------------------------------------+------------------+---------------------+---------+
+| f8e450ef-e618-40a6-84cb-32078d02c020 |                  | 10.160.0.131        |         |
++--------------------------------------+------------------+---------------------+---------+
+[root@master116 ~]# 
+[root@master116 ~]# neutron floatingip-associate f8e450ef-e618-40a6-84cb-32078d02c020 fdaba6a5-3e54-4dc5-a520-7f431a7a2a39
+Associated floatingip f8e450ef-e618-40a6-84cb-32078d02c020
+
+(7)使用10.160.0.131登录虚拟机cloudinit-dev:
+[root@master116 ~]# ssh root@10.160.0.131
+The authenticity of host '10.160.0.131 (10.160.0.131)' can't be established.
+ECDSA key fingerprint is 82:fe:1c:d6:e0:8d:16:25:04:06:40:da:9a:22:31:33.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '10.160.0.131' (ECDSA) to the list of known hosts.
+root@10.160.0.131's password: <!!此处密码使用 userdata 脚本中的密码!!> 
+Last login: Mon Dec 19 09:04:06 2016 from 10.160.0.144
+[root@cloudinit-dev ~]# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc pfifo_fast state UP qlen 1000
+    link/ether fa:16:3e:a3:9a:ee brd ff:ff:ff:ff:ff:ff
+    inet 192.168.100.21/24 brd 192.168.100.255 scope global dynamic eth0
+       valid_lft 73600sec preferred_lft 73600sec
+    inet6 fe80::f816:3eff:fea3:9aee/64 scope link 
+       valid_lft forever preferred_lft forever
+[root@cloudinit-dev ~]# ls
+userdata
+#userdata脚本以及文件注入全部成功
