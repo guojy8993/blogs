@@ -555,6 +555,7 @@ Last login: Wed Dec 28 15:56:12 2016
 
 ##### 虚拟机web业务负载均衡 #####
 # 在租户客户机comp115-demo0x01 与 comp114-demo0x01上安装httpd服务,设置简单的首页,并启动服务
+[root@localhost ~]# rpm -ivh mailcap-2.1.41-2.el7.noarch.rpm
 [root@localhost ~]# rpm -ivh apr-1.4.8-3.el7.x86_64.rpm
 [root@localhost ~]# rpm -ivh apr-util-1.5.2-6.el7.x86_64.rpm
 [root@localhost ~]# rpm -ivh httpd-tools-2.4.6-40.el7.centos.4.x86_64.rpm
