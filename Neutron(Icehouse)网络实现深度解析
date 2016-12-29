@@ -663,4 +663,9 @@ PREROUTING --> neutron-l3-agent-PREROUTING
 #  iptables -t nat -A  PREROUTING  -d 10.160.0.147/32 -j DNAT --to-destination 172.172.172.3
 
 附: neutron vxlan网络br-tun流表逻辑
+
+
 附: dhcp request/ack包抓包与解析
+https://github.com/guojy8993/blogs/blob/master/dhcp-request.png
+https://github.com/guojy8993/blogs/blob/master/dhcp-ack-01.png
+https://github.com/guojy8993/blogs/blob/master/dhcp-ack-opts-details.png
