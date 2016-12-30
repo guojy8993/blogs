@@ -632,7 +632,7 @@ Greetings from server comp115-demo0x01(150.150.150.10)
 
 
 附1: 网络节点 + N计算节点网络结构详细说明图
-https://github.com/guojy8993/blogs/blob/master/neutron-icehouse-details.jpg
+https://github.com/guojy8993/blogs/blob/master/icehouse-neutron-details.jpg
 
 附2: neutron网络节点虚拟路由下的iptables规则:
 POSTROUTING --> neutron-postrouting-bottom
