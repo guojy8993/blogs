@@ -631,10 +631,10 @@ Greetings from server comp115-demo0x01(150.150.150.10)
 
 
 
-附: 网络节点 + N计算节点网络结构详细说明图
+附1: 网络节点 + N计算节点网络结构详细说明图
+https://github.com/guojy8993/blogs/blob/master/neutron-icehouse-details.jpg
 
-附: neutron网络节点虚拟路由下的iptables规则:
-
+附2: neutron网络节点虚拟路由下的iptables规则:
 POSTROUTING --> neutron-postrouting-bottom
 	                |
 	                |
@@ -663,10 +663,10 @@ PREROUTING --> neutron-l3-agent-PREROUTING
 # (3) 依次为参考组装自己对应的规则:
 #  iptables -t nat -A  PREROUTING  -d 10.160.0.147/32 -j DNAT --to-destination 172.172.172.3
 
-附: neutron vxlan网络br-tun流表逻辑
+附3: neutron vxlan网络br-tun流表逻辑
+https://github.com/guojy8993/blogs/blob/master/neutron-ovs-flows.jpg
 
-
-附: dhcp request/ack包抓包与解析
+附4: dhcp request/ack包抓包与解析
 https://github.com/guojy8993/blogs/blob/master/dhcp-request.png
 https://github.com/guojy8993/blogs/blob/master/dhcp-ack-01.png
 https://github.com/guojy8993/blogs/blob/master/dhcp-ack-opts-details.png
