@@ -73,6 +73,14 @@ EOF
 # 注4: 确保mons信息正确
 # 注5: 确保target dev可用
 
+第五部分: 以xml形式添加块设备到kvm虚拟机
+# 添加块设备并启动虚拟机
+[root@dev ~]# virsh attach-device centos --file blk.xml --config --live
+Device attached successfully
+
+[root@dev ~]# virsh domblklist centos | grep vdb
+vdb        volumes/volume-0x02
+
 第五部分: 测试磁盘读写
 # 观察虚拟机读写磁盘时ceph集群的状态
 step1:虚拟机内部格式化磁盘
@@ -113,5 +121,4 @@ step2:监控ceph集群状态
 7008 MB used, 427 GB / 434 GB avail; 4733 B/s rd, 860 kB/s wr, 1 op/s
 2017-01-04 04:57:15.163476 mon.0 [INF] pgmap v31241: 768 pgs: 768 active+clean; 2034 MB data, \
 7016 MB used, 427 GB / 434 GB avail; 3845 kB/s wr, 1 op/s
-2017-01-04 04:57:16.177039 mon.0 [INF] pgmap v31242: 768 pgs: 768 active+clean; 2050 MB data, \
-7088 MB used, 427 GB / 434 GB avail; 6509 kB/s wr, 3 op/s
+2017-01-04 04:57:16.177039 mon.0 [INF] pgmap v31242: 768 pgs: 768 active+clean; 2050 MB data, 7088 MB used, 427 GB / 434 GB avail; 6509 kB/s wr, 3 op/s
