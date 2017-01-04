@@ -73,11 +73,45 @@ EOF
 # 注4: 确保mons信息正确
 # 注5: 确保target dev可用
 
-第五部分: 以xml形式添加块设备到kvm虚拟机
-# 添加块设备并启动虚拟机
-[root@dev ~]# virsh attach-device centos --file blk.xml --config --live
-Device attached successfully
-# 在虚拟机内部使用磁盘
-
-第六部分: 测试磁盘读写
+第五部分: 测试磁盘读写
 # 观察虚拟机读写磁盘时ceph集群的状态
+step1:虚拟机内部格式化磁盘
+[root@localhost ~]# mkfs.xfs /dev/vdb
+meta-data=/dev/vdb               isize=256    agcount=4, agsize=655360 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=0        finobt=0
+data     =                       bsize=4096   blocks=2621440, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0 ftype=0
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+[root@localhost ~]# mkdir -p /data && mount -t xfs /dev/vdb /data
+[root@localhost ~]# dd if=/dev/zero of=/data/test bs=1M count=1024
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB) copied, 67.6022 s, 15.9 MB/s
+
+step2:监控ceph集群状态
+[root@node121 ~]# ceph -w
+    cluster 914785b1-6024-4bfe-9b12-137af0ec95dc
+     health HEALTH_OK
+     monmap e3: 3 mons at {node120=10.160.0.120:6789/0,node121=10.160.0.121:6789/0,node122=10.160.0.122:6789/0}
+            election epoch 16, quorum 0,1,2 node120,node121,node122
+     osdmap e156: 9 osds: 9 up, 9 in
+      pgmap v31235: 768 pgs, 3 pools, 2022 MB data, 567 objects
+            6984 MB used, 427 GB / 434 GB avail
+                 768 active+clean
+  client io 21683 B/s rd, 0 op/s
+
+...
+2017-01-04 04:57:03.517659 mon.0 [INF] pgmap v31238: 768 pgs: 768 active+clean; 2022 MB data, \
+6985 MB used, 427 GB / 434 GB avail; 4057 B/s wr, 1 op/s
+2017-01-04 04:57:12.023593 mon.0 [INF] pgmap v31239: 768 pgs: 768 active+clean; 2022 MB data, \
+6985 MB used, 427 GB / 434 GB avail; 4760 B/s rd, 432 B/s wr, 1 op/s
+2017-01-04 04:57:13.130941 mon.0 [INF] pgmap v31240: 768 pgs: 768 active+clean; 2030 MB data, \
+7008 MB used, 427 GB / 434 GB avail; 4733 B/s rd, 860 kB/s wr, 1 op/s
+2017-01-04 04:57:15.163476 mon.0 [INF] pgmap v31241: 768 pgs: 768 active+clean; 2034 MB data, \
+7016 MB used, 427 GB / 434 GB avail; 3845 kB/s wr, 1 op/s
+2017-01-04 04:57:16.177039 mon.0 [INF] pgmap v31242: 768 pgs: 768 active+clean; 2050 MB data, \
+7088 MB used, 427 GB / 434 GB avail; 6509 kB/s wr, 3 op/s
