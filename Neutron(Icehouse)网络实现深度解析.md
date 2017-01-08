@@ -1,4 +1,5 @@
-本文档内容:
+### 本文档内容:
+```
 1.网络节点虚拟交换机设置
 2.网络节点租户网络路由与dncp的设置
 3.计算节点虚拟交换机设置以及虚拟机的启动
@@ -13,9 +14,9 @@
 3.虚拟机与外网通信
 4.虚拟机web业务负载均衡
 5.租户隔离
-
-
+```
 测试环境需求说明:
+```
 节点名称   节点角色    网络                            系统软件环境
 ---------------------------------------------------------------------------------
 net117     网络节点    ens160 外网 10.160.0.117/16     openvswitch & bridge-utils
@@ -28,9 +29,10 @@ comp115    计算节点    ens160 外网 10.160.0.115/16     openvswitch & bridg
 comp114    计算节点    ens160 外网 10.160.0.114/16     openvswitch & bridge-utils
                        ens192 隧道 172.172.172.114/24         & 虚拟化环境
 ---------------------------------------------------------------------------------
-
+```
 
 示例demo租户在某server上的本地vlan与租户全局vni的分配
+```
 ---------------------------------------------------------------------------------
 Server    LOCAL_VLAN_ID   VXLAN_ID 
 ---------------------------------------------------------------------------------
@@ -40,74 +42,91 @@ comp115   100             8888
 ---------------------------------------------------------------------------------
 comp114   200             8888
 ---------------------------------------------------------------------------------
+```
+![Neutron(Icehouse详细实现)](https://github.com/guojy8993/blogs/blob/master/icehouse-neutron-details.jpg)
 
-
-##### 网络节点设置 #####
+#### 网络节点设置
 
 1.虚拟交换机的设置
-# NOTE:
-# 网络节点网卡/IP/标签 说明:
-# ens160  配置610vlan,ip 10.160.0.117/16通办公网作为外网(internal标签)使用,后同此例.
-# ens192  配置172.172.172.117/24作为隧道网络
-# ens224  同ens160,作为虚拟机走网络节点通外网的桥接设备
+NOTE:
+网络节点网卡/IP/标签 说明:
+ens160  配置610vlan,ip 10.160.0.117/16通办公网作为外网(internal标签)使用,后同此例.
+ens192  配置172.172.172.117/24作为隧道网络
+ens224  同ens160,作为虚拟机走网络节点通外网的桥接设备
 
-# 创建3个必须的ovs交换机:
+创建3个必须的ovs交换机:
+```
 [root@net117 ~]# ovs-vsctl add-br br-ex
 [root@net117 ~]# ovs-vsctl add-br br-int
 [root@net117 ~]# ovs-vsctl add-br br-tun
-
-# 在外网网卡上创建vlan610,并桥接到br-ex上
+```
+在外网网卡上创建vlan610,并桥接到br-ex上
+```
 [root@net117 ~]# ip link add link ens224 name ens224.610 type vlan id 610
 [root@net117 ~]# ip link set ens224.610 up
 [root@net117 ~]# ovs-vsctl add-port br-ex ens224.610
-
-# br-int 通过patch port与br-tun 互联
+```
+br-int 通过patch port与br-tun 互联
+```
 [root@net117 ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
 [root@net117 ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun \
                                                      -- set Interface patch-int ofport_request=1
-# 将br-tun通过隧道ip与各个计算节点建立传输隧道
-# net117   172.172.172.117
-# comp115  172.172.172.115
-# comp114  172.172.172.114
+```
+将br-tun通过隧道ip与各个计算节点建立传输隧道
+net117   172.172.172.117
+comp115  172.172.172.115
+comp114  172.172.172.114
+```
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp115 -- add-port br-tun tun2comp115 \
                            -- set Interface tun2comp115 type=vxlan options:local_ip=172.172.172.117 \
                            options:remote_ip=172.172.172.115 options:key=flow
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 \
                            -- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.117 \
                            options:remote_ip=172.172.172.114 options:key=flow
+```
 NOTE:
-# vxlan使用udp:4789通信
+vxlan使用udp:4789通信
+```
 [root@net117 ~]# iptables -I INPUT -p udp --dport 4789 -j ACCEPT
-
+```
 
 2.DHCP命名空间的设置
-# 创建dhcp设备:dnsmasq进程监听的interface
+创建dhcp设备:dnsmasq进程监听的interface
+```
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port private-dhcp -- add-port br-int private-dhcp \
                            -- set Interface private-dhcp type=internal \
                            -- set Interface private-dhcp external-ids:iface-id=733431fe-567a-447f-a29e-5fb94aa36a4c \
                            -- set Interface private-dhcp external-ids:iface-status=active \
                            -- set Interface private-dhcp external-ids:attached-mac=fa:16:00:4c:74:16
 [root@net117 ~]# ovs-vsctl set Port private-dhcp   tag=300
-# 创建dhcp命名空间,并将上述设备移入其中
+```
+创建dhcp命名空间,并将上述设备移入其中
+```
 [root@net117 ~]# ip netns add ns-private-dhcp
 [root@net117 ~]# ip link set private-dhcp netns ns-private-dhcp
 [root@net117 ~]# ip netns exec ns-private-dhcp ip link set lo up
 [root@net117 ~]# ip netns exec ns-private-dhcp ip link set lo state up
 [root@net117 ~]# ip netns exec ns-private-dhcp ip link set private-dhcp up
 [root@net117 ~]# ip netns exec ns-private-dhcp ip link set private-dhcp state up
-
-# 租户子网资源池 150.150.150.0/24,dnsmasq监听设备private-dhcp(150.150.150.2)
+```
+租户子网资源池 150.150.150.0/24,dnsmasq监听设备private-dhcp(150.150.150.2)
+```
 [root@net117 ~]# ip netns exec ns-private-dhcp ip addr add 150.150.150.2/24 dev private-dhcp
 [root@net117 ~]# ip netns exec ns-private-dhcp ip route add default via 150.150.150.1 dev private-dhcp
-
-# 启动dnsmasq进程,对租户提供ip资源池
+```
+启动dnsmasq进程,对租户提供ip资源池
+```
 [root@net117 ~]# uuidgen
 d30a8588-f968-4f62-9388-4ed8f61e8355
 [root@net117 ~]# mkdir -p /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355
-# 设置子网设备mtu 1450,资源池网关
+```
+设置子网设备mtu 1450,资源池网关
+```
 [root@net117 ~]# echo "dhcp-option-force=26,1454" > /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/mtu
 [root@net117 ~]# echo "tag:tag0,option:router,150.150.150.1" > /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/opts
-# 在dhcp命名空间下启动dnsmasq服务
+```
+在dhcp命名空间下启动dnsmasq服务
+```
 [root@net117 ~]# ip netns exec ns-private-dhcp dnsmasq --no-hosts \
                     --no-resolv --strict-order --bind-interfaces --interface=private-dhcp \
                     --except-interface=lo --pid-file=/var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/pid \
@@ -119,25 +138,32 @@ d30a8588-f968-4f62-9388-4ed8f61e8355
                     --dhcp-lease-max=256 \
                     --conf-file=/var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/mtu \
                     --domain=devops
-
-3.虚拟路由的创建
-# 创建租户子网网关设备
+```
+虚拟路由的创建
+创建租户子网网关设备
+```
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port private-router -- add-port br-int private-router \
                            -- set Interface private-router type=internal \
                            -- set Interface private-router external-ids:iface-id=633432fe-567a-447f-a29e-5fb94aa36a4c \
                            -- set Interface private-router external-ids:iface-status=active \
                            -- set Interface private-router external-ids:attached-mac=fa:16:00:4d:74:16
 [root@net117 ~]# ovs-vsctl set Port private-router tag=300
-# 创建虚拟路由命名空间
+```
+创建虚拟路由命名空间
+```
 [root@net117 ~]# ip netns add ns-private-router
 [root@net117 ~]# ip link set private-router netns ns-private-router
 [root@net117 ~]# ip netns exec ns-private-router ip link set lo up
 [root@net117 ~]# ip netns exec ns-private-router ip link set lo state up
 [root@net117 ~]# ip netns exec ns-private-router ip link set private-router up
 [root@net117 ~]# ip netns exec ns-private-router ip link set private-router state up
-# 配置内网网关
+```
+配置内网网关
+```
 [root@net117 ~]# ip netns exec ns-private-router ip addr add dev private-router 150.150.150.1/24
-# 在br-ex上创建路由外网网关设备,并置于虚拟路由之中
+```
+在br-ex上创建路由外网网关设备,并置于虚拟路由之中
+```
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port extgw -- add-port br-ex extgw \
                            -- set Interface extgw type=internal \
                            -- set Interface extgw external-ids:iface-id=893431fe-567a-447f-d59e-5fb94aa36a40 \
@@ -148,23 +174,29 @@ d30a8588-f968-4f62-9388-4ed8f61e8355
 [root@net117 ~]# ip netns exec ns-private-router ip link set extgw state up
 [root@net117 ~]# ip netns exec ns-private-router ip addr add dev extgw 10.160.0.148/16 broadcast 10.160.255.255
 [root@net117 ~]# ip netns exec ns-private-router ip route add default via 10.160.0.1 dev extgw
-# 在虚拟路由内测试访问外网是否网络畅通
+```
+在虚拟路由内测试访问外网是否网络畅通
+```
 [root@net117 ~]# ip netns exec ns-private-router ping -c 1 10.160.0.1
 PING 10.160.0.1 (10.160.0.1) 56(84) bytes of data.
 64 bytes from 10.160.0.1: icmp_seq=1 ttl=255 time=2.20 ms
 ...
+```
 
-
-##### 计算节点配置(以comp115为例) #####
-# 添加br-tun与br-int交换机
+#### 计算节点配置(以comp115为例) 
+添加br-tun与br-int交换机
+```
 [root@comp115 ~]# ovs-vsctl add-br br-int
-# 清除br-tun默认转发规则,避免net117/comp114/comp115之间vxlan隧道环路
+```
+清除br-tun默认转发规则,避免net117/comp114/comp115之间vxlan隧道环路
+```
 [root@comp115 ~]# ovs-vsctl add-br br-tun && ovs-vsctl del-flows br-tun
-
-# 创建patch ports将br-tun与br-int互联
+```
+创建patch ports将br-tun与br-int互联
+```
 [root@comp115 ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
 [root@comp115 ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun
-
+```
 # 为br-tun添加隧道传输端口
 # net117   172.172.172.117
 # comp115  172.172.172.115
