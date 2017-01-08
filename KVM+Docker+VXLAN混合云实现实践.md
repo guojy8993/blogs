@@ -1,4 +1,4 @@
-### 文章章节目录 ###
+### 文章章节目录 
 1. Provider网络的初始化
 2. 租户网络的初始化
 3. 各计算节点上租户docker容器与kvm虚拟机的创建
@@ -8,7 +8,7 @@
 7. 计算节点docker容器网络初始化脚本
 
 ![kvm+vxlan+docker混合云](https://github.com/guojy8993/blogs/blob/master/sys.png)
-###### 第一节 Provider网络的初始化
+#### 第一节 Provider网络的初始化
 (1)创建privider网络的网桥
 ```
 [root@docker-net127 ~]# brctl addbr public-bridge
@@ -53,7 +53,7 @@
 ```
 备注: Provider网络的网络设备mtu全部1500
 
-###### 第二节 租户网络的初始化
+#### 第二节 租户网络的初始化
 (1)创建租户网络的网桥
 ```
 [root@docker-net127 ~]# brctl addbr private-bridge
@@ -130,7 +130,7 @@ VXLan网络VNI - 此处以100为例
 ```
 备注:租户网络的网络设备mtu全部1450
 
-###### 第三节 各个计算节点上租户docker容器与kvm虚拟机的创建
+#### 第三节 各个计算节点上租户docker容器与kvm虚拟机的创建
 (1) 创建docker容器
 ```
 名字             宿主             网络信息
@@ -208,7 +208,7 @@ kvm挂载的网桥需要手动创建(后期脚本实现),注意租户网络设�
 计算节点租户网桥需要连接当前租户在当前宿主的vxlan vtep;
 vtep的创建参考网络节点vxlan-100的配置,并将vtep设备连接到租户网桥上;
 
-###### 第四节 各节点bridge添加fdb entry实现跨宿主租户内网连通
+#### 第四节 各节点bridge添加fdb entry实现跨宿主租户内网连通
 为保证网络畅通，需要从以下三方面进行配置:
 1. 为网络节点的租户网络网桥添加fdb entry,处理arp包(目标mac为00:00:00:00:00:00,通过vtep设备forward到各个计算节点租户vtep)
 2. 为网络节点的租户网络网桥添加fdb entry,处理单播包(目标明确,通过vtep设备forward到指定计算节点租户vtep)
@@ -258,7 +258,7 @@ bridge fdb replace 0e:49:e8:8a:9e:e7 dev vxlan-100 dst 10.160.0.126
 
 
 
-###### 第五节 为租户内网IP绑定浮动IP
+#### 第五节 为租户内网IP绑定浮动IP
 (1)添加租户内网ip与浮动ip的nat映射
 下面以192.168.100.6绑定浮动ip200.160.0.4为例
 ```
@@ -276,7 +276,7 @@ root@200.160.0.4's password:
 Last login: Sun Nov 20 16:47:51 2016 from 200.160.0.1
 [root@localhost ~]#
 ```
-###### 第六节 负载均衡即服务实现
+#### 第六节 负载均衡即服务实现
 (1)添加负载均衡前端ip与设备
 ```
 [root@docker-net127 ~]# ip link add name ha-if type veth peer name ha-out
@@ -350,7 +350,7 @@ This Page is got from server 192.168.100.6(nat to 200.160.0.4)
 [root@net ~]# curl 200.160.0.5
 This page is got from 192.168.100.7
 ```
-###### 附录
+#### 附录
 ```
 #!/bin/bash    
 # Author guojingyu    
