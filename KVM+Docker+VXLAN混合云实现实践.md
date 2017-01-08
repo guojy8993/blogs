@@ -31,8 +31,10 @@
 [root@docker-net127 ~]# ip netns exec public-dhcp ip link set lo state up
 [root@docker-net127 ~]# ip netns exec public-dhcp ip link set pub-dhcp-in mtu 1500 up
 [root@docker-net127 ~]# ip link set pub-dhcp-out mtu 1500 up
-[root@docker-net127 ~]# ip netns exec public-dhcp ip addr add dev pub-dhcp-in 200.160.0.2/24
-[root@docker-net127 ~]# ip netns exec public-dhcp ip route add default via 200.160.0.1 dev pub-dhcp-in
+[root@docker-net127 ~]# ip netns exec public-dhcp ip addr add \
+dev pub-dhcp-in 200.160.0.2/24
+[root@docker-net127 ~]# ip netns exec public-dhcp ip route add default \
+via 200.160.0.1 dev pub-dhcp-in
 [root@docker-net127 ~]# ip netns exec public-dhcp ping -c 1 200.160.0.1
 [root@docker-net127 ~]# uuidgen
 81758417-bf10-4cb0-af2f-5d3a0c76c792
@@ -72,8 +74,10 @@
 [root@docker-net127 ~]# ip netns exec private-dhcp ip link set lo up
 [root@docker-net127 ~]# ip netns exec private-dhcp ip link set lo state up
 [root@docker-net127 ~]# ip netns exec private-dhcp ip link set ss-dhcp-in mtu 1450 up
-[root@docker-net127 ~]# ip netns exec private-dhcp ip addr add dev ss-dhcp-in 192.168.100.2/24
-[root@docker-net127 ~]# ip netns exec private-dhcp ip route add default via 192.168.100.1 dev ss-dhcp-in
+[root@docker-net127 ~]# ip netns exec private-dhcp ip addr add \
+dev ss-dhcp-in 192.168.100.2/24
+[root@docker-net127 ~]# ip netns exec private-dhcp ip route add default \
+via 192.168.100.1 dev ss-dhcp-in
 [root@docker-net127 ~]# uuidgen
 bd406409-135e-44b1-a4ed-f4d6365118fb
 [root@docker-net127 ~]# mkdir -p /tmp/dhcp/bd406409-135e-44b1-a4ed-f4d6365118fb/
@@ -102,7 +106,8 @@ bd406409-135e-44b1-a4ed-f4d6365118fb
 [root@docker-net127 ~]# ip netns exec private-router ip link set ss-rt-in mtu 1450 up
 [root@docker-net127 ~]# ip link set ss-rt-out mtu 1450 up
 [root@docker-net127 ~]# brctl addif private-bridge ss-rt-out
-[root@docker-net127 ~]# ip netns exec private-router ip addr add dev ss-rt-in 192.168.100.1/24
+[root@docker-net127 ~]# ip netns exec private-router ip addr add \
+dev ss-rt-in 192.168.100.1/24
 [root@docker-net127 ~]# ip netns exec private-router sysctl -w net.ipv4.ip_forward=1
 ```
 (4)连接私有路由到provider网络(设置路由网关)
@@ -113,8 +118,10 @@ bd406409-135e-44b1-a4ed-f4d6365118fb
 [root@docker-net127 ~]# ip netns exec private-router ip link set ss-router-gw mtu 1500 state up
 [root@docker-net127 ~]# ip link set ss-router-out mtu 1500 up
 [root@docker-net127 ~]# brctl addif public-bridge ss-router-out
-[root@docker-net127 ~]# ip netns exec private-router ip addr add dev ss-router-gw 200.160.0.3/24 broadcast 200.160.0.255
-[root@docker-net127 ~]# ip netns exec private-router ip route add default via 200.160.0.1 dev ss-router-gw
+[root@docker-net127 ~]# ip netns exec private-router ip addr add dev ss-router-gw 200.160.0.3/24 \
+broadcast 200.160.0.255
+[root@docker-net127 ~]# ip netns exec private-router ip route add default via 200.160.0.1 dev \
+ss-router-gw
 [root@docker-net127 ~]# ip netns exec private-router ping -c 1 200.160.0.1
 ```
 (5)根据租户分配的vxlan网络,在网络节点上创建对应vtep(vxlan网络端点)设备,以内网网络传输隧道数据
@@ -209,14 +216,16 @@ kvm挂载的网桥需要手动创建(后期脚本实现),注意租户网络设�
 vtep的创建参考网络节点vxlan-100的配置,并将vtep设备连接到租户网桥上;
 
 #### 第四节 各节点bridge添加fdb entry实现跨宿主租户内网连通
+```
 为保证网络畅通，需要从以下三方面进行配置:
 1. 为网络节点的租户网络网桥添加fdb entry,处理arp包(目标mac为00:00:00:00:00:00,通过vtep设备forward到各个计算节点租户vtep)
 2. 为网络节点的租户网络网桥添加fdb entry,处理单播包(目标明确,通过vtep设备forward到指定计算节点租户vtep)
 3. 为各个计算节点的租户网络网桥添加fdb entry,处理arp包(目标mac为00:00:00:00:00:00,通过vtep设备forward到网络节点以及除自己外的租户业务宿主vtep)
-
+```
 备注:fdb添加entry的语法格式,如下
 ```
-bridge fdb {add|append|del|replace} LLADDR dev DEV {local|temp} {self} {router} [dst IPADDR] [vni VNI] [port PORT] [via DEVICE]
+bridge fdb {add|append|del|replace} LLADDR dev DEV {local|temp} {self} {router} \
+[dst IPADDR] [vni VNI] [port PORT] [via DEVICE]
 ```
 具体参数说明请 man bridge fdb
 
@@ -240,7 +249,7 @@ bridge fdb add 00:00:00:00:00:00 dev vxlan-100 dst 10.160.0.154
 ```
 bridge fdb replace 0e:49:e8:8a:9e:e7 dev vxlan-100 dst 10.160.0.126
 ```
-
+```
 考虑到:
 (1)添加fdb entry工作的浩繁工作量
 (2)人工操作的不可靠性
@@ -255,17 +264,21 @@ bridge fdb replace 0e:49:e8:8a:9e:e7 dev vxlan-100 dst 10.160.0.126
 (6)负责监听各个租户删除业务的消息,更新fdb entry,保证之后租户内arp不会向已删除业务所在的宿主进行广播
 (7)对外提供API:业务生命周期(e.g:业务重启后的网络重建)管理,镜像管理,存储管理
 这样就可以实现多个agent之间的实时/异步互动,而中控程序主要负责业务创建的调用以及业务信息保存查询;且可以实现集群自管理,更易于人员维护;且去中心化,横向扩展能力更好
-
+```
 
 
 #### 第五节 为租户内网IP绑定浮动IP
 (1)添加租户内网ip与浮动ip的nat映射
 下面以192.168.100.6绑定浮动ip200.160.0.4为例
 ```
-[root@docker-net127 ~]# ip netns exec private-router ip addr add 200.160.0.4/32 broadcast 200.160.0.4  dev ss-router-gw
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A PREROUTING -d  200.160.0.4 -j DNAT --to-destination 192.168.100.6
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A OUTPUT -d 200.160.0.4 -j DNAT --to-destination 192.168.100.6
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A POSTROUTING -s 192.168.100.6 -j SNAT --to-source 200.160.0.4
+[root@docker-net127 ~]# ip netns exec private-router ip addr add 200.160.0.4/32 \
+broadcast 200.160.0.4  dev ss-router-gw
+[root@docker-net127 ~]# ip netns exec private-router iptables -t nat \
+-A PREROUTING -d  200.160.0.4 -j DNAT --to-destination 192.168.100.6
+[root@docker-net127 ~]# ip netns exec private-router iptables -t nat \
+-A OUTPUT -d 200.160.0.4 -j DNAT --to-destination 192.168.100.6
+[root@docker-net127 ~]# ip netns exec private-router iptables -t nat \
+-A POSTROUTING -s 192.168.100.6 -j SNAT --to-source 200.160.0.4
 ```
 (2)公网测试web服务以及ssh可用性
 ```
@@ -339,9 +352,12 @@ This page is got from 192.168.100.7
 ```
 [root@docker-net127 ~]# ip netns exec private-router ip addr add 200.160.0.5/32
 broadcast 200.160.0.5  dev ss-router-gw
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A PREROUTING -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A OUTPUT -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A POSTROUTING -s 192.168.100.8 -j SNAT --to-source 200.160.0.5
+[root@docker-net127 ~]# ip netns exec private-router iptables -t nat \
+-A PREROUTING -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
+[root@docker-net127 ~]# ip netns exec private-router iptables -t nat \
+-A OUTPUT -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
+[root@docker-net127 ~]# ip netns exec private-router iptables -t nat \
+-A POSTROUTING -s 192.168.100.8 -j SNAT --to-source 200.160.0.5
 ```
 (5)公网测试负载均衡服务
 ```
@@ -351,6 +367,9 @@ This Page is got from server 192.168.100.6(nat to 200.160.0.4)
 This page is got from 192.168.100.7
 ```
 #### 附录
+```
+1.docker-net脚本代码
+```
 ```
 #!/bin/bash    
 # Author guojingyu    
