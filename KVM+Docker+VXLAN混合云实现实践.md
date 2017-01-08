@@ -118,10 +118,12 @@ bd406409-135e-44b1-a4ed-f4d6365118fb
 [root@docker-net127 ~]# ip netns exec private-router ping -c 1 200.160.0.1
 ```
 (5)根据租户分配的vxlan网络,在网络节点上创建对应vtep(vxlan网络端点)设备,以内网网络传输隧道数据
+```
 VXLan网络VNI - 此处以100为例
 网络节点 - docker-net127
 宿主内网网络设备(ens160,vlan610) - ens160.610
 关闭防火墙/SELINUX允许后续vtep通信
+```
 ```
 [root@docker-net127 ~]# ip link add vxlan-100 type vxlan id 100 dstport 0 dev ens160.610
 [root@docker-net127 ~]# brctl addif private-bridge vxlan-100
@@ -165,12 +167,13 @@ public-C2         comp154       IP:200.160.0.6/24
 ```
 [root@docker ~]# sh -x docker-net public-C2
 ```
+```
 备忘:
 1. 后续需要在配置文件中指定vxlan/vlan网络使用的物理网卡;e.g: net_host_phys_interface=ens160.610
 2. L2代理进程维护vxlan-XX/vlan-XX设备及其与bridge的连接;
    e.g: net_type=vxlan,net_vxlan_id=10; 又 e.g: net_type=vlan,net_vlan_id=200
 3. docker容器挂载的网桥由dknet自动创建,注意租户网络设备的mtu全部1450(包括docker容器网卡)
-
+```
 (2) 创建kvm虚拟机
 ```
 名字            宿主         网络信息
@@ -211,11 +214,11 @@ vtep的创建参考网络节点vxlan-100的配置,并将vtep设备连接到租�
 2. 为网络节点的租户网络网桥添加fdb entry,处理单播包(目标明确,通过vtep设备forward到指定计算节点租户vtep)
 3. 为各个计算节点的租户网络网桥添加fdb entry,处理arp包(目标mac为00:00:00:00:00:00,通过vtep设备forward到网络节点以及除自己外的租户业务宿主vtep)
 
- 备注:fdb添加entry的语法格式,如下
+备注:fdb添加entry的语法格式,如下
 ```
 bridge fdb {add|append|del|replace} LLADDR dev DEV {local|temp} {self} {router} [dst IPADDR] [vni VNI] [port PORT] [via DEVICE]
 ```
- 具体参数说明请 man bridge fdb
+具体参数说明请 man bridge fdb
 
 此处举例说明(此处仅举例说明,并非详细配置):
 1. 网络节点(10.160.0.127) - 从网络节点租户私有网络网关(初次)访问租户业务(192.168.100.6),MAC未知的情况:广播到该租户业务分布的业务宿主(10.160.0.126,10.160.0.154)
@@ -237,10 +240,11 @@ bridge fdb add 00:00:00:00:00:00 dev vxlan-100 dst 10.160.0.154
 ```
 bridge fdb replace 0e:49:e8:8a:9e:e7 dev vxlan-100 dst 10.160.0.126
 ```
+
 考虑到:
 (1)添加fdb entry工作的浩繁工作量
 (2)人工操作的不可靠性
-(3)依靠中控程序下刷并实时更新fdb entry可能引发单点故障
+(3)依靠中控程序下刷并实时更新fdb entry可能引发单点故障 
 由此设想:
 各个计算节点拥有自己的agent程序,职责如下:
 (1)作为可能的mesos slave的executor程序,负责具体业务及其附属网络设施的创建
@@ -250,8 +254,7 @@ bridge fdb replace 0e:49:e8:8a:9e:e7 dev vxlan-100 dst 10.160.0.126
 (5)在某租户在某宿主上的最后一个业务删除时,通过消息队列向同租户其他业务宣告自己的终结,并清除租户vxlan-XX/bridge设备
 (6)负责监听各个租户删除业务的消息,更新fdb entry,保证之后租户内arp不会向已删除业务所在的宿主进行广播
 (7)对外提供API:业务生命周期(e.g:业务重启后的网络重建)管理,镜像管理,存储管理
-
-  这样就可以实现多个agent之间的实时/异步互动,而中控程序主要负责业务创建的调用以及业务信息保存查询;且可以实现集群自管理,更易于人员维护;且去中心化,横向扩展能力更好
+这样就可以实现多个agent之间的实时/异步互动,而中控程序主要负责业务创建的调用以及业务信息保存查询;且可以实现集群自管理,更易于人员维护;且去中心化,横向扩展能力更好
 
 
 
