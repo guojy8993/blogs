@@ -2,7 +2,9 @@
 
 在KVM虚拟化环境下,使用iptables+inotify实现自学习防火墙(v1.0):
 
-(1)思路来源:在openvswitch(虚拟交换机）中,某流表处理流量,学习traffic的源mac,ip,交换机输入端口,
+(1)思路来源:
+
+   在openvswitch(虚拟交换机）中,某流表处理流量,学习traffic的源mac,ip,交换机输入端口,
    并使用learn强制在另一个流表中插入一条规则; 后续流量，优先使用学习表中的规则处理流量; 而iptables
    中的 -j 跳转指定链或或执行指定操作,类似ovs中的actions(对流量的处理),但是前者并没有对应的类似
    learn这样的Operation.此时设想:
@@ -13,12 +15,14 @@ b.使用iptables的 log 模块记录符合"恶意"标准的流量详细信息到
   量信息生成防火墙规则(方案具可行性,难度相对低)
 
 (2)方案设计
+
 ```
 FORWARD ---- > BlackListChain ----> DispatchChain ------> PrivateChain ----> FirewallLogChain --+
                                                                                                 |
                                                                                                 |
  FORWARD  <-------- BlackListChain  <---------- DispatchChain <---------- PrivateChain <--------+
 ```
+
 说明:
 
 BlackListChain 全局链,学习链(屏蔽恶意访问者(s)对全体虚拟机的访问).由 inotify负责维护学习防护规则.
