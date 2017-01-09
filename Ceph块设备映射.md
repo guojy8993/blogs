@@ -26,6 +26,7 @@ _ _ _
 id pool    image snap device
 0  volumes base  -    /dev/rbd0
 ```
+_ _ _
 
 #### 第三部分: 格式化数据卷,挂载,进行读写测试 ####
 ```
@@ -36,6 +37,8 @@ id pool    image snap device
 100+0 records out
 104857600 bytes (105 MB) copied, 0.172899 s, 606 MB/s
 ```
+
+_ _ _
 
 #### 第四部分: 持久化块设备映射信息到本地,设置开机映射 ####
 ```
