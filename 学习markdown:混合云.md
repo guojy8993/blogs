@@ -18,6 +18,28 @@
 #### 第三节:各个计算节点上租户容器与虚拟机的创建 ####
 #### 第四节:各节点bridge添加fdb entry实现跨宿主租户内网连通 ####
 #### 第五节:为租户内网IP绑定浮动IP ####
+
+(1) 添加租户内网ip与浮动ip的nat映射(以192.168.100.6绑定浮动ip200.160.0.4为例)
+```
+[root@docker-net127 ~]# ip netns exec private-router \
+ip addr add 200.160.0.4/32 broadcast 200.160.0.4  dev ss-router-gw
+[root@docker-net127 ~]# ip netns exec private-router \
+iptables -t nat -A PREROUTING -d 200.160.0.4 -j DNAT --to-destination 192.168.100.6
+[root@docker-net127 ~]# ip netns exec private-router \
+iptables -t nat -A OUTPUT -d 200.160.0.4 -j DNAT --to-destination 192.168.100.6
+[root@docker-net127 ~]# ip netns exec private-router \
+iptables -t nat -A POSTROUTING -s 192.168.100.6 -j SNAT --to-source 200.160.0.4
+```
+(2)公网测试web服务以及ssh可用性
+```
+[root@net ~]# curl 200.160.0.4:9898
+This Page is got from server 192.168.100.6(nat to 200.160.0.4)
+[root@net ~]# ssh root@200.160.0.4
+root@200.160.0.4's password:
+Last login: Sun Nov 20 16:47:51 2016 from 200.160.0.1
+[root@localhost ~]#
+```
+
 #### 第六节:负载均衡即服务实现 ####
 (1) 添加负载均衡前端ip与设备
 
