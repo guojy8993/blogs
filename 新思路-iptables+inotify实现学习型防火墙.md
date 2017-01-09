@@ -53,12 +53,12 @@ d.启动虚拟机 node02
 
 ```
 [root@my-pc ~]# virt-install -n node02 --description node02 \
-                            --ram 1024 --vcpus 1 --cpu host-model \
-                            --accelerate --hvm --network bridge:node02br \
-                            --disk /data/instance/node02/system,bus=virtio,cache=writeback,driver_type=qcow2,size=10 \
-                            --boot hd,cdrom --graphics vnc,listen=0.0.0.0  \
-                            --serial file,path=/data/instance/node02/console.log --noautoconsole \
-                            --input tablet,bus=usb --cdrom /data/iso/welcome.iso
+                --ram 1024 --vcpus 1 --cpu host-model \
+                --accelerate --hvm --network bridge:node02br \
+                --disk /data/instance/node02/system,bus=virtio,cache=writeback,driver_type=qcow2,size=10 \
+                --boot hd,cdrom --graphics vnc,listen=0.0.0.0  \
+                --serial file,path=/data/instance/node02/console.log --noautoconsole \
+                --input tablet,bus=usb --cdrom /data/iso/welcome.iso
 
 ```
 
@@ -172,7 +172,8 @@ note: FirewallLogChain 的流量处理分为2个层级
 查看当前链与规则
 
 ```
-[root@my-pc ~]# iptables -S | egrep "black-list-drop|traffic-dispatch|node02-security-meter|invalid-traffic-logger"
+[root@my-pc ~]# iptables -S | egrep \
+               "black-list-drop|traffic-dispatch|node02-security-meter|invalid-traffic-logger"
 -N black-list-drop
 -N invalid-traffic-logger
 -N node02-security-meter
@@ -183,8 +184,10 @@ note: FirewallLogChain 的流量处理分为2个层级
 -A invalid-traffic-logger -j RETURN
 -A node02-security-meter -j invalid-traffic-logger
 -A node02-security-meter -j RETURN
--A traffic-dispatch -d 10.160.0.151/32 -m physdev --physdev-out vnet0 --physdev-is-bridged -j node02-security-meter
--A traffic-dispatch -s 10.160.0.151/32 -m physdev --physdev-in vnet0 --physdev-is-bridged -j node02-security-meter
+-A traffic-dispatch -d 10.160.0.151/32 -m physdev \
+                               --physdev-out vnet0 --physdev-is-bridged -j node02-security-meter
+-A traffic-dispatch -s 10.160.0.151/32 -m physdev \
+                               --physdev-in vnet0 --physdev-is-bridged -j node02-security-meter
 -A traffic-dispatch -j RETURN
 ```
 
@@ -202,10 +205,11 @@ note: FirewallLogChain 的流量处理分为2个层级
 
 ```
 [root@network ~]# ip -o a | grep 10.160.0.130
-4: ens33.610    inet 10.160.0.130/24 brd 10.160.0.255 scope global ens33.610\   valid_lft forever preferred_lft forever
+4: ens33.610    inet 10.160.0.130/24 brd 10.160.0.255 scope global ens33.610
+                valid_lft forever preferred_lft forever
 [root@network ~]# ip -o link | grep ens33.610
 4: ens33.610@ens33: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT 
-   \    link/ether 00:0c:29:5e:5d:89 brd ff:ff:ff:ff:ff:ff
+                link/ether 00:0c:29:5e:5d:89 brd ff:ff:ff:ff:ff:ff
 ```
 
 测试此时网络服务是否可用
