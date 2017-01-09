@@ -15,6 +15,95 @@
 
 
 #### 第二节:租户网络的初始化 ####
+
+(1)创建租户网络的网桥
+
+```
+[root@docker-net127 ~]# brctl addbr private-bridge
+[root@docker-net127 ~]# brctl stp private-bridge off
+[root@docker-net127 ~]# brctl setfd private-bridge 0
+[root@docker-net127 ~]# ip link set private-bridge mtu 1450 up
+```
+
+(2)创建租户网络的dhcp服务,创建ip资源池
+
+```
+[root@docker-net127 ~]# ip netns add private-dhcp
+[root@docker-net127 ~]# ip link add name ss-dhcp-out type veth peer name ss-dhcp-in
+[root@docker-net127 ~]# brctl addif private-bridge ss-dhcp-in
+[root@docker-net127 ~]# ip link set ss-dhcp-out mtu 1450 up
+[root@docker-net127 ~]# ip link set ss-dhcp-in netns private-dhcp
+[root@docker-net127 ~]# ip netns exec private-dhcp ip link set lo up
+[root@docker-net127 ~]# ip netns exec private-dhcp ip link set lo state up 
+[root@docker-net127 ~]# ip netns exec private-dhcp ip link set ss-dhcp-in mtu 1450 up
+[root@docker-net127 ~]# ip netns exec private-dhcp ip addr add dev ss-dhcp-in 192.168.100.2/24
+[root@docker-net127 ~]# ip netns exec private-dhcp ip route add default via 192.168.100.1 dev ss-dhcp-in
+
+[root@docker-net127 ~]# uuidgen
+bd406409-135e-44b1-a4ed-f4d6365118fb
+[root@docker-net127 ~]# mkdir -p /tmp/dhcp/bd406409-135e-44b1-a4ed-f4d6365118fb/
+[root@docker-net127 ~]# ip netns exec private-dhcp dnsmasq --no-hosts \
+       --no-resolv --strict-order --except-interface=lo \
+       --pid-file=/tmp/dhcp/bd406409-135e-44b1-a4ed-f4d6365118fb/pid \
+       --dhcp-hostsfile=/tmp/bd406409-135e-44b1-a4ed-f4d6365118fb/host \
+       --addn-hosts=/tmp/dhcp/bd406409-135e-44b1-a4ed-f4d6365118fb/addn_hosts \
+       --dhcp-optsfile=/tmp/dhcp/bd406409-135e-44b1-a4ed-f4d6365118fb/opts \
+       --dhcp-leasefile=/tmp/dhcp/bd406409-135e-44b1-a4ed-f4d6365118fb/leases \
+       --dhcp-match=set:ipxe,175 --bind-interfaces --interface=ss-dhcp-in \
+       --dhcp-range=set:tag0,192.168.100.0,static,86400s \
+       --dhcp-option-force=option:mtu,1450 \
+       --dhcp-lease-max=256 \
+       --conf-file= \
+       --domain=ss-dhcp
+```
+
+(3)创建租户的私有路由,并连接到租户内网
+
+```
+[root@docker-net127 ~]# ip netns add private-router
+[root@docker-net127 ~]# ip netns exec private-router ip link set lo up
+[root@docker-net127 ~]# ip netns exec private-router ip link set lo state up
+[root@docker-net127 ~]# ip link add ss-rt-out type veth peer name ss-rt-in
+[root@docker-net127 ~]# ip link set ss-rt-in netns private-router
+[root@docker-net127 ~]# ip netns exec private-router ip link set ss-rt-in mtu 1450 up
+[root@docker-net127 ~]# ip link set ss-rt-out mtu 1450 up
+[root@docker-net127 ~]# brctl addif private-bridge ss-rt-out
+[root@docker-net127 ~]# ip netns exec private-router ip addr add dev ss-rt-in 192.168.100.1/24
+[root@docker-net127 ~]# ip netns exec private-router sysctl -w net.ipv4.ip_forward=1
+```
+
+(4)连接私有路由到provider网络(设置路由网关)
+
+```
+[root@docker-net127 ~]# ip link add name ss-router-out type veth peer name ss-router-gw
+[root@docker-net127 ~]# ip link set ss-router-gw netns private-router
+[root@docker-net127 ~]# ip netns exec private-router ip link set ss-router-gw up
+[root@docker-net127 ~]# ip netns exec private-router ip link set ss-router-gw mtu 1500 state up
+[root@docker-net127 ~]# ip link set ss-router-out mtu 1500 up
+[root@docker-net127 ~]# brctl addif public-bridge ss-router-out
+[root@docker-net127 ~]# ip netns exec private-router ip addr add dev ss-router-gw 200.160.0.3/24 broadcast 200.160.0.255
+[root@docker-net127 ~]# ip netns exec private-router ip route add default via 200.160.0.1 dev ss-router-gw
+[root@docker-net127 ~]# ip netns exec private-router ping -c 1 200.160.0.1
+```
+
+(5)根据租户分配的vxlan网络,在网络节点上创建对应vtep(vxlan网络端点)设备,以内网网络传输隧道数据
+
+vxlan网络vni - 此处以100为例
+
+网络节点 - docker-net127
+
+宿主内网网络设备(ens160,vlan610) - ens160.610
+
+关闭防火墙/SELINUX允许后续vtep通信
+
+```
+[root@docker-net127 ~]# ip link add vxlan-100 type vxlan id 100 dstport 0 dev ens160.610
+[root@docker-net127 ~]# brctl addif private-bridge vxlan-100
+```
+
+说明: 租户网络的网络设备mtu全部1450
+
+
 #### 第三节:各个计算节点上租户容器与虚拟机的创建 ####
 
 (1)创建docker容器
@@ -293,6 +382,6 @@ This page is got from 192.168.100.7
 ```
 
 #### 附录 ####
-[^1^] [KVM vxlan docker 混合云详细图](https://github.com/guojy8993/blogs/blob/master/kvm%E4%B8%8Edocker%E6%B7%B7%E5%90%88%E4%BA%91.png)
+[1] [KVM vxlan docker 混合云详细图](https://github.com/guojy8993/blogs/blob/master/kvm%E4%B8%8Edocker%E6%B7%B7%E5%90%88%E4%BA%91.png)
 
-[^2^] [计算节点docker容器初始化脚本](https://github.com/guojy8993/blogs/blob/master/Docker%E9%AB%98%E7%BA%A7%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E5%AE%9E%E6%88%98)
+[2] [计算节点docker容器初始化脚本](https://github.com/guojy8993/blogs/blob/master/Docker%E9%AB%98%E7%BA%A7%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E5%AE%9E%E6%88%98)
