@@ -17,7 +17,8 @@
 #### 第四节:各节点bridge添加fdb entry实现跨宿主租户内网连通 ####
 #### 第五节:为租户内网IP绑定浮动IP ####
 #### 第六节:负载均衡即服务实现 ####
-1. 添加负载均衡前端ip与设备
+(1) 添加负载均衡前端ip与设备
+
 ```
 [root@docker-net127 ~]# ip link add name ha-if type veth peer name ha-out
 [root@docker-net127 ~]# ip link set ha-if mtu 1450
@@ -30,7 +31,8 @@
 [root@docker-net127 ~]# ip netns exec ha-vxlan100-web ip route add default via 192.168.100.1 dev ha-if
 ```
 
-2. 在vxlan网络(某租户网络)内启动负载均衡服务
+(2) 在vxlan网络(某租户网络)内启动负载均衡服务
+
 ```
 [root@docker-net127 ~]# mkdir -p /var/lib/netns/ha-vxlan100-web/
 [root@docker-net127 ~]# cat > /var/lib/netns/ha-vxlan100-web/haproxy.cfg << EOF
@@ -66,7 +68,8 @@ EOF
 [root@docker-net127 ~]# ip netns exec ha-vxlan100-web haproxy -f /var/lib/netns/ha-vxlan100-web/haproxy.cfg
 ```
 
-3. 租户内网测试负载均衡服务
+(3) 租户内网测试负载均衡服务
+
 ```
 [root@docker-net127 ~]# ip netns exec private-router curl 192.168.100.8
 This Page is got from server 192.168.100.6(nat to 200.160.0.4)
@@ -74,7 +77,8 @@ This Page is got from server 192.168.100.6(nat to 200.160.0.4)
 This page is got from 192.168.100.7
 ```
 
-4. 为负载均衡前端ip绑定浮动ip(200.160.0.5),对公网提供服务
+(4) 为负载均衡前端ip绑定浮动ip(200.160.0.5),对公网提供服务
+
 ```
 [root@docker-net127 ~]# ip netns exec private-router ip addr add 200.160.0.5/32 broadcast 200.160.0.5  dev ss-router-gw
 [root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A PREROUTING -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
@@ -82,7 +86,8 @@ This page is got from 192.168.100.7
 [root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A POSTROUTING -s 192.168.100.8 -j SNAT --to-source 200.160.0.5
 ```
 
-5. 公网测试负载均衡服务
+(5) 公网测试负载均衡服务
+
 ```
 [root@net ~]# curl 200.160.0.5
 This Page is got from server 192.168.100.6(nat to 200.160.0.4)
