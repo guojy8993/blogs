@@ -59,7 +59,7 @@ comp114   200             8888
 
 _ _ _
 
-##### 网络节点设置 #####
+#### 网络节点设置 ####
 
 (1) 虚拟交换机的设置
 
@@ -90,7 +90,8 @@ br-int 通过patch port与br-tun 互联
 
 ```
 [root@net117 ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
-[root@net117 ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun -- set Interface patch-int ofport_request=1
+[root@net117 ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun \
+-- set Interface patch-int ofport_request=1
 ```
 
 将br-tun通过隧道ip与各个计算节点建立传输隧道
@@ -101,8 +102,11 @@ comp115  172.172.172.115
 comp114  172.172.172.114
 ```
 ```
-[root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp115 -- add-port br-tun tun2comp115 -- set Interface tun2comp115 type=vxlan options:local_ip=172.172.172.117 options:remote_ip=172.172.172.115 options:key=flow
-[root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 -- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.117                     options:remote_ip=172.172.172.114 options:key=flow
+[root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp115 -- add-port br-tun tun2comp115 \
+-- set Interface tun2comp115 type=vxlan options:local_ip=172.172.172.117 options:remote_ip=172.172.172.115 options:key=flow
+
+[root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 \
+-- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.117 options:remote_ip=172.172.172.114 options:key=flow
 ```
 
 vxlan使用udp:4789通信
@@ -117,7 +121,12 @@ vxlan使用udp:4789通信
 创建dhcp设备:dnsmasq进程监听的interface
 
 ```
-[root@net117 ~]# ovs-vsctl -- --if-exists del-port private-dhcp -- add-port br-int private-dhcp -- set Interface private-dhcp type=internal -- set Interface private-dhcp external-ids:iface-id=733431fe-567a-447f-a29e-5fb94aa36a4c -- set Interface private-dhcp external-ids:iface-status=active -- set Interface private-dhcp external-ids:attached-mac=fa:16:00:4c:74:16
+[root@net117 ~]# ovs-vsctl -- --if-exists del-port private-dhcp -- add-port br-int private-dhcp \
+-- set Interface private-dhcp type=internal \
+-- set Interface private-dhcp external-ids:iface-id=733431fe-567a-447f-a29e-5fb94aa36a4c \
+-- set Interface private-dhcp external-ids:iface-status=active \
+-- set Interface private-dhcp external-ids:attached-mac=fa:16:00:4c:74:16
+
 [root@net117 ~]# ovs-vsctl set Port private-dhcp tag=300
 ```
 
@@ -175,7 +184,12 @@ d30a8588-f968-4f62-9388-4ed8f61e8355
 创建租户子网网关设备
 
 ```
-[root@net117 ~]# ovs-vsctl -- --if-exists del-port private-router -- add-port br-int private-router -- set Interface private-router type=internal -- set Interface private-router external-ids:iface-id=633432fe-567a-447f-a29e-5fb94aa36a4c -- set Interface private-router external-ids:iface-status=active -- set Interface private-router external-ids:attached-mac=fa:16:00:4d:74:16
+[root@net117 ~]# ovs-vsctl -- --if-exists del-port private-router -- add-port br-int private-router \
+-- set Interface private-router type=internal \
+-- set Interface private-router external-ids:iface-id=633432fe-567a-447f-a29e-5fb94aa36a4c \
+-- set Interface private-router external-ids:iface-status=active \
+-- set Interface private-router external-ids:attached-mac=fa:16:00:4d:74:16
+
 [root@net117 ~]# ovs-vsctl set Port private-router tag=300
 ```
 
@@ -236,8 +250,11 @@ _ _ _
 创建patch ports将br-tun与br-int互联
 
 ```
-[root@comp115 ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
-[root@comp115 ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun
+[root@comp115 ~]# ovs-vsctl add-port br-int patch-tun \
+-- set Interface patch-tun type=patch options:peer=patch-int
+
+[root@comp115 ~]# ovs-vsctl add-port br-tun patch-int \
+-- set Interface patch-int type=patch options:peer=patch-tun
 ```
 
 为br-tun添加隧道传输端口
@@ -249,8 +266,11 @@ comp115  172.172.172.115
 comp114  172.172.172.114
 
 ```
-[root@comp115 ~]# ovs-vsctl -- --if-exists del-port tun2net117 -- add-port br-tun tun2net117 -- set Interface tun2net117 type=vxlan options:local_ip=172.172.172.115  options:remote_ip=172.172.172.117 options:key=flow
-[root@comp115 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 -- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.115 options:remote_ip=172.172.172.114 options:key=flow
+[root@comp115 ~]# ovs-vsctl -- --if-exists del-port tun2net117 -- add-port br-tun tun2net117 \
+-- set Interface tun2net117 type=vxlan options:local_ip=172.172.172.115  options:remote_ip=172.172.172.117 options:key=flow
+
+[root@comp115 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 \
+-- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.115 options:remote_ip=172.172.172.114 options:key=flow
 ```
 
 说明:
@@ -291,8 +311,11 @@ vxlan使用udp:4789通信
 
 初始化虚拟化环境:
 ```
-yum install -y fence-virtd-libvirt.x86_64 libvirt-daemon.x86_64 libvirt-devel.x86_64 libvirt.x86_64 libvirt-daemon-kvm.x86_64 libvirt-daemon-lxc.x86_64 libvirt-daemon-driver-qemu.x86_64 qemu-guest-agent.x86_64 qemu-img.x86_64 qemu-kvm.x86_64  qemu-kvm-common.x86_64 qemu-kvm-tools.x86_64 fence-agents-virsh.x86_64 virt-install
-
+yum install -y fence-virtd-libvirt.x86_64 libvirt-daemon.x86_64 libvirt-devel.x86_64 \
+               libvirt.x86_64 libvirt-daemon-kvm.x86_64 libvirt-daemon-lxc.x86_64 \
+	       libvirt-daemon-driver-qemu.x86_64 qemu-guest-agent.x86_64 qemu-img.x86_64 \
+	       qemu-kvm.x86_64  qemu-kvm-common.x86_64 qemu-kvm-tools.x86_64 \
+	       fence-agents-virsh.x86_64 virt-install
 systemctl start  libvirtd
 systemctl enable libvirtd
 ```
@@ -387,8 +410,9 @@ a.去除本地vlan
 b.并换上全局vxlan_id
 c.从请求包的交换机入端口再输出回去
 ```
-table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
-load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
+table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,\
+NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],\
+load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
 ```
 (5)实现虚拟机对外单播的处理
 a.根据学习规则的规则处理
@@ -467,7 +491,8 @@ pop_vlan,3,set(tunnel(tun_id=0x22b8,src=172.172.172.115,dst=172.172.172.117,ttl=
 虚拟机: comp115-demo0x01/150.150.150.4/52:54:00:22:09:1e
 
 ```
-[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
+[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,arp_sha=72:04:4d:fc:be:76,\
+arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
 Bridge: br-tun
 Flow: arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e,arp_spa=150.150.150.1,\
 arp_tpa=150.150.150.4,arp_op=2,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
@@ -560,8 +585,9 @@ table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 action=resubmit(,2
 table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 action=resubmit(,20)
 table=3,priority=1,tun_id=8888 action=mod_vlan_vid:200,resubmit(,10)
 table=3,priority=0 action=DROP
-table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
-load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
+table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],\
+NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
+output:NXM_OF_IN_PORT[]),output:1
 table=20,priority=0 action=resubmit(,21)
 table=21,priority=1,dl_vlan=200,actions=strip_vlan,set_tunnel:8888,output:3,output:2
 table=21,priority=0 action=DROP
@@ -641,8 +667,9 @@ b.并换上全局vxlan_id
 c.从请求包的交换机入端口再输出回去
 
 ```
-table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
-load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
+table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],\
+NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
+output:NXM_OF_IN_PORT[]),output:1
 ```
 
 (5)实现虚拟机对外单播的处理
@@ -663,7 +690,8 @@ a. 默认DROP
 table=21,priority=0 action=DROP
 ```
 
-b. 针对在当前宿主上有虚拟路由网关/dhcp的租户,全部添加规则,实现本地vlan_id -> 租户全局vxlan_id 的转换,发送到去往各个计算节点(compXXX)的隧道口
+b. 针对在当前宿主上有虚拟路由网关/dhcp的租户,全部添加规则,实现本地vlan_id -> 租户全局vxlan_id 的转换,发送到去往各
+   个计算节点(compXXX)的隧道口
 
 ```
 table=21,priority=1,dl_vlan=300,actions=strip_vlan,set_tunnel:8888,output:2,output:3
@@ -697,14 +725,17 @@ vnet0      bridge     brg-sg     virtio      52:54:00:22:09:1e
 
 修改网络节点dhcp命名空间下的dnsmasq服务的配置文件,将mac绑定预定的ip地址
 ```
-[root@net117 ~]# echo '52:54:00:22:09:1e,150.150.150.10' > /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/host
+[root@net117 ~]# echo '52:54:00:22:09:1e,150.150.150.10' \
+                     > /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/host
 ```
 
 通过 dhcp-hostfile 将mac/ip pair写入,可以预期地为指定mac的虚拟机分配指定ip
 官方介绍配置文件修改后不需要重启服务,只需要reload即可:
 
 ```
-The advantage of storing DHCP host information in this file is that it can be changed without re-starting dnsmasq the file will be re-read when dnsmasq receives SIGHUP
+The advantage of storing DHCP host information in this file is that 
+it can be changed without re-starting dnsmasq the file will be re-read 
+when dnsmasq receives SIGHUP
 ```
 
 找到对应进程pid
@@ -804,7 +835,12 @@ _ _ _
 在br-int上创建haproxy前端网络设备ha0x01-if,设置本地vlan:tag=300,标识该服务属于demo租户
 
 ```
-[root@net117 ~]# ovs-vsctl -- --if-exists del-port ha0x01-if -- add-port br-int ha0x01-if -- set Interface ha0x01-if type=internal -- set Interface ha0x01-if external-ids:iface-id=903431fe-567a-447f-d59e-5fb94aa36a40 -- set Interface ha0x01-if external-ids:iface-status=active -- set Interface ha0x01-if external-ids:attached-mac=fa:16:00:4c:88:16 -- set Port ha0x01-if tag=300
+[root@net117 ~]# ovs-vsctl -- --if-exists del-port ha0x01-if -- add-port br-int ha0x01-if \
+-- set Interface ha0x01-if type=internal \
+-- set Interface ha0x01-if external-ids:iface-id=903431fe-567a-447f-d59e-5fb94aa36a40 \
+-- set Interface ha0x01-if external-ids:iface-status=active \
+-- set Interface ha0x01-if external-ids:attached-mac=fa:16:00:4c:88:16 \
+-- set Port ha0x01-if tag=300
 ```
 
 在网络节点上创建haproxy命名空间ha0x01,并将ha0x01-if设备放入命名空间下,配置内网前端ip(150.150.150.7)
@@ -861,11 +897,14 @@ EOF
 ```
 [root@net117 ~]# ip netns exec ns-private-router ip addr add dev extgw 10.160.0.150/32 broadcast 10.160.0.150
 
-[root@net117 ~]# ip netns exec ns-private-router iptables -t nat -A  PREROUTING -d 10.160.0.150 -j DNAT --to-destination 150.150.150.7
+[root@net117 ~]# ip netns exec ns-private-router iptables -t nat -A  PREROUTING \
+-d 10.160.0.150 -j DNAT --to-destination 150.150.150.7
 
-[root@net117 ~]# ip netns exec ns-private-router iptables -t nat -A  OUTPUT -d 10.160.0.150 -j DNAT --to-destination 150.150.150.7
+[root@net117 ~]# ip netns exec ns-private-router iptables -t nat -A  OUTPUT \
+-d 10.160.0.150 -j DNAT --to-destination 150.150.150.7
 
-[root@net117 ~]# ip netns exec ns-private-router iptables -t nat -A  POSTROUTING -s 150.150.150.7 -j SNAT --to-source 10.160.0.150
+[root@net117 ~]# ip netns exec ns-private-router iptables -t nat -A  POSTROUTING \
+-s 150.150.150.7 -j SNAT --to-source 10.160.0.150
 ```
 
 测试对外提供的web服务
@@ -929,8 +968,9 @@ iptables -t nat -A  PREROUTING  -d 10.160.0.147/32 \
 
 [3] [neutron vxlan网络br-tun流表逻辑](
 	https://github.com/guojy8993/blogs/blob/master/neutron-ovs-flows.jpg)
+	
 [4] [dhcp request/ack包抓包与解析:arp request](https://github.com/guojy8993/blogs/blob/master/dhcp-request.png)
+
 [5] [dhcp request/ack包抓包与解析:arp ack](https://github.com/guojy8993/blogs/blob/master/dhcp-ack-01.png)
+
 [6] [dhcp request/ack包抓包与解析:arp options](https://github.com/guojy8993/blogs/blob/master/dhcp-ack-opts-details.png)
-
-
