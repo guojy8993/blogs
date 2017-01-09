@@ -44,6 +44,8 @@ comp114    计算节点    ens160 外网 10.160.0.114/16     openvswitch & bridg
 ---------------------------------------------------------------------------------
 ```
 
+![neutron(icehouse)网络详解](https://github.com/guojy8993/blogs/blob/master/icehouse-neutron-details.jpg)
+
 ### Demo租户在某server上的本地vlan与租户全局vni的分配 ###
 ```
 ---------------------------------------------------------------------------------
@@ -368,6 +370,8 @@ _ _ _
 
 #### 计算节点流表配置与说明 ####
 
+![Neutron流表设计详细说明](https://github.com/guojy8993/blogs/blob/master/neutron-ovs-flows.jpg)
+
 (1)table0: 对流量按方向进行分发:
 
 a. 虚拟机出流量(从patch-int进入br-tun)提交table 1处理
@@ -468,8 +472,9 @@ arp_tha=00:00:00:00:00:00
 Rule: table=0 cookie=0 priority=1,in_port=1
 OpenFlow actions=resubmit(,1)
 
-Resubmitted flow: arp,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=00:00:00:00:00:00,\
-arp_spa=150.150.150.4,arp_tpa=150.150.150.1,arp_op=0,arp_sha=00:00:00:00:00:00,arp_tha=00:00:00:00:00:00
+Resubmitted flow: arp,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,
+dl_dst=00:00:00:00:00:00,arp_spa=150.150.150.4,arp_tpa=150.150.150.1,arp_op=0,
+arp_sha=00:00:00:00:00:00,arp_tha=00:00:00:00:00:00
 Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 Resubmitted  odp: drop
 Resubmitted megaflow: recirc_id=0,arp,in_port=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00
@@ -492,11 +497,15 @@ OpenFlow actions=strip_vlan,set_tunnel:0x22b8,output:4,output:5
 output to kernel tunnel
 output to kernel tunnel
 
-Final flow: arp,tun_id=0x22b8,in_port=1,vlan_tci=0x0000,dl_src=52:54:00:22:09:1e,dl_dst=00:00:00:00:00:00,\
-arp_spa=150.150.150.4,arp_tpa=150.150.150.1,arp_op=0,arp_sha=00:00:00:00:00:00,arp_tha=00:00:00:00:00:00
-Megaflow: recirc_id=0,arp,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00
-Datapath actions: set(tunnel(tun_id=0x22b8,src=172.172.172.115,dst=172.172.172.114,ttl=64,flags(df|key))),\
-pop_vlan,3,set(tunnel(tun_id=0x22b8,src=172.172.172.115,dst=172.172.172.117,ttl=64,flags(df|key))),3
+Final flow: arp,tun_id=0x22b8,in_port=1,vlan_tci=0x0000,dl_src=52:54:00:22:09:1e,
+dl_dst=00:00:00:00:00:00,arp_spa=150.150.150.4,arp_tpa=150.150.150.1,arp_op=0,
+arp_sha=00:00:00:00:00:00,arp_tha=00:00:00:00:00:00
+
+Megaflow: recirc_id=0,arp,in_port=1,dl_vlan=100,dl_vlan_pcp=0,
+dl_dst=00:00:00:00:00:00/01:00:00:00:00:00
+Datapath actions: set(tunnel(tun_id=0x22b8,src=172.172.172.115,dst=172.172.172.114,
+ttl=64,flags(df|key))),pop_vlan,3,set(tunnel(tun_id=0x22b8,src=172.172.172.115,
+dst=172.172.172.117,ttl=64,flags(df|key))),3
 ```
 
 (2) 网关arp应答
@@ -510,28 +519,33 @@ tun_id=8888,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e,arp_spa=150.150.
 arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
 
 Bridge: br-tun
-Flow: arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e,arp_spa=150.150.150.1,\
-arp_tpa=150.150.150.4,arp_op=2,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
+Flow: arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000,dl_src=72:04:4d:fc:be:76,
+dl_dst=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,arp_op=2,
+arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
 
 Rule: table=0 cookie=0 priority=1,in_port=5
 OpenFlow actions=resubmit(,3)
 
-Resubmitted flow: arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e,\
-arp_spa=150.150.150.1,arp_tpa=150.150.150.4,arp_op=2,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
+Resubmitted flow: arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000,dl_src=72:04:4d:fc:be:76,
+dl_dst=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,arp_op=2,
+arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
 Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 Resubmitted  odp: drop
 Resubmitted megaflow: recirc_id=0,arp,tun_id=0x22b8,in_port=5
 Rule: table=3 cookie=0 priority=1,tun_id=0x22b8
 OpenFlow actions=mod_vlan_vid:100,resubmit(,10)
 
-Resubmitted flow: arp,tun_id=0x22b8,in_port=5,dl_vlan=100,dl_vlan_pcp=0,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e,\
-arp_spa=150.150.150.1,arp_tpa=150.150.150.4,arp_op=2,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
+Resubmitted flow: arp,tun_id=0x22b8,in_port=5,dl_vlan=100,dl_vlan_pcp=0,
+dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e,arp_spa=150.150.150.1,
+arp_tpa=150.150.150.4,arp_op=2,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
+
 Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 Resubmitted  odp: drop
 Resubmitted megaflow: recirc_id=0,arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000/0x1fff
 Rule: table=10 cookie=0 priority=1
-OpenFlow actions=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
-load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
+OpenFlow actions=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],
+NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],
+output:NXM_OF_IN_PORT[]),output:1
 ...
 ```
 
@@ -539,29 +553,31 @@ load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN
 
 ```
 [root@comp115 ~]# ovs-ofctl dump-flows br-tun | grep "table=20" | grep 72:04:4d:fc:be:76
- cookie=0x0, duration=203.573s, table=20, n_packets=0, n_bytes=0, hard_timeout=300, idle_age=203, priority=1,\
- vlan_tci=0x0064/0x0fff,dl_dst=72:04:4d:fc:be:76 actions=load:0->NXM_OF_VLAN_TCI[],load:0x22b8->NXM_NX_TUN_ID[],output:5
+cookie=0x0, duration=203.573s, table=20, n_packets=0, n_bytes=0, hard_timeout=300,
+idle_age=203, priority=1,vlan_tci=0x0064/0x0fff,dl_dst=72:04:4d:fc:be:76 actions=load:0->NXM_OF_VLAN_TCI[],load:0x22b8->NXM_NX_TUN_ID[],output:5
 ```
 ```
-[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,arp_sha=72:04:4d:fc:be:76,\
-arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76, \
-dl_dst=52:54:00:22:09:1e -generate
+[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,\
+arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,\
+dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
 ```
 (3)再测试虚拟机单播出包
 
 此时的虚拟机单播出包根据学习到的规则直接处理
 
 ```
-[root@comp115 ~]# ovs-appctl ofproto/trace br-tun ip,in_port=1,dl_src=52:54:00:22:09:1e,dl_dst=72:04:4d:fc:be:76,dl_vlan=100,nw_src=150.150.150.4,nw_dst=150.150.150.1
+[root@comp115 ~]# ovs-appctl ofproto/trace br-tun ip,in_port=1,dl_src=52:54:00:22:09:1e,\
+dl_dst=72:04:4d:fc:be:76,dl_vlan=100,nw_src=150.150.150.4,nw_dst=150.150.150.1
 Bridge: br-tun
-Flow: ip,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=72:04:4d:fc:be:76,nw_src=150.150.150.4,\
-nw_dst=150.150.150.1,nw_proto=0,nw_tos=0,nw_ecn=0,nw_ttl=0
+Flow: ip,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,
+dl_dst=72:04:4d:fc:be:76,nw_src=150.150.150.4,nw_dst=150.150.150.1,nw_proto=0,
+nw_tos=0,nw_ecn=0,nw_ttl=0
 
 Rule: table=0 cookie=0 priority=1,in_port=1
 OpenFlow actions=resubmit(,1)
 
-Resubmitted flow: ip,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=72:04:4d:fc:be:76,
-nw_src=150.150.150.4,nw_dst=150.150.150.1,nw_proto=0,nw_tos=0,nw_ecn=0,nw_ttl=0
+Resubmitted flow: ip,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,
+dl_dst=72:04:4d:fc:be:76,nw_src=150.150.150.4,nw_dst=150.150.150.1,nw_proto=0,nw_tos=0,nw_ecn=0,nw_ttl=0
 Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 Resubmitted  odp: drop
 Resubmitted megaflow: recirc_id=0,ip,in_port=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00,nw_frag=no
@@ -571,7 +587,9 @@ OpenFlow actions=resubmit(,20)
 Resubmitted flow: unchanged
 Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 Resubmitted  odp: drop
-Resubmitted megaflow: recirc_id=0,ip,in_port=1,vlan_tci=0x0064/0x0fff,dl_dst=72:04:4d:fc:be:76,nw_frag=no
+Resubmitted megaflow: recirc_id=0,ip,in_port=1,vlan_tci=0x0064/0x0fff,
+dl_dst=72:04:4d:fc:be:76,nw_frag=no
+
 Rule: table=20 cookie=0 priority=1,vlan_tci=0x0064/0x0fff,dl_dst=72:04:4d:fc:be:76
 OpenFlow actions=load:0->NXM_OF_VLAN_TCI[],load:0x22b8->NXM_NX_TUN_ID[],output:5
 output to kernel tunnel
