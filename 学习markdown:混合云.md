@@ -14,6 +14,59 @@
 #### 第一节:Provider网络的初始化 ####
 
 
+(1)创建privider网络的网桥
+
+```
+[root@docker-net127 ~]# brctl addbr public-bridge
+[root@docker-net127 ~]# brctl stp public-bridge off
+[root@docker-net127 ~]# brctl sefd public-bridge 0
+[root@docker-net127 ~]# ip link set public-bridge mtu 1500 up
+```
+
+(2)连接provider网桥到宿主provider网络网卡(ens192)
+
+```
+[root@docker-net127 ~]# brctl addif public-bridge ens192
+[root@docker-net127 ~]# ip link set ens192 up
+```
+
+(3)创建provider网络的dhcp服务,创建ip资源池
+
+```
+[root@docker-net127 ~]# ip link add pub-dhcp-out type veth peer name pub-dhcp-in
+[root@docker-net127 ~]# brctl addif public-bridge pub-dhcp-out
+[root@docker-net127 ~]# ip netns add public-dhcp
+[root@docker-net127 ~]# ip link set pub-dhcp-in netns public-dhcp
+[root@docker-net127 ~]# ip netns exec public-dhcp ip link set lo up
+[root@docker-net127 ~]# ip netns exec public-dhcp ip link set lo state up
+[root@docker-net127 ~]# ip netns exec public-dhcp \
+ip link set pub-dhcp-in mtu 1500 up
+[root@docker-net127 ~]# ip link set pub-dhcp-out mtu 1500 up
+[root@docker-net127 ~]# ip netns exec public-dhcp ip addr add dev pub-dhcp-in 200.160.0.2/24
+[root@docker-net127 ~]# ip netns exec public-dhcp ip route add default via 200.160.0.1 dev pub-dhcp-in
+[root@docker-net127 ~]# ip netns exec public-dhcp ping -c 1 200.160.0.1
+[root@docker-net127 ~]# uuidgen
+81758417-bf10-4cb0-af2f-5d3a0c76c792
+[root@docker-net127 ~]# mkdir -p /tmp/dhcp/81758417-bf10-4cb0-af2f-5d3a0c76c792/
+[root@docker-net127 ~]# ip netns exec public-dhcp dnsmasq --no-hosts \
+           --no-resolv --strict-order --except-interface=lo \
+           --pid-file=/tmp/dhcp/81758417-bf10-4cb0-af2f-5d3a0c76c792/pid \
+           --dhcp-hostsfile=/tmp/dhcp/81758417-bf10-4cb0-af2f-5d3a0c76c792/host \
+           --addn-hosts=/tmp/dhcp/81758417-bf10-4cb0-af2f-5d3a0c76c792/addn_hosts \
+           --dhcp-optsfile=/tmp/dhcp/81758417-bf10-4cb0-af2f-5d3a0c76c792/opts \
+           --dhcp-leasefile=/tmp/dhcp/81758417-bf10-4cb0-af2f-5d3a0c76c792/leases \
+           --dhcp-match=set:ipxe,175 --bind-interfaces --interface=pub-dhcp-in \
+           --dhcp-range=set:tag0,200.160.0.0,static,86400s \
+           --dhcp-option-force=option:mtu,1500 \
+           --dhcp-lease-max=256 \
+           --conf-file= \
+           --domain=provider-dhcp
+
+```
+
+说明: Provider网络的网络设备mtu全部1500
+
+
 #### 第二节:租户网络的初始化 ####
 
 (1)创建租户网络的网桥
@@ -37,7 +90,8 @@
 [root@docker-net127 ~]# ip netns exec private-dhcp ip link set lo state up 
 [root@docker-net127 ~]# ip netns exec private-dhcp ip link set ss-dhcp-in mtu 1450 up
 [root@docker-net127 ~]# ip netns exec private-dhcp ip addr add dev ss-dhcp-in 192.168.100.2/24
-[root@docker-net127 ~]# ip netns exec private-dhcp ip route add default via 192.168.100.1 dev ss-dhcp-in
+[root@docker-net127 ~]# ip netns exec private-dhcp \
+ip route add default via 192.168.100.1 dev ss-dhcp-in
 
 [root@docker-net127 ~]# uuidgen
 bd406409-135e-44b1-a4ed-f4d6365118fb
@@ -81,7 +135,8 @@ bd406409-135e-44b1-a4ed-f4d6365118fb
 [root@docker-net127 ~]# ip netns exec private-router ip link set ss-router-gw mtu 1500 state up
 [root@docker-net127 ~]# ip link set ss-router-out mtu 1500 up
 [root@docker-net127 ~]# brctl addif public-bridge ss-router-out
-[root@docker-net127 ~]# ip netns exec private-router ip addr add dev ss-router-gw 200.160.0.3/24 broadcast 200.160.0.255
+[root@docker-net127 ~]# ip netns exec private-router \
+ip addr add dev ss-router-gw 200.160.0.3/24 broadcast 200.160.0.255
 [root@docker-net127 ~]# ip netns exec private-router ip route add default via 200.160.0.1 dev ss-router-gw
 [root@docker-net127 ~]# ip netns exec private-router ping -c 1 200.160.0.1
 ```
