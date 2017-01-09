@@ -1,11 +1,11 @@
 ### 本文档章节目录 ###
-1. Provider网络的初始化
-2. 租户网络的初始化
-3. 各个计算节点上租户容器与虚拟机的创建
-4. 各节点bridge添加fdb entry实现跨宿主租户内网连通
-5. 为租户内网IP绑定浮动IP
-6. 负载均衡即服务实现
-7. 附录
+(1) Provider网络的初始化
+(2) 租户网络的初始化
+(3) 各个计算节点上租户容器与虚拟机的创建
+(4) 各节点bridge添加fdb entry实现跨宿主租户内网连通
+(5) 为租户内网IP绑定浮动IP
+(6) 负载均衡即服务实现
+(7) 附录
 
 ![kvm_vxlan_docker混合云](https://github.com/guojy8993/blogs/blob/master/sys.png)
 
@@ -80,10 +80,14 @@ This page is got from 192.168.100.7
 (4) 为负载均衡前端ip绑定浮动ip(200.160.0.5),对公网提供服务
 
 ```
-[root@docker-net127 ~]# ip netns exec private-router ip addr add 200.160.0.5/32 broadcast 200.160.0.5  dev ss-router-gw
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A PREROUTING -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A OUTPUT -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
-[root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A POSTROUTING -s 192.168.100.8 -j SNAT --to-source 200.160.0.5
+[root@docker-net127 ~]# ip netns exec private-router \
+ip addr add 200.160.0.5/32 broadcast 200.160.0.5  dev ss-router-gw
+[root@docker-net127 ~]# ip netns exec private-router \
+iptables -t nat -A PREROUTING -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
+[root@docker-net127 ~]# ip netns exec private-router \
+iptables -t nat -A OUTPUT -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
+[root@docker-net127 ~]# ip netns exec private-router \
+iptables -t nat -A POSTROUTING -s 192.168.100.8 -j SNAT --to-source 200.160.0.5
 ```
 
 (5) 公网测试负载均衡服务
