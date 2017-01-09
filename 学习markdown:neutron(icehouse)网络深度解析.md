@@ -89,8 +89,10 @@ ens224  同ens160,作为虚拟机走网络节点通外网的桥接设备
 br-int 通过patch port与br-tun 互联
 
 ```
-[root@net117 ~]# ovs-vsctl add-port br-int patch-tun -- set Interface patch-tun type=patch options:peer=patch-int
-[root@net117 ~]# ovs-vsctl add-port br-tun patch-int -- set Interface patch-int type=patch options:peer=patch-tun \
+[root@net117 ~]# ovs-vsctl add-port br-int patch-tun \
+-- set Interface patch-tun type=patch options:peer=patch-int
+[root@net117 ~]# ovs-vsctl add-port br-tun patch-int \
+-- set Interface patch-int type=patch options:peer=patch-tun \
 -- set Interface patch-int ofport_request=1
 ```
 
@@ -103,10 +105,12 @@ comp114  172.172.172.114
 ```
 ```
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp115 -- add-port br-tun tun2comp115 \
--- set Interface tun2comp115 type=vxlan options:local_ip=172.172.172.117 options:remote_ip=172.172.172.115 options:key=flow
+-- set Interface tun2comp115 type=vxlan options:local_ip=172.172.172.117 \
+ptions:remote_ip=172.172.172.115 options:key=flow
 
 [root@net117 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 \
--- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.117 options:remote_ip=172.172.172.114 options:key=flow
+-- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.117 \
+ptions:remote_ip=172.172.172.114 options:key=flow
 ```
 
 vxlan使用udp:4789通信
@@ -143,8 +147,10 @@ vxlan使用udp:4789通信
 
 租户子网资源池 150.150.150.0/24,dnsmasq监听设备private-dhcp(150.150.150.2)
 ```
-[root@net117 ~]# ip netns exec ns-private-dhcp ip addr add 150.150.150.2/24 dev private-dhcp
-[root@net117 ~]# ip netns exec ns-private-dhcp ip route add default via 150.150.150.1 dev private-dhcp
+[root@net117 ~]# ip netns exec ns-private-dhcp \
+ip addr add 150.150.150.2/24 dev private-dhcp
+[root@net117 ~]# ip netns exec ns-private-dhcp 
+ip route add default via 150.150.150.1 dev private-dhcp
 ```
 
 启动dnsmasq进程,对租户提供ip资源池
@@ -158,8 +164,10 @@ d30a8588-f968-4f62-9388-4ed8f61e8355
 设置子网设备mtu 1450,资源池网关
 
 ```
-[root@net117 ~]# echo "dhcp-option-force=26,1454" > /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/mtu
-[root@net117 ~]# echo "tag:tag0,option:router,150.150.150.1" > /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/opts
+[root@net117 ~]# echo "dhcp-option-force=26,1454" \
+	> /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/mtu
+[root@net117 ~]# echo "tag:tag0,option:router,150.150.150.1" \
+	> /var/lib/dhcp/d30a8588-f968-4f62-9388-4ed8f61e8355/opts
 ```
 
 在dhcp命名空间下启动dnsmasq服务
@@ -184,7 +192,8 @@ d30a8588-f968-4f62-9388-4ed8f61e8355
 创建租户子网网关设备
 
 ```
-[root@net117 ~]# ovs-vsctl -- --if-exists del-port private-router -- add-port br-int private-router \
+[root@net117 ~]# ovs-vsctl -- --if-exists del-port private-router \
+-- add-port br-int private-router \
 -- set Interface private-router type=internal \
 -- set Interface private-router external-ids:iface-id=633432fe-567a-447f-a29e-5fb94aa36a4c \
 -- set Interface private-router external-ids:iface-status=active \
@@ -220,7 +229,8 @@ d30a8588-f968-4f62-9388-4ed8f61e8355
 [root@net117 ~]# ip link set extgw netns ns-private-router
 [root@net117 ~]# ip netns exec ns-private-router ip link set extgw up
 [root@net117 ~]# ip netns exec ns-private-router ip link set extgw state up
-[root@net117 ~]# ip netns exec ns-private-router ip addr add dev extgw 10.160.0.148/16 broadcast 10.160.255.255
+[root@net117 ~]# ip netns exec ns-private-router \
+ip addr add dev extgw 10.160.0.148/16 broadcast 10.160.255.255
 [root@net117 ~]# ip netns exec ns-private-router ip route add default via 10.160.0.1 dev extgw
 ```
 
@@ -267,10 +277,12 @@ comp114  172.172.172.114
 
 ```
 [root@comp115 ~]# ovs-vsctl -- --if-exists del-port tun2net117 -- add-port br-tun tun2net117 \
--- set Interface tun2net117 type=vxlan options:local_ip=172.172.172.115  options:remote_ip=172.172.172.117 options:key=flow
+-- set Interface tun2net117 type=vxlan options:local_ip=172.172.172.115 \
+options:remote_ip=172.172.172.117 options:key=flow
 
 [root@comp115 ~]# ovs-vsctl -- --if-exists del-port tun2comp114 -- add-port br-tun tun2comp114 \
--- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.115 options:remote_ip=172.172.172.114 options:key=flow
+-- set Interface tun2comp114 type=vxlan options:local_ip=172.172.172.115 \
+options:remote_ip=172.172.172.114 options:key=flow
 ```
 
 说明:
@@ -446,10 +458,12 @@ PS:流表测试
 
 虚拟机出br-int端口,会添加本地vlan的vlan header(此时100)
 ```
-[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=1,in_port=1,dl_src=52:54:00:22:09:1e,dl_vlan=100,arp_spa=150.150.150.4,arp_tpa=150.150.150.1
+[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=1,in_port=1,dl_src=52:54:00:22:09:1e,
+dl_vlan=100,arp_spa=150.150.150.4,arp_tpa=150.150.150.1
 Bridge: br-tun
-Flow: arp,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=00:00:00:00:00:00,arp_spa=150.150.150.4,\
-arp_tpa=150.150.150.1,arp_op=0,arp_sha=00:00:00:00:00:00,arp_tha=00:00:00:00:00:00
+Flow: arp,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=00:00:00:00:00:00,
+arp_spa=150.150.150.4,arp_tpa=150.150.150.1,arp_op=0,arp_sha=00:00:00:00:00:00,
+arp_tha=00:00:00:00:00:00
 
 Rule: table=0 cookie=0 priority=1,in_port=1
 OpenFlow actions=resubmit(,1)
@@ -491,8 +505,10 @@ pop_vlan,3,set(tunnel(tun_id=0x22b8,src=172.172.172.115,dst=172.172.172.117,ttl=
 虚拟机: comp115-demo0x01/150.150.150.4/52:54:00:22:09:1e
 
 ```
-[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,arp_sha=72:04:4d:fc:be:76,\
-arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
+[root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5, \
+tun_id=8888,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1, \
+arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
+
 Bridge: br-tun
 Flow: arp,tun_id=0x22b8,in_port=5,vlan_tci=0x0000,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e,arp_spa=150.150.150.1,\
 arp_tpa=150.150.150.4,arp_op=2,arp_sha=72:04:4d:fc:be:76,arp_tha=52:54:00:22:09:1e
@@ -528,7 +544,8 @@ load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN
 ```
 ```
 [root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,arp_sha=72:04:4d:fc:be:76,\
-arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76,dl_dst=52:54:00:22:09:1e -generate
+arp_tha=52:54:00:22:09:1e,arp_spa=150.150.150.1,arp_tpa=150.150.150.4,dl_src=72:04:4d:fc:be:76, \
+dl_dst=52:54:00:22:09:1e -generate
 ```
 (3)再测试虚拟机单播出包
 
@@ -543,8 +560,8 @@ nw_dst=150.150.150.1,nw_proto=0,nw_tos=0,nw_ecn=0,nw_ttl=0
 Rule: table=0 cookie=0 priority=1,in_port=1
 OpenFlow actions=resubmit(,1)
 
-Resubmitted flow: ip,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=72:04:4d:fc:be:76,nw_src=150.150.150.4,\
-nw_dst=150.150.150.1,nw_proto=0,nw_tos=0,nw_ecn=0,nw_ttl=0
+Resubmitted flow: ip,in_port=1,dl_vlan=100,dl_vlan_pcp=0,dl_src=52:54:00:22:09:1e,dl_dst=72:04:4d:fc:be:76,
+nw_src=150.150.150.4,nw_dst=150.150.150.1,nw_proto=0,nw_tos=0,nw_ecn=0,nw_ttl=0
 Resubmitted regs: reg0=0x0 reg1=0x0 reg2=0x0 reg3=0x0 reg4=0x0 reg5=0x0 reg6=0x0 reg7=0x0
 Resubmitted  odp: drop
 Resubmitted megaflow: recirc_id=0,ip,in_port=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00,nw_frag=no
@@ -667,9 +684,10 @@ b.并换上全局vxlan_id
 c.从请求包的交换机入端口再输出回去
 
 ```
-table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,NXM_OF_VLAN_TCI[0..11],\
-NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
-output:NXM_OF_IN_PORT[]),output:1
+table=10,priority=1 action=learn(table=20,hard_timeout=300,\
+priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
+load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
+utput:NXM_OF_IN_PORT[]),output:1
 ```
 
 (5)实现虚拟机对外单播的处理
