@@ -120,7 +120,7 @@ _ _ _
   宿主的ip信息, 通过 http 请求调用 vnc 服务器的的 vnc_service(<VNC_SERVICE>:<9000>) 将 token
   信息 或插入 或(按客户机uuid)更新
 
-#### 试图调用请求数据流 ####
+#### 视图调用请求数据流 ####
 
 Java接口调用CloudAPI:
 
