@@ -29,6 +29,7 @@
 [root@docker-net127 ~]# ip netns exec ha-vxlan100-web ip addr add dev ha-if 192.168.100.8/24
 [root@docker-net127 ~]# ip netns exec ha-vxlan100-web ip route add default via 192.168.100.1 dev ha-if
 ```
+
 2. 在vxlan网络(某租户网络)内启动负载均衡服务
 ```
 [root@docker-net127 ~]# mkdir -p /var/lib/netns/ha-vxlan100-web/
@@ -64,6 +65,7 @@ EOF
 ```
 [root@docker-net127 ~]# ip netns exec ha-vxlan100-web haproxy -f /var/lib/netns/ha-vxlan100-web/haproxy.cfg
 ```
+
 3. 租户内网测试负载均衡服务
 ```
 [root@docker-net127 ~]# ip netns exec private-router curl 192.168.100.8
@@ -71,6 +73,7 @@ This Page is got from server 192.168.100.6(nat to 200.160.0.4)
 [root@docker-net127 ~]# ip netns exec private-router curl 192.168.100.8
 This page is got from 192.168.100.7
 ```
+
 4. 为负载均衡前端ip绑定浮动ip(200.160.0.5),对公网提供服务
 ```
 [root@docker-net127 ~]# ip netns exec private-router ip addr add 200.160.0.5/32 broadcast 200.160.0.5  dev ss-router-gw
@@ -78,6 +81,7 @@ This page is got from 192.168.100.7
 [root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A OUTPUT -d 200.160.0.5 -j DNAT --to-destination 192.168.100.8
 [root@docker-net127 ~]# ip netns exec private-router iptables -t nat -A POSTROUTING -s 192.168.100.8 -j SNAT --to-source 200.160.0.5
 ```
+
 5. 公网测试负载均衡服务
 ```
 [root@net ~]# curl 200.160.0.5
@@ -87,6 +91,6 @@ This page is got from 192.168.100.7
 ```
 
 #### 附录 ####
-[1] [KVM vxlan docker 混合云详细图](https://github.com/guojy8993/blogs/blob/master/kvm%E4%B8%8Edocker%E6%B7%B7%E5%90%88%E4%BA%91.png)
+[^1^] [KVM vxlan docker 混合云详细图](https://github.com/guojy8993/blogs/blob/master/kvm%E4%B8%8Edocker%E6%B7%B7%E5%90%88%E4%BA%91.png)
 
-[2] [计算节点docker容器初始化脚本](https://github.com/guojy8993/blogs/blob/master/Docker%E9%AB%98%E7%BA%A7%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E5%AE%9E%E6%88%98)
+[^2^] [计算节点docker容器初始化脚本](https://github.com/guojy8993/blogs/blob/master/Docker%E9%AB%98%E7%BA%A7%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E5%AE%9E%E6%88%98)
