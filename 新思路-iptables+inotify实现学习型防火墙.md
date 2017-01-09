@@ -2,12 +2,15 @@
 
 在KVM虚拟化环境下,使用iptables+inotify实现自学习防火墙(v1.0):
 
-(1)思路来源:在openvswitch(虚拟交换机）中,某流表处理流量,学习traffic的源mac,ip,交换机输入端口,并使用learn强制在另一个流表中插入一条规则;
-后续流量，优先使用学习表中的规则处理流量; 而iptables中的 -j 跳转指定链或或执行指定操作,类似ovs中的actions(对流量的处理),但是前者并没有对应的类似learn这样的Operation.此时设想:
+(1)思路来源:在openvswitch(虚拟交换机）中,某流表处理流量,学习traffic的源mac,ip,交换机输入端口,
+   并使用learn强制在另一个流表中插入一条规则; 后续流量，优先使用学习表中的规则处理流量; 而iptables
+   中的 -j 跳转指定链或或执行指定操作,类似ovs中的actions(对流量的处理),但是前者并没有对应的类似
+   learn这样的Operation.此时设想:
 
 a.通过扩展iptables,实现学习防火墙的"学习"操作(较优方案,但实现难度高)
 
-b.使用iptables的 log 模块记录符合"恶意"标准的流量详细信息到系统日志文件,并使用第三方工具实时分析流量信息生成防火墙规则(方案具可行性,难度相对低)
+b.使用iptables的 log 模块记录符合"恶意"标准的流量详细信息到系统日志文件,并使用第三方工具实时分析流
+  量信息生成防火墙规则(方案具可行性,难度相对低)
 
 (2)方案设计
 ```
@@ -106,7 +109,7 @@ net.bridge.bridge-nf-call-iptables = 1
 
 为BlackListChain添加默认规则
 
-note: BlackListChain 处理流量的3个层级
+BlackListChain 处理流量的3个层级
 
 (1)使用inotify维护的DROP规则丢弃恶意源发送的流量
 
@@ -121,7 +124,7 @@ note: BlackListChain 处理流量的3个层级
 
 为DispatchChain添加规则
 
-note: DispatchChain 处理流量分为2个层级
+DispatchChain 处理流量分为2个层级
 
 (1)将流量派发到各个虚拟机的私有链PrivateChain
 
@@ -146,7 +149,7 @@ note: DispatchChain 处理流量分为2个层级
 
 为PrivateChain添加规则
 
-note: node02-security-meter 的流量处理分为2个层级
+node02-security-meter 的流量处理分为2个层级
 
 (1)将流量重定向到公共匹配链invalid-traffic-logger发掘非法流量的来源
 
@@ -159,7 +162,7 @@ note: node02-security-meter 的流量处理分为2个层级
 
 为FirewallLogChain添加规则
 
-note: FirewallLogChain 的流量处理分为2个层级
+FirewallLogChain 的流量处理分为2个层级
 
 (1)处理各个虚拟机的流量,按管理员添加的匹配规则匹配非法流量,并将(流量)信息记入系统日志
 
