@@ -11,6 +11,8 @@
 
 ![kvm_vxlan_docker混合云](https://github.com/guojy8993/blogs/blob/master/sys.png)
 
+_ _ _
+
 #### 第一节:Provider网络的初始化 ####
 
 
@@ -66,6 +68,7 @@ ip link set pub-dhcp-in mtu 1500 up
 
 说明: Provider网络的网络设备mtu全部1500
 
+_ _ _
 
 #### 第二节:租户网络的初始化 ####
 
@@ -158,6 +161,7 @@ vxlan网络vni - 此处以100为例
 
 说明: 租户网络的网络设备mtu全部1450
 
+_ _ _
 
 #### 第三节:各个计算节点上租户容器与虚拟机的创建 ####
 
@@ -264,6 +268,7 @@ vtep的创建参考网络节点vxlan-100的配置;
 
 并将vtep设备连接到租户网桥上;
 
+_ _ _
 
 #### 第四节:各节点bridge添加fdb entry实现跨宿主租户内网连通 ####
 
@@ -330,6 +335,9 @@ bridge fdb replace 0e:49:e8:8a:9e:e7 dev vxlan-100 dst 10.160.0.126
 
 总之,集群可以实现自管理,更易于人员维护;且去中心化,横向扩展能力更好
 
+_ _ _
+
+
 #### 第五节:为租户内网IP绑定浮动IP ####
 
 (1) 添加租户内网ip与浮动ip的nat映射(以192.168.100.6绑定浮动ip200.160.0.4为例)
@@ -352,6 +360,7 @@ root@200.160.0.4's password:
 Last login: Sun Nov 20 16:47:51 2016 from 200.160.0.1
 [root@localhost ~]#
 ```
+_ _ _
 
 #### 第六节:负载均衡即服务实现 ####
 (1) 添加负载均衡前端ip与设备
@@ -435,6 +444,8 @@ This Page is got from server 192.168.100.6(nat to 200.160.0.4)
 [root@net ~]# curl 200.160.0.5
 This page is got from 192.168.100.7
 ```
+_ _ _
+
 
 #### 附录 ####
 [1] [KVM vxlan docker 混合云详细图](https://github.com/guojy8993/blogs/blob/master/kvm%E4%B8%8Edocker%E6%B7%B7%E5%90%88%E4%BA%91.png)
