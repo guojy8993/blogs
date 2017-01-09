@@ -720,7 +720,7 @@ c.从请求包的交换机入端口再输出回去
 table=10,priority=1 action=learn(table=20,hard_timeout=300,\
 priority=1,NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],\
 load:0->NXM_OF_VLAN_TCI[],load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],\
-utput:NXM_OF_IN_PORT[]),output:1
+output:NXM_OF_IN_PORT[]),output:1
 ```
 
 (5)实现虚拟机对外单播的处理
