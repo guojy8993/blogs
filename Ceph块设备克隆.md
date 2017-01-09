@@ -35,7 +35,8 @@ rbd image 'CentOS7-Layer-Support':
 
 #### 第三部分 从镜像克隆出新的系统模板供虚拟机使用 ####
 ```
-[root@dev ~]# rbd clone images/CentOS7-Layer-Support@Snap_CentOS7 volumes/centos-bootable --name client.cinder
+[root@dev ~]# rbd clone images/CentOS7-Layer-Support@Snap_CentOS7 volumes/centos-bootable \
+--name client.cinder
 [root@dev ~]# rbd info volumes/centos-bootable
 rbd image 'centos-bootable':
 	size 1988 MB in 497 objects
