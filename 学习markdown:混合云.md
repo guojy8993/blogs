@@ -16,6 +16,111 @@
 
 #### 第二节:租户网络的初始化 ####
 #### 第三节:各个计算节点上租户容器与虚拟机的创建 ####
+
+(1)创建docker容器
+
+```
+名字             宿主        网络信息
+vxlan100-C1     comp126     IP:192.168.100.3/24
+                            GW:192.168.100.1
+                            CIDR:192.168.100.0/24
+                            MAC-76:90:8e:b5:8a:27
+
+vxlan100-C2     comp154     IP:192.168.100.4/24
+                            GW:192.168.100.1
+                            CIDR:192.168.100.0/24
+                            MAC-1a:15:ec:78:9c:b3
+
+vxlan100-C3     comp126     IP:192.168.100.5/24
+                            GW:192.168.100.1
+                            CIDR:192.168.100.0/24
+                            MAC-0e:49:e8:8a:9e:e7
+
+public-C2       comp154     IP:200.160.0.6/24
+                            GW:200.160.0.1
+                            CIDR:200.160.0.0/24
+                            MAC-76:90:8e:b5:8a:aa
+```
+
+以public-C2为例,指定网络信息启动容器,并将分配的网络信息持久化到labels中(除网络信息外也可以指定其他的选项)
+
+```
+[root@docker ~]# docker run -idt --name public-C2 \
+                                 --label net_interface=eth0 \
+                                 --label net_ipaddress=200.160.0.6 \
+                                 --label net_mac=76:90:8e:b5:8a:aa \
+                                 --label net_prefix=24 \
+                                 --label net_gateway=200.160.0.1 \
+                                 --label net_cidr=200.160.0.0/24 \
+                                 --label net_bridge=br-public154 \
+                                 --net=none centos7 /bin/bash
+```
+
+使用脚本docker-net(参考附录[2])为容器初始化网络
+
+```
+[root@docker ~]# sh -x docker-net public-C2
+```
+
+说明:
+
+后续需要在配置文件中指定vxlan/vlan网络使用的物理网卡
+
+e.g: net_host_phys_interface=ens160.610
+
+L2代理进程维护vxlan-XX/vlan-XX设备及其与bridge的连接
+
+e.g: net_type=vxlan,net_vxlan_id=100
+
+e.g: net_type=vlan,net_vlan_id=200
+
+docker容器挂载的网桥由dknet自动创建,注意租户网络设备的mtu全部1450(包括docker容器网卡)
+
+(2) 创建kvm虚拟机
+
+```
+名字             宿主        网络信息
+vxlan100-C4     comp126     IP:192.168.100.6/24
+                            GW:192.168.100.1
+                            MAC-52:54:00:7c:d6:2c
+
+public-C1       comp126     IP:200.160.0.7/24
+                            GW:200.160.0.1
+                            MAC-52:54:00:c6:3f:56
+```
+
+以vxlan100-C4为例,在宿主下为虚拟机创建数据目录,拷贝模板,连接到指定linux bridge
+
+```
+[root@docker-comp126 ~]# mkdir -p /data/instance/vxlan100-C4
+[root@docker-comp126 ~]# cp /data/image/centos7.qcow2 /data/instance/vxlan100-C4/system
+[root@docker-comp126 ~]# virt-install --name vxlan100-C4 \
+ --description vxlan100-C4 \
+ --ram  4096 \
+ --vcpus 4 --cpu host-model --accelerate --hvm \
+ --network bridge:qbr126-100,model=virtio \
+ --disk /data/instance/vxlan100-C4/system,bus=virtio,cache=writeback,driver_type=qcow2,size=10 \
+ --boot hd,cdrom \
+ --graphics vnc,listen=0.0.0.0 --noautoconsole \
+ --input tablet,bus=usb
+```
+
+使用vncviewer客户端进入启动的虚拟机,配置ip信息
+
+```
+[root@localhost ~]# ip addr add dev eth0 192.168.100.6/24
+[root@localhost ~]# ip link set eth0 mtu 1450
+[root@localhost ~]# ip route add default via 192.168.100.1 dev eth0
+```
+kvm挂载的网桥需要手动创建,注意租户网络设备的mtu全部1450(含kvm虚拟机网卡);
+
+计算节点租户网桥需要连接当前租户在当前宿主的vxlan vtep;
+
+vtep的创建参考网络节点vxlan-100的配置;
+
+并将vtep设备连接到租户网桥上;
+
+
 #### 第四节:各节点bridge添加fdb entry实现跨宿主租户内网连通 ####
 
 为了保证各个租户业务以及网关网络互通,需要从以下3方面进行配置:
