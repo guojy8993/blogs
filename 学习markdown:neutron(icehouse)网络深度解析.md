@@ -568,7 +568,8 @@ output:NXM_OF_IN_PORT[]),output:1
 ```
 [root@comp115 ~]# ovs-ofctl dump-flows br-tun | grep "table=20" | grep 72:04:4d:fc:be:76
 cookie=0x0, duration=203.573s, table=20, n_packets=0, n_bytes=0, hard_timeout=300,
-idle_age=203, priority=1,vlan_tci=0x0064/0x0fff,dl_dst=72:04:4d:fc:be:76 actions=load:0->NXM_OF_VLAN_TCI[],load:0x22b8->NXM_NX_TUN_ID[],output:5
+idle_age=203, priority=1,vlan_tci=0x0064/0x0fff,dl_dst=72:04:4d:fc:be:76 
+actions=load:0->NXM_OF_VLAN_TCI[],load:0x22b8->NXM_NX_TUN_ID[],output:5
 ```
 ```
 [root@comp115 ~]# ovs-appctl ofproto/trace br-tun arp,arp_op=2,in_port=5,tun_id=8888,\
