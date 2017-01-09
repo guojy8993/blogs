@@ -13,7 +13,9 @@ _ _ _
 [root@dev ~]# df | grep rbd
 /dev/rbd0 10475520 33344 10442176 1% /mnt/rbd
 ```
+
 调整尺寸前
+
 ```
 [root@dev ~]# rbd info volumes/base --id cinder
 rbd image 'base':
@@ -23,7 +25,11 @@ rbd image 'base':
 	format: 2
 	features: layering
 	flags:
+```
 
+调整尺寸
+
+```
 [root@dev ~]# rbd resize --pool volumes --image base --size 5120 --name client.cinder
 rbd: shrinking an image is only allowed with the --allow-shrink flag
 
