@@ -386,7 +386,9 @@ table=0,priority=0 action=DROP
 ```
 使用"ovs-ofctl show br-tun"查看net117以及comp114,patch-int对应的ovs端口号:
 tun2net117 -> 5
+
 tun2comp114 -> 4
+
 patch-int -> 1
 
 ```
@@ -398,8 +400,11 @@ table=0,priority=1,in_port=4 action=resubmit(,3)
 (2)table1: 对出虚拟机的流量按是否是广播进行分类处理
 
 a. 广播包发送到table21处理
+
 b. 单播包发送到table20处理
+
 说明: 要么是单播,要么是广播,没有例外情况,故而无需默认流表
+
 ```
 table=1,priority=1,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00 action=resubmit(,21)
 table=1,priority=1,dl_dst=00:00:00:00:00:00/01:00:00:00:00:00 action=resubmit(,20)
@@ -421,10 +426,15 @@ table=3,priority=1,tun_id=8888 action=mod_vlan_vid:100,resubmit(,10)
 如果还有其他租户的业务,如上所示继续添加流表
 
 (4)table10: 督促table20添加流表,学习对"从特定端口进入,当前携带特定vlan,特定源mac的流量"的处理(见下),并输出到patch-int(端口号1).
+
 处理动作包括:
+
 a.去除本地vlan
+
 b.并换上全局vxlan_id
+
 c.从请求包的交换机入端口再输出回去
+
 ```
 table=10,priority=1 action=learn(table=20,hard_timeout=300,priority=1,\
 NXM_OF_VLAN_TCI[0..11],NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],load:0->NXM_OF_VLAN_TCI[],\
@@ -432,8 +442,11 @@ load:NXM_NX_TUN_ID[]->NXM_NX_TUN_ID[],output:NXM_OF_IN_PORT[]),output:1
 ```
 (5)实现虚拟机对外单播的处理
 a.根据学习规则的规则处理
+
 <...此处是学习到的规则s !!! ..>
+
 b.如果数据包因为之前学习的规则自然老化而匹配不到,则提交到table21进行广播
+
 ```
 table=20,priority=0 action=resubmit(,21)
 ```
@@ -511,6 +524,7 @@ dst=172.172.172.117,ttl=64,flags(df|key))),3
 (2) 网关arp应答
 
 网关:   private-router/150.150.150.1/72:04:4d:fc:be:76
+
 虚拟机: comp115-demo0x01/150.150.150.4/52:54:00:22:09:1e
 
 ```
