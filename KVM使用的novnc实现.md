@@ -9,6 +9,8 @@
 
 5.websockify(使用自定义版本,使用TokenDB而不是TokenFile,更方便管理token,见该资源包)
 
+_ _ _
+
 #### 安装软件 ####
 ```
 yum install -y sqlite
@@ -39,6 +41,8 @@ python setup.py install
 
 资源包链接:https://github.com/guojy8993/TinyCloud/tree/master/novnc
 
+_ _ _
+
 #### 开启服务 ####
 
 ```
@@ -64,6 +68,8 @@ nohup /usr/bin/python /opt/kvm-novnc/novnc_service.py &
 
 7.TokenDB负责初始化tokens表,novnc_service.py则仅仅是操作tokens表记录,因此注意服务启动顺序
 
+_ _ _
+
 #### 前端调用 ####
 
 客户业务机公网视图连接 http://kvm.webvnc.com/vnc_auto.html?token=83221476-320a-4a25-a881-7cffa3362583
@@ -71,6 +77,8 @@ nohup /usr/bin/python /opt/kvm-novnc/novnc_service.py &
 注意: http://kvm.webvnc.com 解析到对应的vnc服务器的对应端口(e.g:116.255.166.126:6080)
 
 注意: http://kvm.webvnc.com 是此处作为示例的域名,具体情况具体配置
+
+_ _ _
 
 #### 请求处理流程 ####
 1.客户点击页面"视图"按钮
@@ -95,6 +103,8 @@ nohup /usr/bin/python /opt/kvm-novnc/novnc_service.py &
   websockify 获取vnc_url中的token,由TokenDB查询token是否合法,如果合法,就将该token对应的['客户机host',
   '客户机vnc端口'](列表形式) 返回给 websockify 的反向代理功能组件 ,由其进行解析并反向代理,然后这个VNC_URL
   页面显示的就是 '客户机宿主IP':'客户机在该宿主上的vnc端口' 对应的视图了; that'a all
+
+_ _ _
 
 #### 视图功能实现原理 ####
 1.页面传token值到 websockify
