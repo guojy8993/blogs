@@ -28,10 +28,12 @@
 
 fdb添加entry的语法格式(具体参数说明请 man bridge fdb):
 ```
-bridge fdb {add|append|del|replace} LLADDR dev DEV {local|temp} {self} {router}   [dst IPADDR] [vni VNI] [port PORT] [via DEVICE]
+bridge fdb {add|append|del|replace} LLADDR dev DEV {local|temp} {self} {router} 
+                                    [dst IPADDR] [vni VNI] [port PORT] [via DEVICE]
 ```
 
 此处举例说明(此处仅举例说明,并非详细配置):
+
 (1)网络节点(10.160.0.127) - 从网络节点租户私有网络网关(初次)访问租户业务(192.168.100.6),MAC未知的情况:广播到该租户业务分布的业务宿主(10.160.0.126,10.160.0.154)
 ```
 bridge fdb add 00:00:00:00:00:00 dev vxlan-100 dst 10.160.0.126
