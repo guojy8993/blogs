@@ -157,7 +157,8 @@ step2:监控ceph集群状态
 [root@node121 ~]# ceph -w
     cluster 914785b1-6024-4bfe-9b12-137af0ec95dc
      health HEALTH_OK
-     monmap e3: 3 mons at {node120=10.160.0.120:6789/0,node121=10.160.0.121:6789/0,node122=10.160.0.122:6789/0}
+     monmap e3: 3 mons at {node120=10.160.0.120:6789/0,node121=10.160.0.121:6789/0,
+                           node122=10.160.0.122:6789/0}
             election epoch 16, quorum 0,1,2 node120,node121,node122
      osdmap e156: 9 osds: 9 up, 9 in
       pgmap v31235: 768 pgs, 3 pools, 2022 MB data, 567 objects
