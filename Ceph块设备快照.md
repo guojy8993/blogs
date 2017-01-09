@@ -71,6 +71,6 @@ Contents pre-snapshoting ...
 [root@dev ~]#
 ```
 note: 使用rbd snap purge批量删除指定镜像的全部快照,例如,
-      
-      rbd snap purge volumes/base --name client.cinder
-
+```
+rbd snap purge volumes/base --name client.cinder
+```
