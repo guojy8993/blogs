@@ -9,6 +9,8 @@
 [root@agent144 ~]# diff -uN instance.py_20160616 instance.py_20160714 > patch_instance_20160714
 ```
 
+_ _ _
+
 2.应用补丁
 
 应用补丁的命令模版: patch -p 0 {old_version_file}   {patch_file}
@@ -21,6 +23,8 @@
 [root@agent144 ~]#
 ```
 应用补丁之后确定升级到文件指定版本
+
+_ _ _
 
 3.反应用补丁
 
