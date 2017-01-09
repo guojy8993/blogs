@@ -1,21 +1,34 @@
-[本文档内容提要]
+### 本文档内容提要 ###
 1.部署ceph块设备客户端
+
 2.配置virsh secret
+
 3.在指定存储池中创建块设备
+
 4.组装kvm虚拟机可用的块设备配置文件
+
 5.以xml形式添加块设备到kvm虚拟机
+
 6.测试磁盘读写
 
+_ _ _
 
-第一部分: 部署ceph块设备客户端
+### 第一部分: 部署ceph块设备客户端 ###
+
 参考文档:Ceph块设备客户端的部署(略)
 
-第二部分: 配置virsh secret
+_ _ _
+
+### 第二部分: 配置virsh secret ###
+
 step1: 生成密钥uuid(建议一次生成,各计算节点统一使用)
+```
 [root@dev ~]# uuidgen
 1fb2b027-08d6-4739-95d1-e4f7aca367ba
+```
 
 step2: 编辑生成virsh secret文件
+```
 [root@dev ~]# cat > secret.xml << EOF
 <secret ephemeral='no' private='no'>
     <uuid>1fb2b027-08d6-4739-95d1-e4f7aca367ba</uuid>
@@ -24,34 +37,55 @@ step2: 编辑生成virsh secret文件
     </usage>
 </secret>
 EOF
+```
 
 step3: 按xml文件形式创建secret
+
+```
 [root@dev ~]# virsh secret-define --file secret.xml
 Secret 1fb2b027-08d6-4739-95d1-e4f7aca367ba created
+```
 
 step4: 给secret赋值:客户端keyring的key的base64加密字符串
+
+```
 [root@dev ~]# virsh secret-set-value --secret 1fb2b027-08d6-4739-95d1-e4f7aca367ba \
-                    --base64 $(cat /etc/ceph/ceph.client.cinder.keyring | grep key | awk '{print $3}') && rm -rf secret.xml
+    --base64 $(cat /etc/ceph/ceph.client.cinder.keyring | grep key | awk '{print $3}') && rm -rf secret.xml
 Secret value set
+```
 
-第三部分: 在指定存储池中创建块设备
+_ _ _
+
+#### 第三部分: 在指定存储池中创建块设备 ####
+
 step1:使用cinder用户在volumes池中创建10G的volume-0x02卷
+```
 [root@dev ~]# rbd create volume-0x02 --pool volumes --size 10240 --name client.cinder
+```
+_ _ _
 
+#### 第四部分: 组装kvm虚拟机可用的块设备配置文件 ####
 
-第四部分: 组装kvm虚拟机可用的块设备配置文件
 step1:获取系统全部mon信息
+
+```
 [root@node120 ~]# ceph mon dump | grep 6789
 dumped monmap epoch 3
 0: 10.160.0.120:6789/0 mon.node120
 1: 10.160.0.121:6789/0 mon.node121
 2: 10.160.0.122:6789/0 mon.node122
+```
 
 step2:编辑块设备xml文件(libvirt支持)
+
+```
 [root@dev ~]# virsh secret-list | grep cinder | awk '{print $1}'
 1fb2b027-08d6-4739-95d1-e4f7aca367ba
+```
 
 step3:编辑块设备xml文件
+
+```
 [root@dev ~]# cat > blk.xml << EOF
 <disk type='network' device='disk'>
 <driver name='qemu' type='raw'/>
@@ -66,24 +100,40 @@ step3:编辑块设备xml文件
 <target dev='vdb' bus='virtio'/>
 </disk>
 EOF
+```
 
-# 注1: 确保auth.user与ceph用户client.{user}中的user一致且cinder secret uuid正确
-# 注2: 确保type与块设备实际类型符合(raw)
-# 注3: 确保name选项正确 {pool}/{volume}
-# 注4: 确保mons信息正确
-# 注5: 确保target dev可用
+注1: 确保auth.user与ceph用户client.{user}中的user一致且cinder secret uuid正确
 
-第五部分: 以xml形式添加块设备到kvm虚拟机
-# 添加块设备并启动虚拟机
+注2: 确保type与块设备实际类型符合(raw)
+
+注3: 确保name选项正确 {pool}/{volume}
+
+注4: 确保mons信息正确
+
+注5: 确保target dev可用
+
+_ _ _
+
+#### 第五部分: 以xml形式添加块设备到kvm虚拟机 ####
+
+添加块设备并启动虚拟机
+
+```
 [root@dev ~]# virsh attach-device centos --file blk.xml --config --live
 Device attached successfully
 
 [root@dev ~]# virsh domblklist centos | grep vdb
 vdb        volumes/volume-0x02
+```
+_ _ _
 
-第五部分: 测试磁盘读写
-# 观察虚拟机读写磁盘时ceph集群的状态
+#### 第五部分: 测试磁盘读写 ####
+
+观察虚拟机读写磁盘时ceph集群的状态
+
 step1:虚拟机内部格式化磁盘
+
+```
 [root@localhost ~]# mkfs.xfs /dev/vdb
 meta-data=/dev/vdb               isize=256    agcount=4, agsize=655360 blks
          =                       sectsz=512   attr=2, projid32bit=1
@@ -99,8 +149,11 @@ realtime =none                   extsz=4096   blocks=0, rtextents=0
 1024+0 records in
 1024+0 records out
 1073741824 bytes (1.1 GB) copied, 67.6022 s, 15.9 MB/s
+```
 
 step2:监控ceph集群状态
+
+```
 [root@node121 ~]# ceph -w
     cluster 914785b1-6024-4bfe-9b12-137af0ec95dc
      health HEALTH_OK
@@ -123,3 +176,4 @@ step2:监控ceph集群状态
 7016 MB used, 427 GB / 434 GB avail; 3845 kB/s wr, 1 op/s
 2017-01-04 04:57:16.177039 mon.0 [INF] pgmap v31242: 768 pgs: 768 active+clean; 2050 MB data, \
 7088 MB used, 427 GB / 434 GB avail; 6509 kB/s wr, 3 op/s
+```
