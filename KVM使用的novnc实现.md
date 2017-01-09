@@ -39,7 +39,7 @@ python setup.py install
 
 拷贝资源包中的 novnc web站点 (下面有vnc_auto.html文件那个目录) 到 /opt/kvm-novnc
 
-资源包链接:https://github.com/guojy8993/TinyCloud/tree/master/novnc
+资源包链接:[点击这里](https://github.com/guojy8993/TinyCloud/tree/master/novnc)
 
 _ _ _
 
