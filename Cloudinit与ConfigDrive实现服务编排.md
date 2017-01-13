@@ -9,6 +9,6 @@ ___
 ___
 #### ConfigDrive介绍 ####
 ___
-#### Cloudinit对ConfigDrive数据组织与结构的要求 ####
+#### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
 ___
 #### Cloudinit结合ConfigDrive实现服务编排 ####
