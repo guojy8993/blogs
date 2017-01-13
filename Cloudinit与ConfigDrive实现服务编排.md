@@ -31,9 +31,9 @@ ___
 3 directories, 7 files
 ```
 (1) 最重要的是meta_data.json，作用:
-    i. 从 configdrive 中 content 目录拷贝文件为虚拟机特定文件
-    ii.定义了虚拟机的基本配置信息
-    '''
+i. 从 configdrive 中 content 目录拷贝文件为虚拟机特定文件
+ii.定义了虚拟机的基本配置信息
+``` 
     {
     "files": [
         {
@@ -58,6 +58,6 @@ ___
     "name": "cloudinit-devops",
     "uuid": "c5d1d5bd-4847-45b0-8ee4-8f3075900bfc"
 }
-    '''
+```
 ___
 #### Cloudinit结合ConfigDrive实现服务编排 ####
