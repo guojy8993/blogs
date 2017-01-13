@@ -30,11 +30,11 @@ ___
 
 3 directories, 7 files
 ```
-(1) 最重要的是meta_data.json，作用:
+(1)  最重要的是meta_data.json，作用:
 
 i. 从 configdrive 中 content 目录拷贝文件为虚拟机特定文件
 
-ii.定义了虚拟机的基本配置信息
+ii. 定义了虚拟机的基本配置信息
 
 ``` 
 {
@@ -62,7 +62,7 @@ ii.定义了虚拟机的基本配置信息
     "uuid": "c5d1d5bd-4847-45b0-8ee4-8f3075900bfc"
 }
 ```
-> **NOTE**
+> **NOTE：**
 
 > hostname与name是虚拟机配置的必须信息
 
@@ -74,9 +74,9 @@ ii.定义了虚拟机的基本配置信息
 
 > files的典型应用包括：
 
-> (1) 网卡配置，域名解析，本地解析，yum源，known_hosts等
+> (1)  网卡配置，域名解析，本地解析，yum源，known_hosts等
 
-> (2) 拷贝软件安装包(存在content下命名为"\d{4}")到虚拟机，后续使用user_data脚本安装
+> (2)  拷贝软件安装包(存在content下命名为"\d{4}")到虚拟机，后续使用user_data脚本安装
 
 ___
 #### Cloudinit结合ConfigDrive实现服务编排 ####
