@@ -10,7 +10,7 @@ ___
 #### ConfigDrive介绍 ####
 ___
 #### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
-      虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构,相当丰富繁杂。结合笔者测试，归结了
+       虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构,相当丰富繁杂。结合笔者测试，归结了
 最简的文件结构，参考下文：
 ```
 [root@dev config-2]# pwd
