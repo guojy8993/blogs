@@ -10,8 +10,7 @@ ___
 #### ConfigDrive介绍 ####
 ___
 #### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
-       虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构，相当丰富繁杂。结合笔者测试，归结了
-最简的文件结构，参考下文：
+       虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构，相当丰富但也很复杂。结合笔者测试，归结了最简的文件结构，参考下文：
 ```
 [root@dev config-2]# pwd
 /root/config-2
@@ -78,5 +77,32 @@ ii. 定义了虚拟机的基本配置信息
 
 > (2)  拷贝软件安装包(存在content下命名为"\d{4}")到虚拟机，后续使用user_data脚本安装
 
+(2) 次重要的当属于user_data，其实就是用户自定义的可执行脚本，作用：完成用户指定的操作
+
+以笔者测试环境为例：
+
+```
+#!/bin/bash
+echo root | passwd --stdin root
+echo "10.160.0.116 master116.openstack.org" >> /etc/hosts
+rpm -ivh /root/openvswitch.rpm
+systemctl start openvswitch
+systemctl restart network
+```
+
+功能包括:
+i.  修改系统密码
+
+ii. 添加域名解析
+
+iii. 安装并启动openvswitch软件
+
+iv. 重启网络服务
+
+> **NOTE:**
+
+> 结合meta-data.json来看: user-data的执行时机是在CloudInit优先完成meta-data.json的工作(拷贝文件，设置机器名等)之后的
+> user-data 支持 shell
 ___
+
 #### Cloudinit结合ConfigDrive实现服务编排 ####
