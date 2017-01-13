@@ -63,12 +63,19 @@ ii.定义了虚拟机的基本配置信息
 }
 ```
 > **NOTE**
+
 > hostname与name是虚拟机配置的必须信息
+
 > uuid 是必须的，经测试，如果没有该项则注入就失败
+
 > launch_index 建议使用0作为默认
+
 > files列表定义了需要从 ./openstack/content/ 拷贝到虚拟机的指定文件
+
 > files的典型应用包括：
+
 > (1) 网卡配置，域名解析，本地解析，yum源，known_hosts等
+
 > (2) 拷贝软件安装包(存在content下命名为"\d{4}")到虚拟机，后续使用user_data脚本安装
 
 ___
