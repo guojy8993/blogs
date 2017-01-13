@@ -10,7 +10,7 @@ ___
 #### ConfigDrive介绍 ####
 ___
 #### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
-       虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构,相当丰富繁杂。结合笔者测试，归结了
+       虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构，相当丰富繁杂。结合笔者测试，归结了
 最简的文件结构，参考下文：
 ```
 [root@dev config-2]# pwd
@@ -30,5 +30,34 @@ ___
 
 3 directories, 7 files
 ```
+(1) 最重要的是meta_data.json，作用:
+    i. 从 configdrive 中 content 目录拷贝文件为虚拟机特定文件
+    ii.定义了虚拟机的基本配置信息
+    '''
+    {
+    "files": [
+        {
+            "path": "/root/userdata",
+            "content_path": "/content/0000"
+        },
+        {
+            "path": "/root/tokens",
+            "content_path": "/content/0001"
+        },
+        {
+            "path": "/root/openvswitch.rpm",
+            "content_path": "/content/0002"
+        },
+        {
+            "path": "/etc/sysconfig/network-scripts/ifcfg-eth0",
+            "content_path": "/content/0003"
+        }
+    ],
+    "hostname": "cloudinit-devops.novalocal",
+    "launch_index": 0,
+    "name": "cloudinit-devops",
+    "uuid": "c5d1d5bd-4847-45b0-8ee4-8f3075900bfc"
+}
+    '''
 ___
 #### Cloudinit结合ConfigDrive实现服务编排 ####
