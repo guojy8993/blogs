@@ -101,7 +101,7 @@ iv. 重启网络服务
 
 > **NOTE:**
 
-> 结合meta-data.json来看:user-data的执行时机是在CloudInit优先完成meta-data.json的工作(拷贝文件，设置机器名等)之后的
+> 结合meta-data.json来看:user-data的执行时机是在CloudInit优先完成meta-data.json的工作(拷贝文件，设置机器名等)之后
 
 > user-data是明文脚本，并未使用base64加密
 
@@ -109,11 +109,21 @@ iv. 重启网络服务
 
 (3) 最后是content目录，存储需要拷贝到虚拟机的各色文件，但是对命名有特殊要求,符合正则 "\d{4}"
 
+按照如上组织ConfigDrive，然后以之启动虚拟机：
+
+![CloudInit拷贝文件](https://github.com/guojy8993/blogs/blob/master/cloudinit-metadata.jpg)
+
+![CloudInit用户脚本](https://github.com/guojy8993/blogs/blob/master/cloudinit-userdata-file.jpg)
+
+![CloudInit用户脚本执行结果](https://github.com/guojy8993/blogs/blob/master/cloudinit-userdata.jpg)
 ___
 
 #### Cloudinit结合ConfigDrive实现服务编排 ####
 
 #### 参考资料 ####
-[CloudInit初始化时机](http://cloudinit.readthedocs.io/en/latest/topics/boot.html)
-[UserData格式](http://cloudinit.readthedocs.io/en/latest/topics/format.html#example)
-[CloudInit文件布局](http://cloudinit.readthedocs.io/en/latest/topics/dir_layout.html)
+[1. CloudInit初始化时机](http://cloudinit.readthedocs.io/en/latest/topics/boot.html)
+
+[2. UserData格式](http://cloudinit.readthedocs.io/en/latest/topics/format.html#example)
+
+[3. CloudInit文件布局](http://cloudinit.readthedocs.io/en/latest/topics/dir_layout.html)
+
