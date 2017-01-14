@@ -13,6 +13,7 @@
 ___
 #### 云编排测试环境需求 ####
     在本次测试中我们需要4个服务器，其信息如下所示：
+
 ```
 服务器名称           角色              IP                   系统       硬件配置
 test2.cloud.org      测试客户端        192.168.100.25/24    CebtOS7    C1M1024
@@ -20,6 +21,7 @@ haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CebtOS7    C4
 web01.cloud.org      后端web服务器     192.168.100.27/24    CebtOS7    C2M2048
 web02.cloud.org      后端web服务器     192.168.100.28/24    CebtOS7    C2M2048
 ```
+
 > **NOTE:**
 
 > CentOS7系统镜像是特殊定制版本,安装有CloudInit
@@ -28,6 +30,7 @@ web02.cloud.org      后端web服务器     192.168.100.28/24    CebtOS7    C2M2
 
 ___
 #### 各个节点的配置说明 ####
+
 (1) test2.cloud.org: 需要修改hosts，设置网络，其他无特殊设置
 
 (2) haproxy.cloud.org: 需要修改hosts，设置网络，安装haproxy，拷贝 haproxy.cfg，设置服务，其他无特殊设置
