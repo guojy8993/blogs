@@ -10,7 +10,6 @@
 
 (5) 检验服务编排
 
-![服务编排](https://github.com/guojy8993/blogs/blob/master/ec2.jpg)
 ___
 #### 云编排测试环境需求 ####
 (1) 在本次测试中我们需要4个服务器，其信息如下所示：
@@ -21,6 +20,8 @@ haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CentOS7    C4
 web01.cloud.org      后端web服务器     192.168.100.27/24    CentOS7    C2M2048       web01
 web02.cloud.org      后端web服务器     192.168.100.28/24    CentOS7    C2M2048       web02
 ```
+
+![服务编排](https://github.com/guojy8993/blogs/blob/master/ec2.jpg)
 
 > **NOTE:**
 
