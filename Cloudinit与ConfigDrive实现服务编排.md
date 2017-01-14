@@ -110,6 +110,14 @@ iv. 重启网络服务
 
 (3) 最后是content目录，存储需要拷贝到虚拟机的各色文件，但是对命名有特殊要求,符合正则 "\d{4}"
 
+> **NOTE:**
+
+> ConfigDrive对卷标有特殊要求，需要设定为 config-2:
+
+> 以笔者测试环境为例: mkisofs -R -V config-2 -o /root/configdrive.iso /root/config-2/
+
+> 后续使用virsh change-media命令插入虚拟机光驱设备(略)
+
 按照如上组织ConfigDrive，然后以之启动虚拟机：
 
 ![CloudInit拷贝文件](https://github.com/guojy8993/blogs/blob/master/cloudinit-metadata.jpg)
