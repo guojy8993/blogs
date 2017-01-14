@@ -15,10 +15,10 @@ ___
 (1) 在本次测试中我们需要4个服务器，其信息如下所示：
 ```
 服务器名称           角色              IP                   系统       硬件配置
-test2.cloud.org      测试客户端        192.168.100.25/24    CebtOS7    C1M1024
-haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CebtOS7    C4M4096
-web01.cloud.org      后端web服务器     192.168.100.27/24    CebtOS7    C2M2048
-web02.cloud.org      后端web服务器     192.168.100.28/24    CebtOS7    C2M2048
+test2.cloud.org      测试客户端        192.168.100.25/24    CentOS7    C1M1024
+haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CentOS7    C4M4096
+web01.cloud.org      后端web服务器     192.168.100.27/24    CentOS7    C2M2048
+web02.cloud.org      后端web服务器     192.168.100.28/24    CentOS7    C2M2048
 ```
 
 > **NOTE:**
