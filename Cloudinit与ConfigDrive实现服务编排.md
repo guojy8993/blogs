@@ -320,20 +320,28 @@ EOF
 ```
 (3) 启动各个节点
 [root@cs112-04 ~]# sh install test2 2048 2
+
 [root@cs112-04 ~]# sh install haproxy 4096 4
+
 [root@cs112-04 ~]# sh install web01 2048 2
+
 [root@cs112-04 ~]# sh install web02 2048 2
 
 ___
 #### 检验服务编排 ####
 (1) 检查haproxy节点
+![haproxy节点编排](https://github.com/guojy8993/blogs/blob/master/haproxy.jpg)
+
 (2) 检查web01节点
+![web01节点编排](https://github.com/guojy8993/blogs/blob/master/web01.jpg)
+
 (3) 检查web02节点
+![web02节点编排](https://github.com/guojy8993/blogs/blob/master/web02.jpg)
+
 (4) 检查test2节点
+![test2节点编排](https://github.com/guojy8993/blogs/blob/master/test2.jpg)
 
-
-
-
+___
 #### 参考链接 ####
 [1. CloudInit镜像制作](https://github.com/guojy8993/blogs/blob/master/OpenStack%E9%95%9C%E5%83%8F%28%E5%9F%BA%E4%BA%8ECentOS7%29%E7%9A%84%E5%88%B6%E4%BD%9C%E4%B8%8E%E8%AF%B4%E6%98%8E)
 
