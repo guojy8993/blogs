@@ -132,6 +132,7 @@ systemctl restart network
 ```
 
 iv.打包iso镜像
+
 [root@dev test]# mkisofs -R -V config-2 -o /root/test2.iso ./
 
 (3) haproxy.cloud.org 的ConfigDrive的准备
