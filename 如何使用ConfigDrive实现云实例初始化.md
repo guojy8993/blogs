@@ -130,6 +130,7 @@ ___
 [2. UserData格式](http://cloudinit.readthedocs.io/en/latest/topics/format.html#example)
 
 [3. CloudInit文件布局](http://cloudinit.readthedocs.io/en/latest/topics/dir_layout.html)
+
 [4. Cloudinit镜像制作](https://github.com/guojy8993/blogs/blob/master/OpenStack%E9%95%9C%E5%83%8F%28%E5%9F%BA%E4%BA%8ECentOS7%29%E7%9A%84%E5%88%B6%E4%BD%9C%E4%B8%8E%E8%AF%B4%E6%98%8E)
 
 版权所有，转载注明出处。如有问题联系 guojy8993@163.com 
