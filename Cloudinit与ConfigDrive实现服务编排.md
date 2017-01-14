@@ -1,14 +1,8 @@
 ### 文档内容提要 ###
-1. Cloudinit介绍
-2. ConfigDrive介绍
-3. Cloudinit对ConfigDrive数据组织与结构的要求
-4. Cloudinit结合ConfigDrive实现服务编排
+1. Cloudinit对ConfigDrive数据组织与结构的要求
 
 ___
-#### Cloudinit介绍 ####
-___
-#### ConfigDrive介绍 ####
-___
+
 #### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
        虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构，相当丰富但也很复杂。结合笔者测试，归结了最简的文件结构，参考下文：
 ```
@@ -130,8 +124,6 @@ iv. 重启网络服务
 
 ![CloudInit用户脚本执行结果](https://github.com/guojy8993/blogs/blob/master/cloudinit-userdata.jpg)
 ___
-
-#### Cloudinit结合ConfigDrive实现服务编排 ####
 
 #### 参考资料 ####
 [1. CloudInit初始化时机](http://cloudinit.readthedocs.io/en/latest/topics/boot.html)
