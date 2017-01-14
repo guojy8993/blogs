@@ -46,7 +46,16 @@ ___
 
 ___
 #### 各个节点ConfigDrive的配置与生成 ####
+(1) 通用文件的创建以及安装包的准备
 
+i. 创建公用hosts文件
+
+ii.准备haproxy, nginx的rpm安装包
+
+(2) test2.cloud.org 的ConfigDrive的准备
+(3) haproxy.cloud.org 的ConfigDrive的准备
+(4) web01.cloud.org 的ConfigDrive的准备
+(5) web02.cloud.org 的ConfigDrive的准备
 ___
 #### 启动各个节点实现服务编排 ####
 
