@@ -1,6 +1,5 @@
 ### 文档内容提要 ###
 1. Cloudinit对ConfigDrive数据组织与结构的要求
-
 ___
 
 #### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
@@ -132,3 +131,4 @@ ___
 
 [3. CloudInit文件布局](http://cloudinit.readthedocs.io/en/latest/topics/dir_layout.html)
 
+版权所有，转载注明出处。如有问题联系 guojy8993@163.com 
