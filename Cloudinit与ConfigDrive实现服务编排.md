@@ -34,7 +34,7 @@ ___
 
 (2) haproxy.cloud.org: 需要修改hosts，设置网络，安装haproxy，拷贝 haproxy.cfg，设置服务，其他无特殊设置
 
-(3) 各个web节点: 需要修改hosts，设置网络，安装nginx，拷贝配置文件，设置服务，其他无特殊设置
+(3) 各个web节点: 需要修改hosts，设置网络，安装httpd，拷贝配置文件，设置服务，其他无特殊设置
 
 > **NOTE:**
 
@@ -59,14 +59,21 @@ i. 创建公用hosts文件
 > 192.168.100.28 web02.cloud.org
 > EOF
 ```
-ii. 准备rpm包(yum downloadonly或者预先上传,此处不细说,略)
-
-
+ii.准备haproxy, httpd的rpm安装包(yum downloadonly或者预先上传,此处不细说,略)
+```
+[root@dev ~]# ls /tmp/ | egrep "rpm|tar.gz|hosts"
+haproxy.rpm
+hosts
+httpd.tar.gz
+```
 > **NOTE:**
 
 > dev机器是未来作为编排引擎服务所在的机器,后续生成ConfigDrive的工作都在该服务器上做
 
-ii.准备haproxy, nginx的rpm安装包
+> httpd.tar.gz是httpd.rpm以及依赖所rpms的集合
+
+
+
 
 (2) test2.cloud.org 的ConfigDrive的准备
 
