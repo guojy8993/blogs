@@ -319,6 +319,7 @@ virt-install --name ${1} --ram ${2} --vcpus ${3} \
 EOF
 ```
 (3) 启动各个节点
+```
 [root@cs112-04 ~]# sh install test2 2048 2
 
 [root@cs112-04 ~]# sh install haproxy 4096 4
@@ -326,7 +327,7 @@ EOF
 [root@cs112-04 ~]# sh install web01 2048 2
 
 [root@cs112-04 ~]# sh install web02 2048 2
-
+```
 ___
 #### 检验服务编排 ####
 (1) 检查haproxy节点
