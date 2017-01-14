@@ -269,18 +269,29 @@ ii.生成meta_data.json
 
 iii.生成user_data脚本
 ```
+#!/bin/bash
+echo web01 | passwd --stdin root
+systemctl restart network
+
+tar -xf /tmp/httpd.tar.gz -C /tmp/
+rpm -ivh /tmp/httpd/mailcap-2.1.41-2.el7.noarch.rpm
+rpm -ivh /tmp/httpd/apr-1.4.8-3.el7.x86_64.rpm
+rpm -ivh /tmp/httpd/apr-util-1.5.2-6.el7.x86_64.rpm
+rpm -ivh /tmp/httpd/httpd-tools-2.4.6-40.el7.centos.4.x86_64.rpm
+rpm -ivh /tmp/httpd/httpd-2.4.6-40.el7.centos.4.x86_64.rpm
+
+/usr/bin/cp -f /tmp/index.html /var/www/html/index.html
+systemctl start httpd
+
+rm -rf /tmp/httpd.tar.gz /tmp/httpd/ /tmp/index.html
 ```
-iv.打包iso镜像
-
-(5) web02.cloud.org 的ConfigDrive的准备
-i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
-
-ii.生成meta_data.json
-
-iii.生成user_data脚本
 
 iv.打包iso镜像
+```
+[root@dev web01]# mkisofs -R -V config-2 -o /root/web01.iso ./
+```
 
+(5) web02.cloud.org 的ConfigDrive的准备(参考 web01，略)
 
 ___
 #### 启动各个节点实现服务编排 ####
