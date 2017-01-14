@@ -140,6 +140,7 @@ iv.打包iso镜像
 ```
 
 (3) haproxy.cloud.org 的ConfigDrive的准备
+
 i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝,拷贝haproxy.rpm及其配置文件
 ```
 [root@dev haproxy]# cp /tmp/hosts openstack/content/0000
@@ -239,6 +240,7 @@ iv.打包iso镜像
 ```
 
 (4) web01.cloud.org 的ConfigDrive的准备
+
 i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
 ```
 [root@dev web01]# cp /tmp/hosts openstack/content/0000
