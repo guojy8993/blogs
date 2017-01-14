@@ -49,10 +49,27 @@ ___
 (1) 通用文件的创建以及安装包的准备
 
 i. 创建公用hosts文件
+```
+[root@dev ~]# cat > /tmp/hosts << EOF
+> 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+> ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+> 192.168.100.25 test2.cloud.org
+> 192.168.100.26 haproxy.cloud.org
+> 192.168.100.27 web01.cloud.org
+> 192.168.100.28 web02.cloud.org
+> EOF
+```
+ii. 准备rpm包(yum downloadonly或者预先上传,此处不细说,略)
+
+
+> **NOTE:**
+
+> dev机器是未来作为编排引擎服务所在的机器,后续生成ConfigDrive的工作都在该服务器上做
 
 ii.准备haproxy, nginx的rpm安装包
 
 (2) test2.cloud.org 的ConfigDrive的准备
+
 (3) haproxy.cloud.org 的ConfigDrive的准备
 (4) web01.cloud.org 的ConfigDrive的准备
 (5) web02.cloud.org 的ConfigDrive的准备
