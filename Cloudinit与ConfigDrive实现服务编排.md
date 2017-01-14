@@ -73,6 +73,7 @@ httpd.tar.gz
 > httpd.tar.gz是httpd.rpm以及依赖所rpms的集合
 
 (2) test2.cloud.org 的ConfigDrive的准备
+
 i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
 ```
 [root@dev test]# cp /tmp/hosts openstack/content/0000
@@ -132,14 +133,94 @@ systemctl restart network
 ```
 
 iv.打包iso镜像
-
+```
 [root@dev test]# mkisofs -R -V config-2 -o /root/test2.iso ./
+```
 
 (3) haproxy.cloud.org 的ConfigDrive的准备
-i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝,拷贝haproxy.rpm及其配置文件
+```
+[root@dev haproxy]# cp /tmp/hosts openstack/content/0000
+[root@dev haproxy]# cat > openstack/content/0001 << EOF
+TYPE=Ethernet
+BOOTPROTO=static
+DEFROUTE=yes
+PEERDNS=yes
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_PEERDNS=yes
+IPV6_PEERROUTES=yes
+IPV6_FAILURE_FATAL=no
+NAME=eth0
+ONBOOT=yes
+IPADDR0=192.168.100.26
+PREFIX0=24
+GATEWAY0=192.168.100.1
+EOF
+
+[root@dev haproxy]# cp /tmp/haproxy.rpm openstack/content/0002
+[root@dev haproxy]# cat openstack/content/0003
+global
+   daemon
+   user nobody
+   group haproxy
+   log /dev/log local0
+   log /dev/log local1 notice
+   stats socket /tmp/sock
+   mode 0666 level user
+
+defaults
+   log global
+   retries 3
+   option redispatch 
+   timeout connect 5000
+   timeout client 50000
+   timeout server 50000
+frontend c4c49fc1-bf10-4270-bc20-02b93439897f
+   option tcplog
+   bind haproxy.cloud.org
+   mode http
+   default_backend 8f09dbaf-0c78-48f1-8b80-662e75036485
+   maxconn 100
+   option forwardfor
+backend 8f09dbaf-0c78-48f1-8b80-662e75036485
+   mode http
+   balance leastconn
+   option forwardfor
+   server 0c7d3741-df7b-4bf3-9396-14cc3c05b5a5 web01.cloud.org weight 100
+   server 44c18162-301e-42f3-9f0a-5522f426412f web02.cloud.org weight 100
+```
+
 ii.生成meta_data.json
+```
+{
+    "files": [ {"path": "/etc/hosts", "content_path": "/content/0000"},
+               {"path": "/etc/sysconfig/network-scripts/ifcfg-eth0", "content_path": "/content/0001"},
+               {"path": "/tmp/haproxy.rpm", "content_path": "/content/0002"},
+               {"path": "/tmp/haproxy.cfg", "content_path": "/content/0003"}
+             ], 
+    "hostname": "haproxy.cloud.org", 
+    "launch_index": 0, 
+    "name": "haproxy", 
+    "uuid": "302d0f16-a8ff-4138-a80f-c95a4ff5787e"
+}
+```
 iii.生成user_data脚本
+```
+[root@dev haproxy]# cat openstack/latest/user_data 
+#!/bin/bash
+echo haproxy | passwd --stdin root
+systemctl restart network
+rpm -ivh /tmp/haproxy.rpm && rm -rf /tmp/haproxy.rpm
+haproxy -f /tmp/haproxy.cfg
+```
 iv.打包iso镜像
+```
+[root@dev haproxy]# mkisofs -R -V config-2 -o /root/haproxy.iso ./
+```
 
 (4) web01.cloud.org 的ConfigDrive的准备
 i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
