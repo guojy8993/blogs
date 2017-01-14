@@ -15,7 +15,7 @@ ___
 (1) 在本次测试中我们需要4个服务器，其信息如下所示：
 ```
 服务器名称           角色              IP                   系统       硬件配置       密码
-test2.cloud.org      测试客户端        192.168.100.25/24    CentOS7    C1M1024       test2
+test2.cloud.org      测试客户端        192.168.100.25/24    CentOS7    C2M2048       test2
 haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CentOS7    C4M4096       haproxy
 web01.cloud.org      后端web服务器     192.168.100.27/24    CentOS7    C2M2048       web01
 web02.cloud.org      后端web服务器     192.168.100.28/24    CentOS7    C2M2048       web02
@@ -170,7 +170,6 @@ global
    log /dev/log local0
    log /dev/log local1 notice
    stats socket /tmp/sock
-   mode 0666 level user
 
 defaults
    log global
@@ -181,7 +180,7 @@ defaults
    timeout server 50000
 frontend c4c49fc1-bf10-4270-bc20-02b93439897f
    option tcplog
-   bind haproxy.cloud.org
+   bind haproxy.cloud.org:80
    mode http
    default_backend 8f09dbaf-0c78-48f1-8b80-662e75036485
    maxconn 100
@@ -190,8 +189,8 @@ backend 8f09dbaf-0c78-48f1-8b80-662e75036485
    mode http
    balance leastconn
    option forwardfor
-   server 0c7d3741-df7b-4bf3-9396-14cc3c05b5a5 web01.cloud.org weight 100
-   server 44c18162-301e-42f3-9f0a-5522f426412f web02.cloud.org weight 100
+   server 0c7d3741-df7b-4bf3-9396-14cc3c05b5a5 web01.cloud.org:80 weight 100
+   server 44c18162-301e-42f3-9f0a-5522f426412f web02.cloud.org:80 weight 100
 ```
 
 ii.生成meta_data.json
@@ -216,6 +215,7 @@ echo haproxy | passwd --stdin root
 systemctl restart network
 rpm -ivh /tmp/haproxy.rpm && rm -rf /tmp/haproxy.rpm
 haproxy -f /tmp/haproxy.cfg
+iptables -I INPUT -p tcp --dport 80 -j ACCEPT
 ```
 iv.打包iso镜像
 ```
@@ -281,6 +281,8 @@ rpm -ivh /tmp/httpd/httpd-tools-2.4.6-40.el7.centos.4.x86_64.rpm
 rpm -ivh /tmp/httpd/httpd-2.4.6-40.el7.centos.4.x86_64.rpm
 
 /usr/bin/cp -f /tmp/index.html /var/www/html/index.html
+chmod 644 /var/www/html/index.html
+iptables -I INPUT -p tcp --dport 80 -j ACCEPT
 systemctl start httpd
 
 rm -rf /tmp/httpd.tar.gz /tmp/httpd/ /tmp/index.html
@@ -296,9 +298,39 @@ iv.打包iso镜像
 ___
 #### 启动各个节点实现服务编排 ####
 
+(1) 创建虚拟机数据目录(存放系统盘),并拷贝启动模板
+```
+[root@cs112-04 ~]# mkdir -p /tmp/{test2,haproxy,web01,web02}
+[root@cs112-04 ~]# for inst in {test2,haproxy,web01,web02} ; do cp /opt/cloudinit.qcow2 /tmp/${inst}/system ;done
+```
+> **NOTE:**
+
+> ConfigDrive(ISO镜像)统一放置于 /tmp/下, 这些文件是从dev机器上拷贝过来的
+
+(2) 编辑自动化启动虚拟机脚本
+```
+[root@cs112-04 ~]# cat > install << EOF
+virt-install --name ${1} --ram ${2} --vcpus ${3} \
+             --boot hd \
+             --disk /tmp/${1}/system,format=qcow2 \
+             --network bridge:br0,model=virtio \
+             --cdrom /tmp/${1}.iso \
+             --graphics vnc,listen=0.0.0.0 --noautoconsole
+EOF
+```
+(3) 启动各个节点
+[root@cs112-04 ~]# sh install test2 2048 2
+[root@cs112-04 ~]# sh install haproxy 4096 4
+[root@cs112-04 ~]# sh install web01 2048 2
+[root@cs112-04 ~]# sh install web02 2048 2
 
 ___
 #### 检验服务编排 ####
+(1) 检查haproxy节点
+(2) 检查web01节点
+(3) 检查web02节点
+(4) 检查test2节点
+
 
 
 
