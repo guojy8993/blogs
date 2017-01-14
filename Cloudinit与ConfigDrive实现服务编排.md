@@ -10,7 +10,7 @@
 
 (5) 检验服务编排
 
-![服务编排](https://github.com/guojy8993/blogs/blob/master/ec22.jpg)
+![服务编排](https://github.com/guojy8993/blogs/blob/master/ec2.jpg)
 ___
 #### 云编排测试环境需求 ####
 (1) 在本次测试中我们需要4个服务器，其信息如下所示：
