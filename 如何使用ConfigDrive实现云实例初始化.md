@@ -1,7 +1,7 @@
 ### 文档内容提要 ###
 1. Cloudinit对ConfigDrive数据组织与结构的要求
-___
 
+___
 #### Cloudinit对ConfigDrive目录组织与数据结构的要求 ####
        虽然按照Cloud-Init官方文档以及OpenStack相关文档的介绍，ConfigDrive内部复杂的文件系统组织以及数据结构，相当丰富但也很复杂。结合笔者测试，归结了最简的文件结构，参考下文：
 ```
