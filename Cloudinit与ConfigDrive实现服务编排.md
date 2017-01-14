@@ -118,6 +118,10 @@ iv. 重启网络服务
 
 > 后续使用virsh change-media命令插入虚拟机光驱设备(略)
 
+> 在虚拟机内部iso被识别为: /dev/disk/by-label/config-2
+
+> CloudInit识别约定设备作为ConfigDrive，读取其中配置实现系统配置
+
 按照如上组织ConfigDrive，然后以之启动虚拟机：
 
 ![CloudInit拷贝文件](https://github.com/guojy8993/blogs/blob/master/cloudinit-metadata.jpg)
