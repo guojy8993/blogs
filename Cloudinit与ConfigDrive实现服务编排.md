@@ -193,6 +193,20 @@ backend 8f09dbaf-0c78-48f1-8b80-662e75036485
    option forwardfor
    server 0c7d3741-df7b-4bf3-9396-14cc3c05b5a5 web01.cloud.org:80 weight 100
    server 44c18162-301e-42f3-9f0a-5522f426412f web02.cloud.org:80 weight 100
+
+[root@dev haproxy]# tree
+.
+└── openstack
+    ├── content
+    │   ├── 0000
+    │   ├── 0001
+    │   ├── 0002
+    │   └── 0003
+    └── latest
+        ├── meta_data.json
+        ├── user_data
+        └── vendor_data.json
+
 ```
 
 ii.生成meta_data.json
@@ -252,6 +266,20 @@ EOF
 [root@dev web01]# cat > openstack/content/0003 << EOF
 Greetings from web01.cloud.org !
 EOF
+
+[root@dev web01]# tree
+.
+└── openstack
+    ├── content
+    │   ├── 0000
+    │   ├── 0001
+    │   ├── 0002
+    │   └── 0003
+    └── latest
+        ├── meta_data.json
+        ├── user_data
+        └── vendor_data.json
+
 ```
 
 ii.生成meta_data.json
