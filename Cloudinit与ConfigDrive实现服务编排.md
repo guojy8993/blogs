@@ -14,11 +14,11 @@ ___
 #### 云编排测试环境需求 ####
 (1) 在本次测试中我们需要4个服务器，其信息如下所示：
 ```
-服务器名称           角色              IP                   系统       硬件配置
-test2.cloud.org      测试客户端        192.168.100.25/24    CentOS7    C1M1024
-haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CentOS7    C4M4096
-web01.cloud.org      后端web服务器     192.168.100.27/24    CentOS7    C2M2048
-web02.cloud.org      后端web服务器     192.168.100.28/24    CentOS7    C2M2048
+服务器名称           角色              IP                   系统       硬件配置       密码
+test2.cloud.org      测试客户端        192.168.100.25/24    CentOS7    C1M1024       test2
+haproxy.cloud.org    负载均衡服务器    192.168.100.26/24    CentOS7    C4M4096       haproxy
+web01.cloud.org      后端web服务器     192.168.100.27/24    CentOS7    C2M2048       web01
+web02.cloud.org      后端web服务器     192.168.100.28/24    CentOS7    C2M2048       web02
 ```
 
 > **NOTE:**
@@ -30,11 +30,11 @@ web02.cloud.org      后端web服务器     192.168.100.28/24    CentOS7    C2M2
 ___
 #### 各个节点的配置说明 ####
 
-(1) test2.cloud.org: 需要修改hosts，设置网络，其他无特殊设置
+(1) test2.cloud.org: 需要修改hosts，密码,机器名,设置网络，其他无特殊设置
 
-(2) haproxy.cloud.org: 需要修改hosts，设置网络，安装haproxy，拷贝 haproxy.cfg，设置服务，其他无特殊设置
+(2) haproxy.cloud.org: 需要修改hosts，设置网络，密码,机器名,安装haproxy，拷贝 haproxy.cfg，设置服务，其他无特殊设置
 
-(3) 各个web节点: 需要修改hosts，设置网络，安装httpd，拷贝配置文件，设置服务，其他无特殊设置
+(3) 各个web节点: 需要修改hosts，设置网络，密码,机器名,安装httpd，拷贝配置文件，设置服务，其他无特殊设置
 
 > **NOTE:**
 
@@ -72,14 +72,87 @@ httpd.tar.gz
 
 > httpd.tar.gz是httpd.rpm以及依赖所rpms的集合
 
-
-
-
 (2) test2.cloud.org 的ConfigDrive的准备
+i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+```
+[root@dev test]# cp /tmp/hosts openstack/content/0000
+[root@dev test]# cat > openstack/content/0001 << EOF
+TYPE=Ethernet
+BOOTPROTO=static
+DEFROUTE=yes
+PEERDNS=yes
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_PEERDNS=yes
+IPV6_PEERROUTES=yes
+IPV6_FAILURE_FATAL=no
+NAME=eth0
+ONBOOT=yes
+IPADDR0=192.168.100.25
+PREFIX0=24
+GATEWAY0=192.168.100.1
+EOF
+
+[root@dev test]# tree
+.
+└── openstack
+    ├── content
+    │   ├── 0000
+    │   └── 0001
+    └── latest
+        ├── meta_data.json
+        ├── user_data
+        └── vendor_data.json
+```
+ii.生成meta_data.json
+```
+{ 
+    "files": [ {"path": "/etc/hosts", "content_path": "/content/0000"},
+               {"path": "/etc/sysconfig/network-scripts/ifcfg-eth0", "content_path": "/content/0001"}
+             ], 
+    "hostname": "test2.cloud.org", 
+    "launch_index": 0, 
+    "name": "test", 
+    "uuid": "9478337b-b970-4cfe-ad07-53c8b99c831d"
+}
+```
+> **NOTE:**
+
+> 拷贝 hosts 以及 网卡配置文件,设置机器名
+
+iii.生成user_data脚本
+```
+[root@dev test]# cat > openstack/latest/user_data << EOF
+#!/bin/bash
+echo test2 | passwd --stdin root
+systemctl restart network
+```
+
+iv.打包iso镜像
+[root@dev test]# mkisofs -R -V config-2 -o /root/test2.iso ./
 
 (3) haproxy.cloud.org 的ConfigDrive的准备
+i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+ii.生成meta_data.json
+iii.生成user_data脚本
+iv.打包iso镜像
+
 (4) web01.cloud.org 的ConfigDrive的准备
+i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+ii.生成meta_data.json
+iii.生成user_data脚本
+iv.打包iso镜像
+
 (5) web02.cloud.org 的ConfigDrive的准备
+i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+ii.生成meta_data.json
+iii.生成user_data脚本
+iv.打包iso镜像
+
+
 ___
 #### 启动各个节点实现服务编排 ####
 
