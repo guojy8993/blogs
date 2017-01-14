@@ -224,14 +224,61 @@ iv.打包iso镜像
 
 (4) web01.cloud.org 的ConfigDrive的准备
 i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+```
+[root@dev web01]# cp /tmp/hosts openstack/content/0000
+[root@dev web01]# cat > openstack/content/0001 << EOF
+TYPE=Ethernet
+BOOTPROTO=static
+DEFROUTE=yes
+PEERDNS=yes
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_PEERDNS=yes
+IPV6_PEERROUTES=yes
+IPV6_FAILURE_FATAL=no
+NAME=eth0
+ONBOOT=yes
+IPADDR0=192.168.100.27
+PREFIX0=24
+GATEWAY0=192.168.100.1
+EOF
+
+[root@dev web01]# cp /tmp/httpd.tar.gz openstack/content/0002
+[root@dev web01]# cat > openstack/content/0003 << EOF
+Greetings from web01.cloud.org !
+EOF
+```
+
 ii.生成meta_data.json
+```
+{
+    "files": [ {"path": "/etc/hosts", "content_path": "/content/0000"},
+               {"path": "/etc/sysconfig/network-scripts/ifcfg-eth0", "content_path": "/content/0001"},
+               {"path": "/tmp/httpd.tar.gz", "content_path": "/content/0002"},
+               {"path": "/tmp/index.html", "content_path": "/content/0003"}
+             ], 
+    "hostname": "web01.cloud.org", 
+    "launch_index": 0, 
+    "name": "web01", 
+    "uuid": "282101d0-4eea-4430-a928-5a7976283898"
+}
+```
+
 iii.生成user_data脚本
+```
+```
 iv.打包iso镜像
 
 (5) web02.cloud.org 的ConfigDrive的准备
 i. 生成config drive最简目录,拷贝 hosts ,制作网卡配置文件(ifcfg-eth0)并拷贝
+
 ii.生成meta_data.json
+
 iii.生成user_data脚本
+
 iv.打包iso镜像
 
 
