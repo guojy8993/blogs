@@ -60,7 +60,7 @@ Create a new container
   --net=default                   Connect a container to a network           # 连接容器到指定网络
   --net-alias=[]                  Add network-scoped alias for the container # 网络的别名
   --oom-kill-disable              Disable OOM Killer                         # 关闭 "容器内存溢出则终止" 的功能
-  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)# 调整宿主对容器OOM的偏好(数值,-1000~1000)
+  --oom-score-adj                 Tune host's OOM preferences (-1000 to 1000)# 调整宿主对容器OOM的偏好
   -P, --publish-all               Publish all exposed ports to random ports  # 发布容器的暴露端口(s)为宿主随机端口(s)
   -p, --publish=[]                Publish a container's port(s) to the host  # 发布容器的指定暴露端口为宿主某指定端口
   --pid                           PID namespace to use                              # PID 命名空间(host)
