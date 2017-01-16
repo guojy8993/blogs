@@ -271,6 +271,7 @@ umount: /t2mp: must be superuser to umount
 
 (30) --log-opt 容器使用的 log driver 选项
 > **NOTE:**
+
 > [journald日志驱动以及驱动选项](https://www.freedesktop.org/software/systemd/man/journald.conf.html)
 
 (31) --link 连接另外一个容器
@@ -330,9 +331,11 @@ www.huayu.com
 ```
 [root@docker ~]# docker run -it --name docker --group-add daemon 10.160.0.153:5000/centos7:base /bin/bash
 ```
-(42) --expose 容器对外暴露端口或端口范围,但并不通过宿主端口映射对外发布(相当于iptables放开端口范围访问许可)
+(42) --expose 容器对外暴露端口或端口范围,但并不通过宿主端口映射对外发布
 
 > **NOTE:**
+
+> 相当于iptables放开端口范围访问许可
 
 > iptables -I INPUT -p tcp --dport 8000:9000 -j ACCEPT
 
