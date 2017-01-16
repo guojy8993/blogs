@@ -139,7 +139,8 @@ datashare
 
 (7) --sysctl (sysctl 命令,调整内核参数)
 ```
-[root@docker ~]# docker run -it --rm --name ulmt --sysctl net.ipv4.ip_forward=1  10.160.0.153:5000/centos7:base /bin/bash
+[root@docker ~]# docker run -it --rm --name ulmt --sysctl net.ipv4.ip_forward=1 \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@8f7ba86d797e /]# sysctl -a | grep ip_forward
 net.ipv4.ip_forward = 1
 net.ipv4.ip_forward_use_pmtu = 0
@@ -157,7 +158,8 @@ net.ipv4.ip_forward_use_pmtu = 0
 
 (9) --tmpfs 的用法:把容器的指定目录分配大小与权限挂载为tmpfs
 ```
-[root@docker ~]# docker run -it --name docker --tmpfs /t2mp:rw,size=10m,mode=1777 10.160.0.153:5000/centos7:base /bin/bash
+[root@docker ~]# docker run -it --name docker --tmpfs /t2mp:rw,size=10m,mode=1777 \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@78ae8b0a36b0 /]# df | grep t2mp
 tmpfs     10240       0     10240   0% /t2mp
 ```
