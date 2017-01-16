@@ -451,34 +451,49 @@ docker: Error response from daemon: Requested memory nodes are not available - r
 [root@2c40e276b0c7 /]#
 ```
 
-## 第二部分 Docker容器的管理 ##
-1. Docker容器数据管理
+___
+#### 第二部分 Docker容器的管理 ####
+##### 1. Docker容器数据管理 #####
 1.1 数据卷
+
 1.1.1 在容器内创建一个数据卷
+```
 [root@docker ~]# docker run -it --name web -P -v /webapp 10.160.0.153:5000/centos7:base /bin/bash
 [root@f443f6ad3bf8 /]# echo "data volumes within container" > /webapp/readme
+```
 
 1.1.2 挂载主机目录作为数据卷
-[root@docker ~]# docker run -idt --name web -P -v /data:/webapp:rw 10.160.0.153:5000/centos7:base /bin/bash
+```
+[root@docker ~]# docker run -idt --name web -P -v /data:/webapp:rw \
+10.160.0.153:5000/centos7:base /bin/bash
 e9a9f1e0d89bc015526673282e427652bc5523d4a2607f7ecdd10e8c55ba2a7e
 [root@docker ~]# docker inspect -f '{{.State.Pid}}' web
 12013
 [root@docker ~]# nsenter --target 12013 --pid --mount --ipc --net
 [root@docker /]# echo "data volume from host FS" > /webapp/readme.txt
-注意: 如果要使用宿主的文件系统需要宿主显式设置 setenforce 0
+```
+> **NOTE:**
+
+> 注意: 如果要使用宿主的文件系统需要宿主显式设置 setenforce 0
 
 1.1.3 挂载本地主机文件为数据卷
+```
 [root@docker ~]# docker run -idt --name web -P \
-                            -v /data/docker-bash.history:/.bash_history 10.160.0.153:5000/centos7:base /bin/bash
+                            -v /data/docker-bash.history:/.bash_history \
+                            10.160.0.153:5000/centos7:base /bin/bash
 27b11696ea8dd45be5cce874a8eb393f35e3450b00aa2f408ac18dbdb787d402
+```
 
 1.2 数据卷容器
+```
 [root@docker ~]# docker run -idt --name dbdata -v /dbdata 10.160.0.153:5000/centos7:base /bin/bash
 7e6f75faf6623754ece7431616cd8262bd6950eb2700fe608f5a6058cb970d0c
-[root@docker ~]# docker run -it --volumes-from dbdata --name db01  10.160.0.153:5000/centos7:base /bin/bash
+[root@docker ~]# docker run -it --volumes-from dbdata --name db01 \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@f2649a03e0f1 /]# echo "db01" > /dbdata/readme.txt
 ...
-[root@docker ~]# docker run -it --volumes-from dbdata --name db02  10.160.0.153:5000/centos7:base /bin/bash
+[root@docker ~]# docker run -it --volumes-from dbdata --name db02 \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@ad51117321e9 /]# echo "db02" >> /dbdata/readme.txt
 ...
 [root@docker ~]# docker inspect -f '{{.State.Pid}}' dbdata
@@ -487,63 +502,80 @@ e9a9f1e0d89bc015526673282e427652bc5523d4a2607f7ecdd10e8c55ba2a7e
 [root@docker /]# cat /dbdata/readme.txt 
 db01
 db02
+```
 
 1.3 使用数据卷容器迁移数据
 1.3.1 备份容器数据到本地主机
+```
 [root@docker ~]# docker run -it --name dbdata -v /dbdata 10.160.0.153:5000/centos7:base /bin/bash
 [root@befa54ef9758 /]# echo "dbdata file" > /dbdata/readme
 ...
 [root@docker ~]# docker run -it --name db01 --volumes-from dbdata \
-                            -v /tmp/docker:/backup:rw 10.160.0.153:5000/centos7:base /bin/bash \
-                            -c "tar -cf /backup/readme.tar.gz /dbdata/*"
+                  -v /tmp/docker:/backup:rw 10.160.0.153:5000/centos7:base /bin/bash \
+                  -c "tar -cf /backup/readme.tar.gz /dbdata/*"
 tar: Removing leading `/' from member names
 [root@docker ~]# ll /tmp/docker/
 ...
 -rw-r--r--. 1 root root 10240 Oct 23 21:51 readme.tar.gz
-# 注意: 如果要使用宿主的文件系统需要宿主显式设置 setenforce 0
+```
+> **NOTE:**
+
+> 注意: 如果要使用宿主的文件系统需要宿主显式设置 setenforce 0
 
 1.3.1 从本地主机还原数据到容器
+```
 [root@docker ~]# rm -rf /tmp/docker/*
 [root@docker ~]# docker rm -f db01
 db01
 [root@docker ~]# echo "restore files from host to container" > /tmp/docker/readme
 [root@docker ~]# docker run -it --name db01 --volumes-from dbdata \
-                            -v /tmp/docker:/backup:rw 10.160.0.153:5000/centos7:base /bin/bash \
-                            -c "cp -r /backup/* /dbdata/"
+                  -v /tmp/docker:/backup:rw 10.160.0.153:5000/centos7:base /bin/bash \
+                  -c "cp -r /backup/* /dbdata/"
 [root@docker ~]# docker attach dbdata
 [root@befa54ef9758 /]# cat /dbdata/readme
 restore files from host to container
+```
 
+**NOTE:**
 
-# 生产环境下使用 docker devicemaper 存储
-# https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/
+> [生产环境下使用docker devicemaper存储](https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/)
 
-### Docker容器网络管理 ###
-1. 使用linux bridge(默认情况)
+#### Docker容器网络管理 ####
+##### 1. 使用linux bridge(默认情况) #####
+```
 [root@docker /]# export REDIS_PORT_6378_TCP=tcp://10.160.0.134:6379
-[root@docker /]# env | grep _TCP | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3/'
+[root@docker /]# env | grep _TCP | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat \
+TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3/'
 socat TCP4-LISTEN:6378,fork,reuseaddr TCP4:10.160.0.134:6379
-'''
-待完成
-'''
-# mariadb 的安装配置:
-# http://docs.openstack.org/newton/install-guide-obs/environment-sql-database.html
+''' TODO '''
+```
+> **NOTE:**
 
-2. 使用openvswitch(自定义情况)
-# 使用--net=none告诉docker不要将新建容器连接到docker0 
+> [mariadb 的安装配置](http://docs.openstack.org/newton/install-guide-obs/environment-sql-database.html)
+
+##### 2. 使用openvswitch(自定义情况) #####
+```
 [root@docker ~]# docker run -idt --name ovs-demo --net=none 10.160.0.153:5000/centos7:base /bin/bash
 6f98f3b0a01fc737082085fb7eb14f4d62afa9be511bf63272c9957865d0d604
+```
+> **NOTE:**
 
-# 查看新加容器的pid值
+> 使用--net=none告诉docker不要将新建容器连接到docker0 
+
+```
 [root@docker ~]# docker inspect -f '{{.State.Pid}}' 6f98f3b0a01fc737082085fb7eb14f4d62afa9be511bf63272c9957865d0d604
 20070
+```
+> **NOTE:** 查看新加容器的pid值
 
-# 添加新加容器的netns到ip netns列表
+```
 [root@docker ~]# mkdir -p /var/run/netns && ln -s /proc/20070/ns/net /var/run/netns/ovs-demo
 [root@docker ~]# ip netns
 ovs-demo
+```
+> **NOTE:** 添加新加容器的netns到ip netns列表
 
-# 查看容器的netns中的链路设备,并无eth0
+```
 [root@docker ~]# ip netns exec ovs-demo ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -551,38 +583,57 @@ ovs-demo
        valid_lft forever preferred_lft forever
     inet6 ::1/128 scope host 
        valid_lft forever preferred_lft forever
-       
-# 在宿主上新加ovs网桥连接到宿主的管理网卡
+```
+> **NOTE:** 查看容器的netns中的链路设备,并无eth0
+
+```
 [root@docker ~]# ovs-vsctl add-br br-int
 [root@docker ~]# ovs-vsctl add-port br-int ens192
+```
+> **NOTE:** 在宿主上新加ovs网桥连接到宿主的管理网卡
 
-# 在宿主下创建对等设备,一头在br-int上,一头在docker netns里面作为容器的eth0
-
-# 对等设备的up/down状态时刻保持一致.启用一端设备,另一端同步打开.
+```
 [root@docker ~]# ip link add ovsdemo type veth peer name eth0 
 [root@docker ~]# ovs-vsctl add-port br-int ovsdemo
 [root@docker ~]# ip link set eth0 netns ovs-demo
 [root@docker ~]# ip link set ovsdemo up
+```
+> **NOTE:** 
 
-# 给docker配置管理ip,且在ovs对应端口上设置vlan
+> 在宿主下创建对等设备,一头在br-int上,一头在docker netns里面作为容器的eth0
+
+> 对等设备的up/down状态时刻保持一致.启用一端设备,另一端同步打开
+
+```
 [root@docker ~]# ip netns exec ovs-demo ip addr add dev eth0 10.160.0.139/16
 [root@docker ~]# ip netns exec ovs-demo ip route add default via 10.160.0.1
 [root@docker ~]# ovs-vsctl set Port ovsdemo tag=610
+```
+> **note:** 给docker配置管理ip,且在ovs对应端口上设置vlan
 
-# 进入容器测试网络
+进入容器测试网络
+```
 [root@docker ~]# docker attach ovs-demo
 [root@6f98f3b0a01f /]# ssh root@10.160.0.144
 root@10.160.0.144's password: 
 Last login: Sun Oct 23 21:44:23 2016 from 10.100.0.192
-# NOTE:
-现在遇到的问题是:重启容器后网卡丢失,需要再次重建.我的解决方法是:将网卡配置写入容器元数据(label),下次启动的
-时候解析元数据,执行上述各个步骤.予以修复即可.
-思路如下:
-(1) 创建容器的时候即把网络信息写入元数据
-(2) 后续各次启动的时候解析元数据获取网络配置
-(3) 根据网络配置还原容器网络
-执行:
-1.元数据: 网卡名,网卡ip,cidr,网关,vlan_id
+```
+> **NOTE:**
+
+> 现在遇到的问题是:重启容器后网卡丢失,需要再次重建
+
+> 解决方法是:将网卡配置写入容器元数据(label),下次启动的时候解析元数据,执行上述各个步骤,予以修复即可
+
+> 思路如下:
+
+> (1) 创建容器的时候即把网络信息写入元数据
+
+> (2) 后续各次启动的时候解析元数据获取网络配置
+
+> (3) 根据网络配置还原容器网络
+
+将虚拟机网络信息(网卡名,网卡ip,cidr,网关,vlan_id)写入配置文件
+```
 [root@docker ~]# docker run -idt --name docker \
                             --label net_device=eth0 \
                             --label net_eth0_ipaddr=10.160.0.139/16  \
@@ -601,14 +652,19 @@ eth0
 10.160.0.0/16
 [root@docker ~]# docker inspect -f '{{.Config.Labels.net_eth0_vlan}}' docker
 610
+```
 
-2.根据上述获取的各个参数,执行前文脚本
+根据上述获取的各个参数,执行前文脚本
+```
 [root@docker /]# ip route flush dev eth0
 [root@docker /]# ip route add 10.160.0.0/16 dev eth0  proto kernel  scope link  src 10.160.0.139 metric 400
 [root@docker /]# ip route add default via 10.160.0.1 dev eth0 proto static  metric 400
-# 将上述shell装换为文件 docker-start ,重复使用.
+```
+
+将上述shell装换为文件 docker-start ,重复使用
+```
 [root@docker ~]# cp docker-start /usr/bin/           
 [root@docker ~]# chmod 755 /usr/bin/docker-start
-
+```
 
 ## 第三部分 Docker容器的暂停/恢复/重启/停止/启动/删除 ##
