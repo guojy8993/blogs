@@ -17,10 +17,10 @@ Create a new container
   --blkio-weight                  Block IO (relative weight), between 10 and 1000   # 块设备分配io时的权重
   --blkio-weight-device=[]        Block IO weight (relative device weight)
   --cpu-shares                    CPU shares (relative weight)
-  --cap-add=[]                    Add Linux capabilities                            # 使用linux特性
-  --cap-drop=[]                   Drop Linux capabilities                           # 不使用linux特性
-  --cgroup-parent                 Optional parent cgroup for the container          # 该容器可选的父cgroup(猜测:类似套餐)
-  --cidfile                       Write the container ID to the file                # 将容器id写入文件
+  --cap-add=[]                    Add Linux capabilities                       # 使用linux特性
+  --cap-drop=[]                   Drop Linux capabilities                      # 不使用linux特性
+  --cgroup-parent                 Optional parent cgroup for the container     # 该容器可选的父cgroup(猜测:类似套餐)
+  --cidfile                       Write the container ID to the file           # 将容器id写入文件
   --cpu-period                    Limit CPU CFS (Completely Fair Scheduler) period  # 百度: CFS
   --cpu-quota                     Limit CPU CFS (Completely Fair Scheduler) quota   
   --cpuset-cpus                   CPUs in which to allow execution (0-3, 0,1)       # CPU绑定
