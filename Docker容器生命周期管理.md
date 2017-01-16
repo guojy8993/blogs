@@ -1,9 +1,14 @@
-[目录]
+### 目录 ###
 1. Docker容器的创建与运行
+
 2. Docker容器的管理
+
 3. Docker容器的暂停/恢复/重启/停止/启动/删除
 
-## 第一部分 Docker 容器的创建与运行 ##
+___
+
+#### 第一部分 Docker 容器的创建与运行 ####
+```
 [root@docker ~]# docker create --help
 Usage:	docker create [OPTIONS] IMAGE [COMMAND] [ARG...]
 Create a new container
@@ -75,8 +80,10 @@ Create a new container
   --volume-driver                 Optional volume driver for the container               # 容器的卷驱动(virtio?)
   --volumes-from=[]               Mount volumes from the specified container(s)          # 挂载指定容器作为卷(s)
   -w, --workdir                   Working directory inside the container                 # 指定容器工作目录(容器创建后即进入工作目录)
+```
 
 (1) --add-host 的使用:
+```
 [root@docker ~]# docker run -it --name docker 
                  --add-host www.dockerio.com:172.172.172.172  \
                  --add-host www.dockerhub.com:172.172.172.173 \
@@ -86,8 +93,10 @@ Create a new container
 172.172.172.172 www.dockerio.com
 172.172.172.173 www.dockerhub.com
 172.17.0.2  21b652ade8f5
+```
 
 (2) --volume 的使用:
+```
 [root@docker ~]# echo "Vloume of container" > /opt/docker/readme.txt
 [root@docker ~]# docker run -it --name docker 
                 -v /opt/docker:/data 10.160.0.153:5000/centos7:latest /bin/bash
@@ -95,7 +104,7 @@ Create a new container
 readme.txt
 [root@058bed3f1e17 /]# cat /data/readme.txt 
 Vloume of container
-
+```
 (3) --workdir 的使用:
 [root@docker ~]# docker run -it --name docker --workdir /data 10.160.0.153:5000/centos7:latest /bin/bash
 [root@63286b5ab9b9 data]#
