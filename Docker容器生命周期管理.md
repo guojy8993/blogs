@@ -167,9 +167,9 @@ tmpfs     10240       0     10240   0% /t2mp
 
 > 支持的选项参考: man docker-create 查看明细
 
-> 什么是tmpfs? http://www.tuicool.com/articles/nqQVFjZ
+> [什么是tmpfs?](http://www.tuicool.com/articles/nqQVFjZ)
 
-> tmpfs的管理? http://www.linuxidc.com/Linux/2013-12/93747.htm
+> [tmpfs的管理?](http://www.linuxidc.com/Linux/2013-12/93747.htm)
 
 (10) --tty 容器分配pseudo-TTY设备并挂载到容器stdin上(,所以在交互模式下docker可以接受输入)
 ```
@@ -185,7 +185,7 @@ tmpfs     10240       0     10240   0% /t2mp
 shm 1024  0 1024   0% /dev/shm
 ```
 > **NOTE:**
-> /dev/shm是什么以及如何管理? http://www.linuxidc.com/Linux/2014-05/101818.htm
+> [/dev/shm是什么以及如何管理?](http://www.linuxidc.com/Linux/2014-05/101818.htm)
 
 (13) --security-opt 安全选项
 ```
@@ -194,7 +194,10 @@ shm 1024  0 1024   0% /dev/shm
 [root@c0774328406f /]#
 ```
 > **NOTE:**
-> 看选项的意思: docker需要第三方的安全组件(seccomp),但是此时是为配置的(unconfined);除非有安全组件才涉及到该配置
+
+> docker需要第三方的安全组件(seccomp),但是此时是为配置的(unconfined)
+
+> 除非有安全组件才涉及到该配置
 
 (14)  --restart=no 创建容器是遇到已有容器的重启策略(man docker-create 查看具体支持哪些选项)
 
@@ -253,8 +256,8 @@ umount: /t2mp: must be superuser to umount
 
 (27) --memory-reservation 内存使用的软限制
 > **NOTE:**
-> 参考 http://www.cnblogs.com/xuxinkun/p/5541894.html 
-> 详细了解 swap,memory(很好的文档!!!)
+
+> [详细了解swap,memory(很好的文档!!!)](http://www.cnblogs.com/xuxinkun/p/5541894.html) 
 
 (28) --mac-address  容器网卡的mac
 ```
@@ -268,7 +271,7 @@ umount: /t2mp: must be superuser to umount
 
 (30) --log-opt 容器使用的 log driver 选项
 > **NOTE:**
-> journald日志驱动以及驱动选项:https://www.freedesktop.org/software/systemd/man/journald.conf.html
+> [journald日志驱动以及驱动选项](https://www.freedesktop.org/software/systemd/man/journald.conf.html)
 
 (31) --link 连接另外一个容器
 ```
@@ -329,7 +332,7 @@ www.huayu.com
 ```
 (42) --expose 容器对外暴露端口或端口范围,但并不通过宿主端口映射对外发布(相当于iptables放开端口范围访问许可)
 
-> **NOTE**
+> **NOTE:**
 
 > iptables -I INPUT -p tcp --dport 8000:9000 -j ACCEPT
 
@@ -353,9 +356,7 @@ centos7
 (45) --entrypoint 覆盖镜像默认的 entrypoint
 > **NOTE:**
 
-> 参考官方说明:
-
-> https://www.ctl.io/developers/blog/post/dockerfile-entrypoint-vs-cmd/
+> [官方说明](https://www.ctl.io/developers/blog/post/dockerfile-entrypoint-vs-cmd/)
 
 (46) --dns 设置 DNS 服务器("8.8.8.8"..)
 
@@ -374,9 +375,7 @@ options port=55555
 ```
 > **NOTE:**
 
-> DNS options ? 
-
-> 参考:http://blog.csdn.net/bpingchang/article/details/38427113
+> [DNS options ?](http://blog.csdn.net/bpingchang/article/details/38427113)
 
 (49) --device=[] 不必使用--privileged即可直接使用宿主的设备(块设备,/de/zero,音频设备)
 ```
