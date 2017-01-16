@@ -336,80 +336,118 @@ www.huayu.com
 > 在禁用容器iptables的情况下使用 --expose 选项放开port访问许可
 
 (43) --env-file 从宿主某文件为容器导入环境变量
+
 (44) --env 设置容器环境变量
+```
 [root@docker ~]# cat > /root/environ << EOF
 > user=root
 > passwd=it-is-a-secret
 > EOF
-[root@docker ~]# docker run -it --name docker --env  system=centos7  、
-                            --env-file /root/environ 10.160.0.153:5000/centos7:base /bin/bash
+[root@docker ~]# docker run -it --name docker --env  system=centos7
+                 --env-file /root/environ 10.160.0.153:5000/centos7:base /bin/bash
 [root@2bdc097c45fa /]# echo ${passwd}
 it-is-a-secret
 [root@2bdc097c45fa /]# echo ${system}
 centos7
+```
+(45) --entrypoint 覆盖镜像默认的 entrypoint
+> **NOTE:**
 
-(45) --entrypoint 覆盖镜像默认的 entrypoint(?!参考官方说明)
-# https://www.ctl.io/developers/blog/post/dockerfile-entrypoint-vs-cmd/
+> 参考官方说明:
+
+> https://www.ctl.io/developers/blog/post/dockerfile-entrypoint-vs-cmd/
 
 (46) --dns 设置 DNS 服务器("8.8.8.8"..)
+
 (47) --dns-opt 设置 DNS 选项
+
 (48) --dns-search 设置 DNS 查找主机("bar.foo.com")
+```
 [root@docker ~]# docker run -it --name docker \
-                            --dns-opt port=55555 --dns 8.8.4.4 --dns-search bar.foo.com 10.160.0.153:5000/centos7:base /bin/bash   
+                            --dns-opt port=55555 --dns 8.8.4.4 \
+                            --dns-search bar.foo.com \
+                            10.160.0.153:5000/centos7:base /bin/bash   
 [root@46cd1e8e1544 /]# cat /etc/resolv.conf 
 search bar.foo.com
 nameserver 8.8.4.4
 options port=55555
-# dns options 参考:http://blog.csdn.net/bpingchang/article/details/38427113
+```
+> **NOTE:**
+
+> DNS options ? 
+
+> 参考:http://blog.csdn.net/bpingchang/article/details/38427113
 
 (49) --device=[] 不必使用--privileged即可直接使用宿主的设备(块设备,/de/zero,音频设备)
+```
 [root@docker ~]# docker run -it --device=/dev/sdb:/dev/xvdb \
-                            --device=/dev/zero:/dev/nulo 10.160.0.153:5000/centos7:base ls -l /dev/{xvdb,nulo}
+                            --device=/dev/zero:/dev/nulo \
+                            10.160.0.153:5000/centos7:base ls -l /dev/{xvdb,nulo}
 crw-rw-rw-. 1 root root 1,  5 Oct 23 08:09 /dev/nulo
 brw-rw----. 1 root disk 8, 16 Oct 23 08:09 /dev/xvdb
-
+```
 (50) --device-read-bps=[]            限制块设备每秒读字节数
-[root@docker ~]# docker run -it --device-read-bps=/dev/sda:1mb 10.160.0.153:5000/centos7:base
+```
+[root@docker ~]# docker run -it \
+--device-read-bps=/dev/sda:1mb 10.160.0.153:5000/centos7:base
+```
 (51) --device-read-iops=[]           限制块设备每秒读IO数
-[root@docker ~]# docker run -it --device-read-iops=/dev/sda:1 10.160.0.153:5000/centos7:base
+```
+[root@docker ~]# docker run -it \
+--device-read-iops=/dev/sda:1 10.160.0.153:5000/centos7:base
+```
 (52) --device-write-bps=[]           限制块设备每秒写字节数
-[root@docker ~]# docker run -it --device-write-bps=/dev/sdb:1mb 10.160.0.153:5000/centos7:base
+```
+[root@docker ~]# docker run -it \
+--device-write-bps=/dev/sdb:1mb 10.160.0.153:5000/centos7:base
+```
 (53) --device-write-iops=[]          限制块设备每秒写IO数
-[root@docker ~]# docker run -it --device-write-iops=/dev/sda:1 10.160.0.153:5000/centos7:base
+```
+[root@docker ~]# docker run -it \
+--device-write-iops=/dev/sda:1 10.160.0.153:5000/centos7:base
+```
 (54) --disable-content-trust=true    启动容器是否验证镜像
+
 (55) --attach=[]                     附加stdin/out/err到容器    
+
 (56) --blkio-weight                  块设备分配io时的权重(10~1000)
+
 (57) --blkio-weight-device=[]        Block IO weight (relative device weight)
+
 (58) --cpu-shares                    CPU shares (relative weight)
+
 (59) --cap-add=[]                    使用linux特性
+
 (60) --cap-drop=[]                   不使用linux特性
+
 (61) --cgroup-parent                 该容器可选的父cgroup(猜测:类似套餐)
 
 (62) --cidfile                       将容器id写入文件
+```
 [root@docker ~]# docker run -it --name docker --cidfile /root/docker 10.160.0.153:5000/centos7:base /bin/bash
 [root@docker ~]# cat /root/docker 
 f2110250523ca12c6302168fbcb8c86af860ba33525f656d7f9963c360fde109
-
+```
 (63) --cpu-period                    Limit CPU CFS (Completely Fair Scheduler) period  # 百度: CFS
+
 (64) --cpu-quota                     Limit CPU CFS (Completely Fair Scheduler) quota   
+
 (65) --cpuset-cpus                   CPUs in which to allow execution (0-3, 0,1)       # CPU绑定
+```
 [root@docker ~]# cat /proc/cpuinfo | egrep "^processor\s+:\s+[0-9]+" | wc -l
 4
 [root@docker ~]# docker run -it --name docker --cpuset-cpus 0-4 10.160.0.153:5000/centos7:base /bin/bash
 docker: Error response from daemon: Requested CPUs are not available - requested 0-4, available: 0-3
 [root@docker ~]# docker run -it --name docker --cpuset-cpus 0-3 10.160.0.153:5000/centos7:base /bin/bash
 [root@15f0fffb8f9a /]#
-
+```
 (66) --cpuset-mems  MEMs in which to allow execution (0-3, 0,1)
+```
 [root@docker ~]# docker run -it --name docker --cpuset-mems 0-3 10.160.0.153:5000/centos7:base /bin/bash
 docker: Error response from daemon: Requested memory nodes are not available - requested 0-3, available: 0
 [root@docker ~]# docker run -it --name docker --cpuset-mems 0 10.160.0.153:5000/centos7:base /bin/bash
 [root@2c40e276b0c7 /]#
-
-
-
-
-
+```
 
 ## 第二部分 Docker容器的管理 ##
 1. Docker容器数据管理
