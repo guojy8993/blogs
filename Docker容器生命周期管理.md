@@ -54,8 +54,8 @@ Create a new container
   -m, --memory                    Memory limit                                      # 限制内存使用
   --mac-address                   Container MAC address (e.g. 92:d0:c6:0a:29:33)    # 容器网卡的mac(?只能单网卡?)
   --memory-reservation            Memory soft limit                                 # 内存使用的软限制
-  --memory-swap                   Swap limit equal to memory plus swap: '-1' to enable unlimited swap          # 设置 swap 
-  --memory-swappiness=-1          Tune container memory swappiness (0 to 100)       # 调整容器swap(对?(swap+mempory)?)的占比
+  --memory-swap                   Swap limit equal to memory plus swap: '-1' to enable unlimited swap    # 设置 swap 
+  --memory-swappiness=-1          Tune container memory swappiness (0 to 100)       # 调整容器swap/(swap+mempory)的占比?
   --name                          Assign a name to the container                    # 自定义容器名
   --net=default                   Connect a container to a network                  # 连接容器到指定网络
   --net-alias=[]                  Add network-scoped alias for the container        # 网络的别名
@@ -77,12 +77,12 @@ Create a new container
   --ulimit=[]                     Ulimit options                                         # Ulimit(??)配置
   --uts                           UTS namespace to use                                   # UTS 命名空间
   -v, --volume=[]                 Bind mount a volume                                    # 挂载卷到容器
-  --volume-driver                 Optional volume driver for the container               # 容器的卷驱动(virtio?)
-  --volumes-from=[]               Mount volumes from the specified container(s)          # 挂载指定容器作为卷(s)
-  -w, --workdir                   Working directory inside the container                 # 指定容器工作目录(容器创建后即进入工作目录)
+  --volume-driver                 Optional volume driver for the container       # 容器的卷驱动(virtio?)
+  --volumes-from=[]               Mount volumes from the specified container(s)  # 挂载指定容器作为卷(s)
+  -w, --workdir                   Working directory inside the container         # 指定容器工作目录(容器创建后即进入工作目录)
 ```
 
-(1) --add-host 的使用:
+(1) --add-host 的使用
 ```
 [root@docker ~]# docker run -it --name docker 
                  --add-host www.dockerio.com:172.172.172.172  \
@@ -95,7 +95,7 @@ Create a new container
 172.17.0.2  21b652ade8f5
 ```
 
-(2) --volume 的使用:
+(2) --volume 的使用
 ```
 [root@docker ~]# echo "Vloume of container" > /opt/docker/readme.txt
 [root@docker ~]# docker run -it --name docker 
@@ -105,45 +105,69 @@ readme.txt
 [root@058bed3f1e17 /]# cat /data/readme.txt 
 Vloume of container
 ```
-(3) --workdir 的使用:
+(3) --workdir 的使用
+```
 [root@docker ~]# docker run -it --name docker --workdir /data 10.160.0.153:5000/centos7:latest /bin/bash
 [root@63286b5ab9b9 data]#
+```
 
-(4) --volumes-from 的使用:
+(4) --volumes-from 的使用
+```
 [root@docker ~]# docker run -it --name datashare -v /datashare  10.160.0.153:5000/centos7:latest /bin/bash
 [root@7cbc351e0e22 /]# echo datashare > /datashare/readme.txt
-# 注意定义 container 名字与共享数据目录名称一致
 [root@docker ~]# docker run -it --name client --volumes-from datashare  10.160.0.153:5000/centos7:latest /bin/bash
 [root@633a5b9d25f8 /]# cat /datashare/readme.txt 
 datashare
+```
+> **NOTE:**
+
+> 注意定义 container 名字与共享数据目录名称一致
 
 (5) --uts (Unix time-sharing System,允许容器拥有独立的命名空间与主机名,默认选项)
+
 (6) --ulimit (ulimit 命令,系统调优)
+```
 [root@docker ~]# docker run -it --rm --name ulmt \
                  --ulimit nofile=1050:1052 10.160.0.153:5000/centos7:base /bin/bash -c 'ulimit -n'
 1050
-# ulimit参数有哪些是个迷!
-# nproc -> max user processes
+```
+> **NOTE:**
+
+> ulimit参数有哪些是个迷!
+
+> nproc -> max user processes
 
 (7) --sysctl (sysctl 命令,调整内核参数)
+```
 [root@docker ~]# docker run -it --rm --name ulmt --sysctl net.ipv4.ip_forward=1  10.160.0.153:5000/centos7:base /bin/bash
 [root@8f7ba86d797e /]# sysctl -a | grep ip_forward
 net.ipv4.ip_forward = 1
 net.ipv4.ip_forward_use_pmtu = 0
-# net.ipv4.ip_forward=1 容器做路由器时用到
-# 更多参数使用 sysctl -a 查看
+```
+> **NOTE:**
+
+> net.ipv4.ip_forward=1 容器做路由器时用到
+
+> 更多参数使用 sysctl -a 查看
 
 (8) --user 指定容器的用户[:组]归属
+```
 [root@docker ~]# docker run -it --name docker --user root:root 10.160.0.153:5000/centos7:base /bin/bash
+```
 
-(9) --tmpfs 的用法: 把容器的指定目录分配大小与权限挂载为tmpfs
+(9) --tmpfs 的用法:把容器的指定目录分配大小与权限挂载为tmpfs
+```
 [root@docker ~]# docker run -it --name docker --tmpfs /t2mp:rw,size=10m,mode=1777 10.160.0.153:5000/centos7:base /bin/bash
 [root@78ae8b0a36b0 /]# df | grep t2mp
 tmpfs     10240       0     10240   0% /t2mp
+```
+> **NOTE:**
 
-# 支持的选项参考: man docker-create 查看明细
-# 什么是tmpfs? http://www.tuicool.com/articles/nqQVFjZ
-# tmpfs的管理? http://www.linuxidc.com/Linux/2013-12/93747.htm
+> 支持的选项参考: man docker-create 查看明细
+
+> 什么是tmpfs? http://www.tuicool.com/articles/nqQVFjZ
+
+> tmpfs的管理? http://www.linuxidc.com/Linux/2013-12/93747.htm
 
 (10) --tty 容器分配pseudo-TTY设备并挂载到容器stdin上(,所以在交互模式下docker可以接受输入)
 [root@docker ~]# docker run -i --tty --name docker 10.160.0.153:5000/centos7:base /bin/bash
