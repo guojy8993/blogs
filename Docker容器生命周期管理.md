@@ -115,7 +115,7 @@ Vloume of container
 ```
 [root@docker ~]# docker run -it --name datashare -v /datashare  10.160.0.153:5000/centos7:latest /bin/bash
 [root@7cbc351e0e22 /]# echo datashare > /datashare/readme.txt
-[root@docker ~]# docker run -it --name client --volumes-from datashare  10.160.0.153:5000/centos7:latest /bin/bash
+[root@docker ~]# docker run -it --name client --volumes-from datashare 10.160.0.153:5000/centos7:latest /bin/bash
 [root@633a5b9d25f8 /]# cat /datashare/readme.txt 
 datashare
 ```
@@ -172,27 +172,34 @@ tmpfs     10240       0     10240   0% /t2mp
 > tmpfs的管理? http://www.linuxidc.com/Linux/2013-12/93747.htm
 
 (10) --tty 容器分配pseudo-TTY设备并挂载到容器stdin上(,所以在交互模式下docker可以接受输入)
+```
 [root@docker ~]# docker run -i --tty --name docker 10.160.0.153:5000/centos7:base /bin/bash
 [root@8405e7ddaf06 /]#
-
-(11) --stop-signal 何种信号触发docker容器的stop事件
-# 使用 kill -l 查看所有信号量
+```
+(11) --stop-signal 何种信号触发docker容器的stop事件(使用 kill -l 查看所有信号量)
 
 (12) --shm-size 共享内存分配大小,默认64m
+```
 [root@docker ~]# docker run -it --name docker --shm-size=1m 10.160.0.153:5000/centos7:base /bin/bash
 [root@6b21304e9a69 /]# df | grep shm
 shm 1024  0 1024   0% /dev/shm
-# /dev/shm是什么以及如何管理? http://www.linuxidc.com/Linux/2014-05/101818.htm
+```
+> **NOTE:**
+> /dev/shm是什么以及如何管理? http://www.linuxidc.com/Linux/2014-05/101818.htm
 
-(13) --security-opt 安全选项?
-[root@docker ~]# docker run -it --name docker --security-opt seccomp:unconfined 10.160.0.153:5000/centos7:base /bin/bash
+(13) --security-opt 安全选项
+```
+[root@docker ~]# docker run -it --name docker --security-opt seccomp:unconfined \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@c0774328406f /]#
-# 看选项的意思: docker需要第三方的安全组件(seccomp),但是此时是为配置的(unconfined);除非有安全组件才涉及到该配置
+```
+> **NOTE:**
+> 看选项的意思: docker需要第三方的安全组件(seccomp),但是此时是为配置的(unconfined);除非有安全组件才涉及到该配置
 
-(14)  --restart=no 创建容器是遇到已有容器的重启策略
-# man docker-create 查看具体支持哪些选项!
+(14)  --restart=no 创建容器是遇到已有容器的重启策略(man docker-create 查看具体支持哪些选项)
 
 (15) --read-only 以ro方式挂载容器的root文件系统
+```
 [root@docker ~]# docker run -it --name docker 10.160.0.153:5000/centos7:base /bin/bash
 [root@6813b2798636 /]# touch /root/i-can-write
 ...
@@ -200,65 +207,87 @@ shm 1024  0 1024   0% /dev/shm
 [root@96a6931c60a9 /]# touch /root/can-i-write
 touch: cannot touch '/root/can-i-write': Read-only file system
 ...
+```
 
 (15) --privileged 是否给予容器以扩展特权(true|false),参考默认选项予以禁止
+```
 [root@docker ~]# docker run -it --name docker-ro \
-                            --privileged=false \
-                            --tmpfs /t2mp:rw,size=10m,mode=17777 10.160.0.153:5000/centos7:base /bin/bash
+                  --privileged=false \
+                  --tmpfs /t2mp:rw,size=10m,mode=17777 10.160.0.153:5000/centos7:base /bin/bash
 [root@208d9f4971c5 /]# umount /t2mp 
 umount: /t2mp: must be superuser to umount
 ...
 [root@docker ~]# docker run -it --name docker-privilege \
-                            --privileged=true \
-                            --tmpfs /t2mp:rw,size=10m,mode=17777 10.160.0.153:5000/centos7:base /bin/bash
+                  --privileged=true \
+                  --tmpfs /t2mp:rw,size=10m,mode=17777 10.160.0.153:5000/centos7:base /bin/bash
 [root@3e47c98bf530 /]# umount /t2mp
-
-(16) --pid 设置容器的PID Mode,目前仅host选项,且不安全
-# man docker-create 了解详细
+```
+(16) --pid 设置容器的PID Mode,目前仅host选项,且不安全(man docker-create 了解详细)
 
 (17) --publish 对外发布端口
-[root@docker ~]# docker run -it --name docker --publish 10.160.0.154:8022:22 10.160.0.153:5000/centos7:base /bin/bash
+```
+[root@docker ~]# docker run -it --name docker --publish 10.160.0.154:8022:22 \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@a542190b4ff8 /]#
-# 注:将本地主机 10.160.0.154 的 8022 端口映射为 容器的22 端口
+```
+> **NOTE:**
+> 注:将本地主机 10.160.0.154 的 8022 端口映射为 容器的22 端口
 
 (18) --publish-all 全部容器端口全部对外发布为宿主随机端口(布尔值,true|false,默认为后者)
+
 (19) --oom-score-adj 调整宿主对容器OOM的偏好(数值,-1000~1000)
+
 (20) --oom-kill-disable 关闭 "容器内存溢出则终止" 的功能
+
 (21) --network-alias 用途不明
+
 (22) --net=default 指定连接的网络的模式(详细参考man手册,使用none可以自定义网络)
+
 (23) --name  指定容器名字
 
 (24) --memory-swappiness 调整容器swap(对?(swap+mempory)?)的占比
+
 (25) --memory "<int><k,m,g...>"  指定memory多大
+
 (26) --memory-swap  "<int><k,m,g...>" 指定memory + swap总计多大(与 --memory结合使用)
+
 (27) --memory-reservation 内存使用的软限制
-# 参考 http://www.cnblogs.com/xuxinkun/p/5541894.html 详细了解 swap,memory(很好的文档!!!)
+> **NOTE:**
+> 参考 http://www.cnblogs.com/xuxinkun/p/5541894.html 
+> 详细了解 swap,memory(很好的文档!!!)
 
 (28) --mac-address  容器网卡的mac
-[root@docker ~]# docker run -it --name docker --mac-address 02:42:ac:11:ff:ff 10.160.0.153:5000/centos7:base /bin/bash
+```
+[root@docker ~]# docker run -it --name docker --mac-address 02:42:ac:11:ff:ff \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@c120a92099ec /]# ip -o link show eth0 | awk '{print $14}'
 02:42:ac:11:ff:ff
-
+```
 
 (29) --log-driver 容器使用的log driver (使用man查看详细.docker支持 json-file/journald)
+
 (30) --log-opt 容器使用的 log driver 选项
-# journald日志驱动以及驱动选项:https://www.freedesktop.org/software/systemd/man/journald.conf.html
+> **NOTE:**
+> journald日志驱动以及驱动选项:https://www.freedesktop.org/software/systemd/man/journald.conf.html
 
 (31) --link 连接另外一个容器
+```
 [root@docker ~]# docker run -it --name docker-server 10.160.0.153:5000/centos7:base /bin/bash
 [root@89a28267ea37 /]# ip -o addr | grep eth0 | grep "inet " | awk '{print $4}'
 172.17.0.2/16
-
 [root@docker ~]# docker run -it --name docker-client --link docker-server 10.160.0.153:5000/centos7:base /bin/bash
 [root@10d9c1bb5daf /]# ping 172.17.0.2
 PING 172.17.0.2 (172.17.0.2) 56(84) bytes of data.
 64 bytes from 172.17.0.2: icmp_seq=1 ttl=64 time=0.056 ms
 ...
+```
 
 (32) --label 设置容器的元数据
+
 (33) --label-file 从文件导入容器的元数据
-# 这个属性有很重要的用途(记录容器一些易丢失的信息,比如网络信息.它是不随容器重启而消失的)
-[root@docker ~]# docker run -it --name docker --label net_eth0_ipaddr=172.17.0.2 10.160.0.153:5000/centos7:base /bin/bash
+```
+[root@docker ~]# docker run -it --name docker --label net_eth0_ipaddr=172.17.0.2 \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@a694fa059fb8 /]# exit
 exit
 [root@docker ~]# docker inspect -f '{{.Config.Labels.net_eth0_ipaddr}}' a694fa059fb8
@@ -267,25 +296,44 @@ exit
 a694fa059fb8
 [root@docker ~]# docker inspect -f '{{.Config.Labels.net_eth0_ipaddr}}' a694fa059fb8
 172.17.0.2
+```
+> **NOTE:**
 
-(34) --kernel-memory "<int><k,m,g...>"
-[root@docker ~]# docker run -it --name docker --kernel-memory 100m 10.160.0.153:5000/centos7:base /bin/bash
+> 这个属性有很重要的用途(记录容器一些易丢失的信息,比如网络信息.它是不随容器重启而消失的)
 
+(34) --kernel-memory 参数格式: <int><k,m,g...>
+```
+[root@docker ~]# docker run -it --name docker --kernel-memory 100m \
+10.160.0.153:5000/centos7:base /bin/bash
+```
 (35) --isolation 执指定使用何种容器隔离技术(默认default)
+
 (36) --ipc 选项有host(不安全)与"container:<容器名|ID>" 两种.
+
 (37) --ip6 与 --net 结合使用(如果使用自定义overlay网络,用不到该项目)
+
 (38) --ip 与 --net 结合使用(如果使用自定义overlay网络,用不到该项目)
+
 (39) --interactive  # 保持stdin开放(即使尚未attach)
+
 (40) --hostname 指定 hostname
-[root@docker ~]# docker run -it --name docker --hostname=www.huayu.com 10.160.0.153:5000/centos7:base /bin/bash
+```
+[root@docker ~]# docker run -it --name docker --hostname=www.huayu.com \
+10.160.0.153:5000/centos7:base /bin/bash
 [root@www /]# hostname
 www.huayu.com
-
+```
 (41) --group-add 加入到指定用户组
+```
 [root@docker ~]# docker run -it --name docker --group-add daemon 10.160.0.153:5000/centos7:base /bin/bash
+```
 (42) --expose 容器对外暴露端口或端口范围,但并不通过宿主端口映射对外发布(相当于iptables放开端口范围访问许可)
-# iptables -I INPUT -p tcp --dport 8000:9000 -j ACCEPT
-# 在禁用容器iptables的情况下使用 --expose 选项放开port访问许可
+
+> **NOTE**
+
+> iptables -I INPUT -p tcp --dport 8000:9000 -j ACCEPT
+
+> 在禁用容器iptables的情况下使用 --expose 选项放开port访问许可
 
 (43) --env-file 从宿主某文件为容器导入环境变量
 (44) --env 设置容器环境变量
