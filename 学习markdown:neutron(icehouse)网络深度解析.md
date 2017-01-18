@@ -1025,3 +1025,5 @@ iptables -t nat -A  PREROUTING  -d 10.160.0.147/32 \
 [5] [dhcp request/ack包抓包与解析:dhcp ack](https://github.com/guojy8993/blogs/blob/master/dhcp-ack-01.png)
 
 [6] [dhcp request/ack包抓包与解析:dhcp options](https://github.com/guojy8993/blogs/blob/master/dhcp-ack-opts-details.png)
+
+[7] [dhcp options手册](https://tools.ietf.org/html/rfc2132)
