@@ -40,7 +40,7 @@ ii.新建两个linux bridge,保证后续制作的镜像的外内双网卡
 [root@cs112-04 config-2]# brctl addbr br1 && ip link set br1 up
 ```
 
-iii.创建空系统盘,并使用virt-install启动虚拟机
+iii.创建空系统盘,并使用libvirt.xml模版文件定义并启动虚拟机
 ```
 [root@cs112-04 ~]# qemu-img create -f qcow2 /tmp/ws2012 15G
 ```
