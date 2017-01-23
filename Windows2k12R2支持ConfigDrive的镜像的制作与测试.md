@@ -1,8 +1,27 @@
 ### 本文档说明 ###
 
 (1) 准备工作
+i. 下载windows2k12镜像, VirtIO驱动包, CloudBase-init安装包(参考附录链接,此处略)
+```
+[root@cs112-04 config-2]# ll /opt/ | egrep "msi|iso|virtio"
+-rw-r--r--    1 root root    35057664 Jan 22 15:24 CloudbaseInitSetup_0_9_9_x64.msi
+-rw-r--r--    1 root root   155856896 Jan 22 14:16 virtio.iso
+-rw-r-----    1 root root  5545527296 Jan 22 12:28 win2012.iso
+```
+
+ii.将CloudBase-init制作成ISO,稍后使用
+```
+[root@cs112-04 config-2]# mkisofs -R -V config-2 -o /opt/cloudinit.iso /opt/CloudbaseInitSetup_0_9_9_x64.msi
+```
 
 (2) 启动虚拟机
+
+i. 确保服务器支持KVM虚拟化(环境配置略)
+
+ii.新建两个linux bridge,保证后续制作的镜像的外内双网卡
+
+iii.使用virt-install启动虚拟机
+
 
 (3)驱动的加载与安装
 
