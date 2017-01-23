@@ -8,17 +8,19 @@
 
 (4)防火墙的配置
 
-(4)CloudBase的安装与配置
+(5)CloudBase的安装与配置
 
-(5)镜像可用性的测试
+(6)镜像可用性的测试
 
-(6)附录
+(7)附录
 
 #### 准备工作 ####
 #### 启动虚拟机 ####
 #### 驱动的加载与安装 ####
 #### 防火墙的配置 ####
 #### CloudBase的安装与配置 ####
+#### 镜像可用性的测试 ####
+
 #### 附录 ####
 
 [1.OpenStack官方镜像制作](http://docs.openstack.org/image-guide/windows-image.html)
@@ -33,4 +35,4 @@
 
 [6.VirtIO驱动官方下载](https://fedoraproject.org/wiki/Windows_Virtio_Drivers#Direct_download)
 
-[7. 如何使用 mkisofs 制作镜像]()
+[7. 如何使用 mkisofs 制作镜像](https://github.com/guojy8993/blogs/blob/master/linux%E4%B8%8B%E7%9A%84ISO%E7%94%9F%E6%88%90%E5%B7%A5%E5%85%B7%E4%B8%8E%E4%BD%BF%E7%94%A8.md)
