@@ -28,6 +28,9 @@ ii.新建两个linux bridge,保证后续制作的镜像的外内双网卡
 iii.创建空系统盘,并使用virt-install启动虚拟机
 ```
 [root@cs112-04 ~]# qemu-img create -f qcow2 /tmp/ws2012 15G
+```
+
+```
 [root@cs112-04 config-2]# cat > /root/test.xml << EOF
 <domain type='kvm' id='441'>
   <name>win2012</name>
@@ -166,10 +169,14 @@ iii.创建空系统盘,并使用virt-install启动虚拟机
     </memballoon>
   </devices>
 </domain>
+```
 
+```
 [root@cs112-04 config-2]# virsh define /root/test.xml 
 Domain win2012 defined from /root/test.xml
+```
 
+```
 [root@cs112-04 config-2]# virsh start win2012
 Domain win2012 started
 
