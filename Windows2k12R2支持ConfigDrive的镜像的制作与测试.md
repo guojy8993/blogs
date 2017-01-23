@@ -1,6 +1,7 @@
 ### 本文档说明 ###
 
 (1) 准备工作
+
 i. 下载windows2k12镜像, VirtIO驱动包, CloudBase-init安装包(参考附录链接,此处略)
 ```
 [root@cs112-04 config-2]# ll /opt/ | egrep "msi|iso|virtio"
@@ -19,9 +20,24 @@ ii.将CloudBase-init制作成ISO,稍后使用
 i. 确保服务器支持KVM虚拟化(环境配置略)
 
 ii.新建两个linux bridge,保证后续制作的镜像的外内双网卡
+```
+[root@cs112-04 config-2]# brctl addbr br0 && ip link set br0 up
+[root@cs112-04 config-2]# brctl addbr br1 && ip link set br1 up
+```
 
-iii.使用virt-install启动虚拟机
-
+iii.创建空系统盘,并使用virt-install启动虚拟机
+```
+[root@cs112-04 ~]# qemu-img create -f qcow2 /tmp/ws2012 15G
+[root@cs112-04 config-2]# virt-install --name win2012 --ram 4096 --vcpus 4 \
+--network bridge:br0,model=virtio \
+--network bridge:br1,model=virtio \
+--disk path=/tmp/ws2012,format=qcow2,device=disk,bus=virtio \
+--cdrom /opt/win2012.iso \
+--cdrom /opt/virtio.iso \
+--cdrom /opt/cloudinit.iso \
+--boot cdrom,hd \
+--vnc --os-type windows --os-variant win2k8
+```
 
 (3)驱动的加载与安装
 
