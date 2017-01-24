@@ -196,6 +196,18 @@ Domain win2012 defined from /root/test.xml
 Domain win2012 started
 
 ```
+
+此时虚拟机所有必需的ISO盘都具备:
+```
+[root@cs112-04 ~]# virsh domblklist win2012
+Target     Source
+------------------------------------------------
+vda        /tmp/ws2012
+hda        /opt/win2012.iso
+hdb        /opt/virtio.iso
+hdc        /opt/cloudinit.iso
+```
+
 使用vncviewer进入安装界面
 
 ![选择本地语言时间货币](https://github.com/guojy8993/ImageCache/blob/master/set_local_001.jpg)
@@ -268,7 +280,91 @@ windows2012系统选择w7/amd64驱动
 ![执行Sysprep1](https://github.com/guojy8993/ImageCache/blob/master/sysprep.jpg)
 ![执行Sysprep2](https://github.com/guojy8993/ImageCache/blob/master/syspreping.jpg)
 
+然后等模板虚拟机关机，在宿主上将模板拷贝予以备份
+```
+[root@cs112-04 ~]# cp /tmp/ws2012 /opt/ws2012.backup 
+```
+
 #### 镜像可用性的测试 ####
+
+在线编辑虚拟机配置,设置hd优先启动，并删除仅留一个hda,且设置hda为空设备
+```
+[root@cs112-04 ~]# virsh edit win2012
+...
+
+[root@cs112-04 ~]# virsh domblklist win2012
+Target     Source
+------------------------------------------------
+vda        /tmp/ws2012
+hda        -
+```
+
+制作ConfigDrive: 生成config drive 文件树
+```
+[root@cs112-04 ~]# cd /root/config-2/
+[root@cs112-04 config-2]# tree
+.
+└── openstack
+    ├── content
+    │   ├── 0000
+    │   └── 0001
+    └── latest
+        ├── meta_data.json
+        ├── user_data
+        └── vendor_data.json
+3 directories, 5 files
+[root@cs112-04 config-2]# cat openstack/content/0000
+# powershell
+[root@cs112-04 config-2]# cat openstack/content/0001
+TYPE=Ethernet
+BOOTPROTO=static
+DEVICE=eth0
+ONBOOT=yes
+MTU=1500
+IPADDR=122.111.126.212
+PREFIX=24
+GATEWAY=122.111.126.1
+DNS1=8.8.8.8
+DNS2=8.8.4.4
+
+[root@cs112-04 config-2]# cat openstack/latest/meta_data.json 
+{"files": [{"path": "C:/", "content_path": "/content/0000"}, {"path": "C:/", "content_path": "/content/0001"}], "admin_pass": "guojy8993@163!", "hostname": "demo.cloud.org", "launch_index": 0, "name": "demo", "uuid": "8c83e8c0-2911-48ea-be13-fdfd18389f04"}
+
+[root@cs112-04 config-2]# cat openstack/latest/user_data 
+#ps1_sysnative
+echo 1qazxsw2# > c:\passwd.txt
+net user administrator 1qazxsw2#
+$vifs = netsh interface ipv4 show interfaces
+$eth0_index = $vifs[-3].split()[1]
+$eth1_index = $vifs[-2].split()[1]
+netsh interface ipv4 add address $eth0_index 122.111.126.5   255.255.255.0 122.111.126.1
+netsh interface ipv4 add dnsservers $eth0_index 8.8.8.8
+netsh interface ipv4 add dnsservers $eth0_index 8.8.4.4 index=2
+netsh interface ipv4 add address $eth1_index 10.100.0.100    255.255.0.0   10.100.0.1
+echo "Network Configuration Done !" > c:\passwd.txt
+[root@cs112-04 config-2]# cat openstack/latest/vendor_data.json 
+{}
+```
+
+制作ConfigDrive: 生成config drive光盘文件
+```
+[root@cs112-04 config-2]# mkisofs -l -J -L -r -V config-2 -o /root/haproxy.iso .
+```
+
+冷挂载光盘文件到虚拟机(经过sysprep虚拟机已经关机),并启动.
+```
+[root@cs112-04 config-2]# virsh change-media win2012 hda /root/haproxy.iso --config 
+Successfully updated media.
+
+[root@cs112-04 config-2]# virsh start win2012
+Domain win2012 started
+```
+
+等待虚拟机进行配置注入 ...
+
+使用metadata注入的密码登录，修改新密码，查看虚拟机的配置信息，并进行网络测试
+![查看虚拟机的配置信息](https://github.com/guojy8993/ImageCache/blob/master/hostname_ip.jpg)
+![网络测试](https://github.com/guojy8993/ImageCache/blob/master/ping.jpg)
 
 #### 附录 ####
 
