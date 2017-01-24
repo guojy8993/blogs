@@ -196,6 +196,9 @@ Domain win2012 defined from /root/test.xml
 Domain win2012 started
 
 ```
+使用vncviewer进入安装界面
+![选择本地语言时间货币](https://github.com/guojy8993/ImageCache/blob/master/set_local_001.jpg)
+
 
 #### 驱动的加载与安装 ####
 #### 防火墙的配置 ####
