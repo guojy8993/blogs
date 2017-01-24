@@ -242,8 +242,32 @@ windows2012系统选择w7/amd64驱动
 
 ![允许ping](https://github.com/guojy8993/ImageCache/blob/master/set_local_013.jpg)
 ![允许RDP远程端口访问](https://github.com/guojy8993/ImageCache/blob/master/set_local_014.jpg)
+![允许RDP远程端口访问](https://github.com/guojy8993/ImageCache/blob/master/set_local_014.jpg)
+
+设置powershell安全策略：允许自定义PS脚本的运行
+![允许自定义PS脚本的运行](https://github.com/guojy8993/ImageCache/blob/master/set_local_015.jpg)
 
 #### CloudBase的安装与配置 ####
+
+安装CloudBase
+
+![允许自定义PS脚本的运行](https://github.com/guojy8993/ImageCache/blob/master/set_local_016.jpg)
+
+设置username以及系统日志输出串口
+
+![设置username以及系统日志输出串口](https://github.com/guojy8993/ImageCache/blob/master/set_local_017.jpg)
+
+在sysprep之前修改CloudBase配置
+
+![修改CloudBase配置01](https://github.com/guojy8993/ImageCache/blob/master/set_local_018.jpg)
+![修改CloudBase配置02](https://github.com/guojy8993/ImageCache/blob/master/set_local_019.jpg)
+
+
+继续执行Sysprep
+
+![执行Sysprep1](https://github.com/guojy8993/ImageCache/blob/master/sysprep.jpg)
+![执行Sysprep2](https://github.com/guojy8993/ImageCache/blob/master/syspreping.jpg)
+
 #### 镜像可用性的测试 ####
 
 #### 附录 ####
