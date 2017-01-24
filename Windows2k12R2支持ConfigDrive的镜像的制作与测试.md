@@ -86,7 +86,7 @@ iii.创建空系统盘,并使用libvirt.xml模版文件定义并启动虚拟机
     
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2' cache='writeback'/>
-      <source file='**/tmp/ws2012**'/>
+      <source file='/tmp/ws2012'/>
       <backingStore/>
       <target dev='vda' bus='virtio'/>
     </disk>
@@ -199,6 +199,7 @@ Domain win2012 started
 ```
 
 此时虚拟机所有必需的ISO盘都具备:
+
 ```
 [root@cs112-04 ~]# virsh domblklist win2012
 Target     Source
@@ -375,6 +376,7 @@ echo "Network Configuration Done !" > c:\passwd.txt
 ```
 
 冷挂载光盘文件到虚拟机(经过sysprep虚拟机已经关机),并启动.
+
 ```
 [root@cs112-04 config-2]# virsh change-media win2012 hda /root/haproxy.iso --config 
 Successfully updated media.
