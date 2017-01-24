@@ -86,7 +86,7 @@ iii.创建空系统盘,并使用libvirt.xml模版文件定义并启动虚拟机
     
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2' cache='writeback'/>
-      <source file='/tmp/ws2012'/>
+      <source file='**/tmp/ws2012**'/>
       <backingStore/>
       <target dev='vda' bus='virtio'/>
     </disk>
