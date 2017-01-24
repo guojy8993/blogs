@@ -43,7 +43,7 @@
 
 下面是具体使用场景展示
 
-> **agent144 是宿主**v
+> **agent144 是宿主**
 
 > **gainetKXs 是客户机**
 
@@ -202,9 +202,7 @@ error: revert requires force: Target domain disk count 2 does not match source 1
 
 **Step10: 查看此时虚拟机磁盘列表,以及挂载文件夹内的文件**
 
-> 磁盘自动重新挂载
-
-> 磁盘内文件还在
+> 磁盘自动重新挂载, 磁盘内文件还在
 
 ```
 [root@agent144 KY-vxlan100-A]# virsh domblklist KY-vxlan100-A
