@@ -87,10 +87,13 @@ system reversed
 ------------------------------------------------------------
  1462929799           2016-05-10 21:23:19 -0400 running
 ```
-** Step3: 在 KY-vxlan100-A 内操作文件 **
+
+**Step3: 在 KY-vxlan100-A 内操作文件**
+
 > 查看 /root/snap.txt文件内容
 
-** Step4: 执行快照还原 **
+**Step4: 执行快照还原**
+
 > 查看 /root/snap.txt 中内容
 
 ```
@@ -100,7 +103,8 @@ snap.txt
 [root@gainetKXs ~]# cat snap.txt 
 system disk only
 ```
-# step5: 为磁盘挂载新的数据盘
+
+**Step5: 为磁盘挂载新的数据盘**
 [root@agent144 KY-vxlan100-A]# qemu-img create -f qcow2 data 1G
 Formatting 'data', fmt=qcow2 size=1073741824 encryption=off cluster_size=65536 \
 lazy_refcounts=off refcount_bits=16
