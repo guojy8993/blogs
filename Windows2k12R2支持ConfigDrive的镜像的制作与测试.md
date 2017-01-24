@@ -14,6 +14,7 @@
 
 (7)附录
 
+___
 #### 准备工作 ####
 
 i. 下载windows2k12镜像, VirtIO驱动包, CloudBase-init安装包(参考附录链接,此处略)
@@ -29,7 +30,7 @@ ii.将CloudBase-init制作成ISO,稍后使用
 [root@cs112-04 config-2]# mkisofs -R -V config-2 -o /opt/cloudinit.iso /opt/CloudbaseInitSetup_0_9_9_x64.msi
 ```
 
-
+___
 #### 启动虚拟机 ####
 
 i. 确保服务器支持KVM虚拟化(环境配置略)
@@ -235,6 +236,7 @@ windows2012系统选择w7/amd64驱动
 ![windows系统选择w7/amd64驱动03](https://github.com/guojy8993/ImageCache/blob/master/set_local_008.jpg)
 
 
+___
 #### 驱动的加载与安装 ####
 
 在 服务器管理器 > 工具 > 计算机管理 > 设备管理器 > 其他设备 中找到未安装驱动的设备
@@ -249,6 +251,8 @@ windows2012系统选择w7/amd64驱动
 
 ![安装以太网控制器驱动](https://github.com/guojy8993/ImageCache/blob/master/set_local_012.jpg)
 
+
+___
 #### 防火墙的配置 ####
 设置防火墙：允许ping以及RDP远程端口访问
 
@@ -259,6 +263,7 @@ windows2012系统选择w7/amd64驱动
 设置powershell安全策略：允许自定义PS脚本的运行
 ![允许自定义PS脚本的运行](https://github.com/guojy8993/ImageCache/blob/master/set_local_015.jpg)
 
+___
 #### CloudBase的安装与配置 ####
 
 安装CloudBase
@@ -285,6 +290,8 @@ windows2012系统选择w7/amd64驱动
 [root@cs112-04 ~]# cp /tmp/ws2012 /opt/ws2012.backup 
 ```
 
+
+___
 #### 镜像可用性的测试 ####
 
 在线编辑虚拟机配置,设置hd优先启动，并删除仅留一个hda,且设置hda为空设备
