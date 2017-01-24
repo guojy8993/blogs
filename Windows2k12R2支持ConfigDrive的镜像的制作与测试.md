@@ -258,9 +258,9 @@ ___
 
 ![允许ping](https://github.com/guojy8993/ImageCache/blob/master/set_local_013.jpg)
 ![允许RDP远程端口访问](https://github.com/guojy8993/ImageCache/blob/master/set_local_014.jpg)
-![允许RDP远程端口访问](https://github.com/guojy8993/ImageCache/blob/master/set_local_014.jpg)
 
 设置powershell安全策略：允许自定义PS脚本的运行
+
 ![允许自定义PS脚本的运行](https://github.com/guojy8993/ImageCache/blob/master/set_local_015.jpg)
 
 ___
@@ -286,6 +286,7 @@ ___
 ![执行Sysprep2](https://github.com/guojy8993/ImageCache/blob/master/syspreping.jpg)
 
 然后等模板虚拟机关机，在宿主上将模板拷贝予以备份
+
 ```
 [root@cs112-04 ~]# cp /tmp/ws2012 /opt/ws2012.backup 
 ```
@@ -295,6 +296,7 @@ ___
 #### 镜像可用性的测试 ####
 
 在线编辑虚拟机配置,设置hd优先启动，并删除仅留一个hda,且设置hda为空设备
+
 ```
 [root@cs112-04 ~]# virsh edit win2012
 ...
@@ -384,6 +386,7 @@ Domain win2012 started
 等待虚拟机进行配置注入 ...
 
 使用metadata注入的密码登录，修改新密码，查看虚拟机的配置信息，并进行网络测试
+
 ![查看虚拟机的配置信息](https://github.com/guojy8993/ImageCache/blob/master/hostname_ip.jpg)
 ![网络测试](https://github.com/guojy8993/ImageCache/blob/master/ping.jpg)
 
