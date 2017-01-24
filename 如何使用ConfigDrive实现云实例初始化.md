@@ -62,6 +62,8 @@ ii. 定义了虚拟机的基本配置信息
 
 > launch_index 建议使用0作为默认
 
+> ** 支持通过 admin_pass 进行密码注入 **
+
 > files列表定义了需要从 ./openstack/content/ 拷贝到虚拟机的指定文件
 
 > files的典型应用包括：
