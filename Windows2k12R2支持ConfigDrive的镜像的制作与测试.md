@@ -328,7 +328,10 @@ DNS1=8.8.8.8
 DNS2=8.8.4.4
 
 [root@cs112-04 config-2]# cat openstack/latest/meta_data.json 
-{"files": [{"path": "C:/", "content_path": "/content/0000"}, {"path": "C:/", "content_path": "/content/0001"}], "admin_pass": "guojy8993@163!", "hostname": "demo.cloud.org", "launch_index": 0, "name": "demo", "uuid": "8c83e8c0-2911-48ea-be13-fdfd18389f04"}
+{"files": [{"path": "C:/", "content_path": "/content/0000"},
+{"path": "C:/", "content_path": "/content/0001"}],
+"admin_pass": "guojy8993@163!", "hostname": "demo.cloud.org", 
+"launch_index": 0, "name": "demo", "uuid": "8c83e8c0-2911-48ea-be13-fdfd18389f04"}
 
 [root@cs112-04 config-2]# cat openstack/latest/user_data 
 #ps1_sysnative
