@@ -197,7 +197,30 @@ Domain win2012 started
 
 ```
 使用vncviewer进入安装界面
+
 ![选择本地语言时间货币](https://github.com/guojy8993/ImageCache/blob/master/set_local_001.jpg)
+
+选择安装
+
+![选择安装](https://github.com/guojy8993/ImageCache/blob/master/set_local_002.jpg)
+
+选择安装系统版本
+
+![选择安装系统版本](https://github.com/guojy8993/ImageCache/blob/master/set_local_003.jpg)
+
+选择接受协议
+
+![选择接受协议](https://github.com/guojy8993/ImageCache/blob/master/set_local_004.jpg)
+
+找不到硬盘，需要加载硬盘驱动
+
+![找不到硬盘，需要加载硬盘驱动](https://github.com/guojy8993/ImageCache/blob/master/set_local_005.jpg)
+
+windows系统选择w7/amd64驱动
+
+![windows系统选择w7/amd64驱动01](https://github.com/guojy8993/ImageCache/blob/master/set_local_006.jpg)
+![windows系统选择w7/amd64驱动02](https://github.com/guojy8993/ImageCache/blob/master/set_local_007.jpg)
+![windows系统选择w7/amd64驱动03](https://github.com/guojy8993/ImageCache/blob/master/set_local_008.jpg)
 
 
 #### 驱动的加载与安装 ####
