@@ -224,9 +224,25 @@ windows2012系统选择w7/amd64驱动
 
 
 #### 驱动的加载与安装 ####
-在 服务器管理器 > 工具 > 计算机管理 > 
+
+在 服务器管理器 > 工具 > 计算机管理 > 设备管理器 > 其他设备 中找到未安装驱动的设备
+
+安装PCI驱动
+
+![设备管理器](https://github.com/guojy8993/ImageCache/blob/master/set_local_009.jpg)
+![PCI设备驱动](https://github.com/guojy8993/ImageCache/blob/master/set_local_010.jpg)
+![PCI设备驱动](https://github.com/guojy8993/ImageCache/blob/master/set_local_011.jpg)
+
+安装以太网控制器驱动(两个网卡均如下设置)
+
+![安装以太网控制器驱动](https://github.com/guojy8993/ImageCache/blob/master/set_local_012.jpg)
 
 #### 防火墙的配置 ####
+设置防火墙：允许ping以及RDP远程端口访问
+
+![允许ping](https://github.com/guojy8993/ImageCache/blob/master/set_local_013.jpg)
+![允许RDP远程端口访问](https://github.com/guojy8993/ImageCache/blob/master/set_local_014.jpg)
+
 #### CloudBase的安装与配置 ####
 #### 镜像可用性的测试 ####
 
