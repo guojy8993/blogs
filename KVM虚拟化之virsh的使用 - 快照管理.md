@@ -290,6 +290,7 @@ Format specific information:
 
 > **NOTE**
 
+
 > raw 格式磁盘是不支持快照创建的
 
 ```
