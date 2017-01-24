@@ -374,6 +374,9 @@ echo "Network Configuration Done !" > c:\passwd.txt
 ```
 [root@cs112-04 config-2]# mkisofs -l -J -L -r -V config-2 -o /root/haproxy.iso .
 ```
+> **NOTE:**
+
+> 为windows制作config drive 建议使用上述命令参数:否则文件名字会被转大写，截取等等
 
 冷挂载光盘文件到虚拟机(经过sysprep虚拟机已经关机),并启动.
 
