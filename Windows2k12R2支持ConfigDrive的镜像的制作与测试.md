@@ -216,7 +216,7 @@ Domain win2012 started
 
 ![找不到硬盘，需要加载硬盘驱动](https://github.com/guojy8993/ImageCache/blob/master/set_local_005.jpg)
 
-windows系统选择w7/amd64驱动
+windows2012系统选择w7/amd64驱动
 
 ![windows系统选择w7/amd64驱动01](https://github.com/guojy8993/ImageCache/blob/master/set_local_006.jpg)
 ![windows系统选择w7/amd64驱动02](https://github.com/guojy8993/ImageCache/blob/master/set_local_007.jpg)
@@ -224,6 +224,8 @@ windows系统选择w7/amd64驱动
 
 
 #### 驱动的加载与安装 ####
+在 服务器管理器 > 工具 > 计算机管理 > 
+
 #### 防火墙的配置 ####
 #### CloudBase的安装与配置 ####
 #### 镜像可用性的测试 ####
