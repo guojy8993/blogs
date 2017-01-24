@@ -1,5 +1,5 @@
 ### 快照管理 ###
-(1) 创建快照(virsh snapshot-create-as),帮助信息如下
+(1) 创建快照(virsh snapshot-create-as)，帮助信息如下
 ```
 [root@agent144 KY009]# virsh help snapshot-create-as
   NAME
@@ -14,72 +14,90 @@
 > **NOTE:**
 > 虚拟机快照创建选项说明:
 
-> 必选项:虚拟机名字                [--domain] <string>  domain name, id or uuid
+> 必选项  虚拟机名字           [--domain] <string>  domain name, id or uuid
 
-> 可选项:快照名字                  --name <string>  name of snapshot
+> 可选项  快照名字             --name <string>  name of snapshot
 
-> 可选项:快照描述信息              --description <string>  description of snapshot
+> 可选项  快照描述信息         --description <string>  description of snapshot
 
-> 可选项:只打印xml不创建           --print-xml  print XML document rather than create
+> 可选项  只打印xml不创建      --print-xml  print XML document rather than create
 
-> 可选项:不创建元数据              --no-metadata take snapshot but create no metadata
+> 可选项  不创建元数据         --no-metadata take snapshot but create no metadata
 
-> 可选项:快照创建后暂停机器        --halt   halt domain after snapshot is created
+> 可选项  快照创建后暂停机器    --halt   halt domain after snapshot is created
 
-> 可选项:仅创建磁盘快照,不创建机器快照    --disk-only  capture disk state but not vm state
+> 可选项  仅创建磁盘快照,不创建机器快照    --disk-only  capture disk state but not vm state
 
-> 可选项:再利用外部文件(似乎是 external snapshot)  --reuse-external  reuse any existing external files
+> 可选项  再利用外部文件(似乎是 external snapshot)  --reuse-external  reuse any existing external files
 
-> 可选项:客户机文件系统静默              --quiesce   quiesce guest's file systems
+> 可选项  客户机文件系统静默   --quiesce   quiesce guest's file systems
 
-> 可选项:原子操作       --atomic   require atomic operation
+> 可选项  原子操作  --atomic   require atomic operation
 
-> 可选项:热操作:        --live     take a live snapshot
+> 可选项  热操作:   --live     take a live snapshot
 
-> 可选项:内存选项       --memspec <string>  memory attributes: [file=]name[,snapshot=type]
+> 可选项  内存选项  --memspec <string>  memory attributes: [file=]name[,snapshot=type]
 
-> 可选项:磁盘选项       [--diskspec] <string>  disk attributes: disk[,snapshot=type][,driver=type][,file=name]
+> 可选项  磁盘选项  [--diskspec] <string>  disk attributes: disk[,snapshot=type][,driver=type][,file=name]
 
-## 下面是具体使用场景展示 ##
-# !!! agent144 是宿主,gainetKXs 是客户机 !!!
+下面是具体使用场景展示
 
-# step1: 查看 KY-vxlan100-A 虚拟机信息
-# 只有系统盘
+> ** agent144 是宿主,gainetKXs 是客户机 **
+
+** Step1: 查看 KY-vxlan100-A 虚拟机信息 **
+
+> 只有系统盘
+```
 [root@agent144 KY-vxlan100-A]# virsh domblklist  KY-vxlan100-A
 Target     Source
 ------------------------------------------------
 vda        /data/instance/KY-vxlan100-A/system
+```
 
-# step2: 对 KY-vxlan100-A 虚拟机创建快照
-# 查看虚拟机 /root/snap.txt 中内容
+** Step2: 对 KY-vxlan100-A 虚拟机创建快照 **
+
+> 注意虚拟机 /root/snap.txt中内容
+```
 [root@gainetKXs ~]# touch snap.txt && echo "system disk only" >> snap.txt
 [root@gainetKXs ~]# cat /root/snap.txt 
 system disk only
+```
 
-# 创建快照
+创建快照
+
+```
 [root@agent144 KY-vxlan100-A]# virsh snapshot-create-as --domain KY-vxlan100-A \
-                                  --description "system disk only and snap.txt exists in /root "
+                      --description "system disk only and snap.txt exists in /root "
 Domain snapshot 1462929799 created
+```
+```
 [root@gainetKXs ~]# echo "system reversed" >> snap.txt 
 [root@gainetKXs ~]# cat /root/snap.txt 
 system disk only
 system reversed
+```
 
-# 查看快照列表
+查看快照列表
+
+```
 [root@agent144 KY-vxlan100-A]# virsh snapshot-list --domain KY-vxlan100-A
  Name                 Creation Time             State
 ------------------------------------------------------------
  1462929799           2016-05-10 21:23:19 -0400 running
+```
+** Step3: 在 KY-vxlan100-A 内操作文件 **
+> 查看 /root/snap.txt文件内容
 
-# step3: 在 KY-vxlan100-A 内操作文件
-# 查看 /root/snap.txt文件内容
-# step4: 执行快照还原,并查看 /root/snap.txt 中内容
+** Step4: 执行快照还原 **
+> 查看 /root/snap.txt 中内容
+
+```
 [root@agent144 KY-vxlan100-A]# virsh snapshot-revert --domain KY-vxlan100-A --snapshotname 1462929799
 [root@gainetKXs ~]# ls
 snap.txt
 [root@gainetKXs ~]# cat snap.txt 
 system disk only
-
+```
 # step5: 为磁盘挂载新的数据盘
 [root@agent144 KY-vxlan100-A]# qemu-img create -f qcow2 data 1G
 Formatting 'data', fmt=qcow2 size=1073741824 encryption=off cluster_size=65536 \
