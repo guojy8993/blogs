@@ -11,7 +11,8 @@
   DESCRIPTION
     Create a snapshot (disk and RAM) from arguments
 ```
-> **NOTE:**
+> **NOTE**
+
 > 虚拟机快照创建选项说明:
 
 > 必选项  虚拟机名字           [--domain] <string>  domain name, id or uuid
@@ -42,11 +43,12 @@
 
 下面是具体使用场景展示
 
-> ** agent144 是宿主,gainetKXs 是客户机 **
+> **agent144 是宿主,gainetKXs 是客户机**
 
-** Step1: 查看 KY-vxlan100-A 虚拟机信息 **
+**Step1: 查看 KY-vxlan100-A 虚拟机信息**
 
 > 只有系统盘
+
 ```
 [root@agent144 KY-vxlan100-A]# virsh domblklist  KY-vxlan100-A
 Target     Source
