@@ -194,3 +194,5 @@ volume Ian crypt - /dev/sda1 /home/Ian cipher=aes - -
 ```
 参考 nova 项目源码 nova/virt/libvirt/dmcrypt.py
 ```
+[创建加密块设备映射](https://github.com/guojy8993/ImageCache/blob/master/dmcrypt.jpg)
+[移除加密块设备映射](https://github.com/guojy8993/ImageCache/blob/master/remove-dmcrypt.jpg)
