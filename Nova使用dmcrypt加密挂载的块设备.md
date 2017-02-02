@@ -22,49 +22,68 @@
     dm-crypt利用内核的密码应用编程接口来完成密码操作。一般说来，内核通常将各种加密程序以模块的形式加载。对于256-bit AES来说，
 其安全强度已经非常之高，即便用来保护绝密级的数据也足够了。因此本文中我们使用256-bit AES密码，为了保证您的内核已经加载AES密码模
 块，请利用下列命令进行检查：
-[root@dev ~]# cat /proc/crypto
-　　如果看到类似下面的输出的话，说明AES模块已经加载： 
-　　name : aes
-　　module : aes
-　　type : cipher
-　　blocksize : 16
-　　min keysize : 16
-　　max keysize : 32
-　　否则，我们可以利用modprobe来手工加载AES模块，命令如下所示：
-　　$ sudo modprobe aes
-　　接下来安装dmsetup软件包，该软件包含有配置device-mapper所需的工具：
-　　$ sudo apt-get install dmsetup cryptsetup
-　　为检查dmsetup软件包是否已经建立了设备映象程序，键入下列命令： 
-　　$ ls -l /dev/mapper/control
-　　接下来加载dm-crypt内核模块： 
-　　$ sudo modprobe dm-crypt
-　　dm-crypt加载后，它会用evice-mapper自动注册。如果再次检验的话，device-mapper已能识别dm-crypt，并且把crypt 添加为可用的对象： 
-　　$ sudo dmsetup targets
-　　如果一切顺利，现在你应该看到crypt的下列输出： 
-　　crypt v1.1.0
-　　striped v1.0.2
-　　linear v1.0.1
-　　error v1.0.1
-　　这说明我们的系统已经为装载加密设备做好了准备。下面，我们先来建立一个加密设备。
-　```　
 
-　　二、建立加密设备
-　　要创建作为加密设备装载的文件系统，有两种选择：一是建立一个磁盘映像，然后作为回送设备加载；二是使用物理设备。无论那种情况，除了在建立和捆绑回送设备外，其它操作过程都是相似的。
-　　1.建立回送磁盘映象
-　　如果你没有用来加密的物理设备（比如存储棒或另外的磁盘分区），作为替换，你可以利用命令dd来建立一个空磁盘映象，然后将该映象作为回送设备来装载，照样能用。下面我们以实例来加以介绍：
-　　$ dd if=/dev/zero of=~/secret.img bs=1M count=100
-　　这里我们新建了一个大小为100 MB的磁盘映象，该映象名字为secret.img。要想改变其大小，可以改变count的值。 
-　　接下来，我们利用losetup命令将该映象和一个回送设备联系起来： 
-　　$ sudo losetup /dev/loop/0 ~/secret.img
-　　现在，我们已经得到了一个虚拟的块设备，其位于/dev/loop/0，并且我们能够如同使用其它设备那样来使用它。 
-　　2.设置块设备
-　　准备好了物理块设备（例如/dev/sda1），或者是虚拟块设备（像前面那样建立了回送映象，并利用device-mapper将其作为加密的逻辑卷加载），我们就可以进行块设备配置了。
-　　下面我们使用cryptsetup来建立逻辑卷，并将其与块设备捆绑：
-　　$ sudo cryptsetup -y create myEncryptedFilesystem 
-　　/dev/DEVICENAME
-　　其中，myEncryptedFilesystem 是新建的逻辑卷的名称。并且最后一个参数必须是将用作加密卷的块设备。所以，如果你要使用前面建立的回送映象作为虚拟块设备的话，应当运行以下命令： 
-　　$ sudo cryptsetup -y create myEncryptedFilesystem /dev/loop/0
-　　无论是使用物理块设备还是虚拟块设备，程序都会要你输入逻辑卷的口令，-y的作用在于要你输入两次口令以确保无误。这一点很重要，因为一旦口令弄错，你就会把自己的数据锁住，这时谁也帮不了您了！
+[root@dev ~]# cat /proc/crypto
+
+如果看到类似下面的输出的话，说明AES模块已经加载： 
+name : aes
+module : aes
+type : cipher
+blocksize : 16
+min keysize : 16
+max keysize : 32
+
+否则，我们可以利用modprobe来手工加载AES模块，命令如下所示：
+[root@dev ~]# sudo modprobe aes
+　　
+接下来安装dmsetup软件包，该软件包含有配置device-mapper所需的工具：
+[root@dev ~]# sudo apt-get install dmsetup cryptsetup
+
+为检查dmsetup软件包是否已经建立了设备映象程序，键入下列命令： 
+[root@dev ~]# ls -l /dev/mapper/control
+　　
+接下来加载dm-crypt内核模块： 
+[root@dev ~]# sudo modprobe dm-crypt
+
+dm-crypt加载后，它会用device-mapper自动注册.
+如果再次检验的话，device-mapper已能识别dm-crypt，并且把crypt 添加为可用的对象： 
+[root@dev ~]# sudo dmsetup targets
+
+如果一切顺利，现在你应该看到crypt的下列输出：
+crypt v1.1.0
+striped v1.0.2
+linear v1.0.1
+error v1.0.1
+这说明我们的系统已经为装载加密设备做好了准备。下面，我们先来建立一个加密设备。
+```　
+
+(2)建立加密设备
+```
+    要创建作为加密设备装载的文件系统，有两种选择：一是建立一个磁盘映像，然后作为回送设备加载；二是使用物理设备。无论那种情况，
+除了在建立和捆绑回送设备外，其它操作过程都是相似的。
+　　 a.建立回送磁盘映象
+    如果你没有用来加密的物理设备（比如存储棒或另外的磁盘分区），作为替换，你可以利用命令dd来建立一个空磁盘映象，然后将该映象
+作为回送设备来装载，照样能用。
+下面我们以实例来加以介绍：
+[root@dev ~]# dd if=/dev/zero of=~/secret.img bs=1M count=100
+# 这里我们新建了一个大小为100 MB的磁盘映象，该映象名字为secret.img。要想改变其大小，可以改变count的值。 
+
+然后，我们利用losetup命令将该映象和一个回送设备联系起来： 
+[root@dev ~]# sudo losetup /dev/loop/0 ~/secret.img
+至此,我们已经得到了一个虚拟的块设备，其位于/dev/loop/0，并且我们能够如同使用其它设备那样来使用它
+    b.设置块设备
+    准备好了物理块设备（例如/dev/sda1），或者是虚拟块设备（像前面那样建立了回送映象，并利用device-mapper将其作为加密的逻辑
+卷加载），我们就可以进行块设备配置了.
+下面我们使用cryptsetup来建立逻辑卷，并将其与块设备捆绑：
+[root@dev ~]# sudo cryptsetup -y create myEncryptedFilesystem 
+/dev/DEVICENAME
+# 说明: myEncryptedFilesystem 是新建的逻辑卷的名称。并且最后一个参数必须是将用作加密卷的块设备。
+
+如果你要使用前面建立的回送映象作为虚拟块设备的话，应当运行以下命令：
+[root@dev ~]# sudo cryptsetup -y create myEncryptedFilesystem /dev/loop/0
+
+    无论是使用物理块设备还是虚拟块设备，程序都会要你输入逻辑卷的口令，-y的作用在于要你输入两次口令以确保无误。这一点很重要，
+因为一旦口令弄错，你就会把自己的数据锁住，这时谁也帮不了您了！
 　　为了确认逻辑卷是否已经建立，可以使用下列命令进行检查一下：
 　　$ sudo dmsetup ls
 　　只要该命令列出了逻辑卷，就说明已经成功建立了逻辑卷。不过根据机器的不同，设备号可能有所不同： 
@@ -90,6 +109,7 @@
 　　#!/bin/sh
 　　umount /mnt/myEncryptedFilesystem 
 　　cryptsetup remove myEncryptedFilesystem
+```
 　　四、重新装载
 　　在卸载加密设备后，我们很可能还需作为普通用户来装载它们。为了简化该工作，我们需要在/etc/fstab文件中添加下列内容： 
 　　/dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem ext3 noauto,noatime 0 0
