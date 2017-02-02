@@ -128,40 +128,57 @@ cryptsetup remove myEncryptedFilesystem
 ```
     在卸载加密设备后，我们很可能还需作为普通用户来装载它们。为了简化该工作，我们需要在/etc/fstab文件中添加下列内容： 
 　　/dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem ext3 noauto,noatime 0 0
-　　此外，我们也可以通过建立脚本来替我们完成dm-crypt设备的创建和卷的装载工作，方法是用实际设备的名称或文件路径来替换/dev/DEVICENAME： 
-　　#!/bin/sh
-　　cryptsetup create myEncryptedFilesystem /dev/DEVICENAME
-　　mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
-　　如果你使用的是回送设备的话，你还能利用脚本来捆绑设备： 
-　　#!/bin/sh 
-　　losetup /dev/loop/0 ~/secret.img
-　　cryptsetup create myEncryptedFilesystem /dev/loop/0
-　　mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
-　　如果你收到消息“ioctl: LOOP_SET_FD: Device or resource busy”，这说明回送设备很可能仍然装载在系统上。我们可以利用sudo losetup -d /dev/loop/0命令将其删除。
- ```
+此外，我们也可以通过建立脚本来替我们完成dm-crypt设备的创建和卷的装载工作，方法是用实际设备的名称或文件路径来替换
+/dev/DEVICENAME： 
+#!/bin/sh
+cryptsetup create myEncryptedFilesystem /dev/DEVICENAME
+mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
+　　
+如果你使用的是回送设备的话，你还能利用脚本来捆绑设备：
+
+#!/bin/sh 
+losetup /dev/loop/0 ~/secret.img
+cryptsetup create myEncryptedFilesystem /dev/loop/0
+mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
+
+如果你收到消息“ioctl: LOOP_SET_FD: Device or resource busy”，这说明回送设备很可能仍然装载在系统上。我们可以利用
+sudo losetup -d /dev/loop/0命令将其删除。
+```
  
- (4) 加密主目录
- ```  
-　　如果配置了PAM（Pluggable Authentication Modules，即可插入式鉴别模块）子系统在您登录时装载主目录的话，你甚至还能加密整个主目录。因为libpam-mount模块允许PAM在用户登录时自动装载任意设备，所以我们要连同openssl一起来安装该模块。命令如下所示：
-　　$ sudo apt-get install libpam-mount openssl
-　　接下来，编辑文件/etc/pam.d/common-auth，在其末尾添加下列一行： 
-　　auth optional pam_mount.so use_first_pass
-　　然后在文件/etc/pam.d/common-session末尾添加下列一行内容： 
-　　session optional pam_mount.so
-　　现在，我们来设置PAM，告诉它需要装载哪些卷、以及装载位置。对本例而言，假设用户名是Ian，要用到的设备是/dev/sda1，要添加到/etc/security/pam_mount.conf文件中的内容如下所示：
-　　volume Ian crypt - /dev/sda1 /home/Ian cipher=aes aes-256-ecb /home/Ian.key
-　　如果想使用磁盘映象，你需要在此规定回送设备（比如/dev/loop/0），并确保在Ian登录之前系统已经运行losetup。为此，你可以将 losetup /dev/loop/0 /home/secret.img放入/etc/rc.local文件中。因为该卷被加密，所以PAM需要密钥来装载卷。最后的参数用来告诉PAM密钥在 /home/Ian.key文件中，为此，通过使用OpenSSL来加密你的口令来建立密钥文件：
-　　$ sudo sh -c 'echo 
-　　'
-　　YOUR PASSPHRASE
-　　' 
-　　| openssl aes-256-ecb >
-　　/home/Ian.key'
-　　这时，提示你输入密码。注意，这里的口令必需和想要的用户登录密码一致。原因是当你登录时，PAM需要你提供这个密码，用以加密你的密钥文件，然后根据包含在密钥文件中的口令用dm-crypt装载你的主目录。
-　　需要注意的是，这样做会把你的口令以明文的形式暴露在.history文件中，所以要及时利用命令history -c清楚你的历史记录。此外，要想避免把口令存放在加密的密钥文件中的话，可以让创建加密文件系统的口令和登录口令完全一致。这样，在身份认证时，PAM 只要把你的密码传给dm-crypt就可以了，而不必从密钥文件中抽取密码。为此，你可以在/etc/security/pam_mount.conf文件中使用下面的命令行：
-　　volume Ian crypt - /dev/sda1 /home/Ian cipher=aes - -
-　　最后，为了保证在退出系统时自动卸载加密主目录，请编辑/etc/login.defs文件使得CLOSE_SESSIONS项配置如下： 
-　　CLOSE_SESSIONS yes
+(4) 加密主目录
+
+```
+    如果配置了PAM（Pluggable Authentication Modules，即可插入式鉴别模块）子系统在您登录时装载主目录的话，你甚至还
+能加密整个主目录。因为libpam-mount模块允许PAM在用户登录时自动装载任意设备，所以我们要连同openssl一起来安装该模块。命
+令如下所示：
+[root@dev ~]# sudo apt-get install libpam-mount openssl
+
+编辑文件/etc/pam.d/common-auth，在其末尾添加下列一行： auth optional pam_mount.so use_first_pass
+在文件/etc/pam.d/common-session末尾添加下列一行内容：  session optional pam_mount.so
+现在，我们来设置PAM，告诉它需要装载哪些卷、以及装载位置。对本例而言，假设用户名是Ian，要用到的设备是/dev/sda1，要添加
+到/etc/security/pam_mount.conf文件中的内容如下所示：
+volume Ian crypt - /dev/sda1 /home/Ian cipher=aes aes-256-ecb /home/Ian.key
+
+    如果想使用磁盘映象，你需要在此规定回送设备（比如/dev/loop/0），并确保在Ian登录之前系统已经运行losetup。为此，你可
+以将 losetup /dev/loop/0 /home/secret.img放入/etc/rc.local文件中。因为该卷被加密，所以PAM需要密钥来装载卷。最后的
+参数用来告诉PAM密钥在 /home/Ian.key文件中，为此，通过使用OpenSSL来加密你的口令来建立密钥文件：
+
+[root@dev ~]# sudo sh -c 'echo 
+'
+YOUR PASSPHRASE
+' 
+| openssl aes-256-ecb >
+/home/Ian.key'
+
+    这时，提示你输入密码。注意，这里的口令必需和想要的用户登录密码一致。原因是当你登录时，PAM需要你提供这个密码，用以加密
+你的密钥文件，然后根据包含在密钥文件中的口令用dm-crypt装载你的主目录.
+　　需要注意的是，这样做会把你的口令以明文的形式暴露在.history文件中，所以要及时利用命令history -c清楚你的历史记录。此外，
+要想避免把口令存放在加密的密钥文件中的话，可以让创建加密文件系统的口令和登录口令完全一致。这样，在身份认证时，PAM 只要把你
+的密码传给dm-crypt就可以了，而不必从密钥文件中抽取密码。为此，你可以在/etc/security/pam_mount.conf文件中使用下面的命令行：
+
+volume Ian crypt - /dev/sda1 /home/Ian cipher=aes - -
+
+为了保证在退出系统时自动卸载加密主目录，请编辑/etc/login.defs文件使得CLOSE_SESSIONS项配置如下： CLOSE_SESSIONS yes
 ```
 
 #### 总结 ####
