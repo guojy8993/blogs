@@ -18,6 +18,7 @@
 
 #### 实践 ####
 (1) 配置内核
+
 ```
     dm-crypt利用内核的密码应用编程接口来完成密码操作。一般说来，内核通常将各种加密程序以模块的形式加载。对于256-bit AES来说，
 其安全强度已经非常之高，即便用来保护绝密级的数据也足够了。因此本文中我们使用256-bit AES密码，为了保证您的内核已经加载AES密码模
@@ -55,7 +56,7 @@ striped v1.0.2
 linear v1.0.1
 error v1.0.1
 这说明我们的系统已经为装载加密设备做好了准备。下面，我们先来建立一个加密设备。
-```　
+```
 
 (2)建立加密设备
 
@@ -111,6 +112,7 @@ error v1.0.1
 　　umount /mnt/myEncryptedFilesystem 
 　　cryptsetup remove myEncryptedFilesystem
 ```
+
 　　四、重新装载
 　　在卸载加密设备后，我们很可能还需作为普通用户来装载它们。为了简化该工作，我们需要在/etc/fstab文件中添加下列内容： 
 　　/dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem ext3 noauto,noatime 0 0
