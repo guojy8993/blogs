@@ -85,36 +85,48 @@ error v1.0.1
 [root@dev ~]# sudo cryptsetup -y create myEncryptedFilesystem /dev/loop/0
 
     无论是使用物理块设备还是虚拟块设备，程序都会要你输入逻辑卷的口令，-y的作用在于要你输入两次口令以确保无误。这一点很重要，
-因为一旦口令弄错，你就会把自己的数据锁住，这时谁也帮不了您了！
-　　为了确认逻辑卷是否已经建立，可以使用下列命令进行检查一下：
-　　$ sudo dmsetup ls
-　　只要该命令列出了逻辑卷，就说明已经成功建立了逻辑卷。不过根据机器的不同，设备号可能有所不同： 
-　　myEncryptedFilesystem (221, 0)
-　　device-mapper会把它的虚拟设备装载到/dev/mapper下面，所以，你的虚拟块设备应该是/dev/mapper/myEncryptedFilesystem ，尽管用起来它和其它块设备没什么不同，实际上它却是经过透明加密的。
-　　如同物理设备一样，我们也可以在虚拟设备上创建文件系统：
-　　$ sudo mkfs.ext3 /dev/mapper/myEncryptedFilesystem
-　　现在为新的虚拟块设备建立一个装载点，然后将其装载。命令如下所示： 
-　　$ sudo mkdir /mnt/myEncryptedFilesystem 
-　　$ sudo mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
-　　我们能够利用下面的命令查看其装载后的情况： 
-　　$ df -h /mnt/myEncryptedFilesystem 
-　　Filesystem Size Used Avail Use% Mounted on
-　　/dev/mapper/myEncryptedFilesystem 97M 2.1M 90M 2% /mnt/myEncryptedFilesystem
-　　很好，我们看到装载的文件系统，尽管看起来与其它文件系统无异，但实际上写到/mnt/myEncryptedFilesystem /下的所有数据，在数据写入之前都是经过透明的加密处理后才写入磁盘的，因此，从该处读取的数据都是些密文。
-　　
+因为一旦口令弄错，你就会把自己的数据锁住，这时谁也帮不了您了！为了确认逻辑卷是否已经建立，可以使用下列命令进行检查一下：
+[root@dev ~]# sudo dmsetup ls
 
-　　要卸载加密文件系统，和平常的方法没什么两样：
-　　$ sudo umount /mnt/myEncryptedFilesystem
-　　即便已经卸载了块设备，在dm-crypt中仍然视为一个虚拟设备。如若不信，你可以再次运行命令sudo dmsetup ls来验证一下，你会看到该设备依然会被列出。因为dm-crypt缓存了口令，所以机器上的其它用户不需要知道口令就能重新装载该设备。为了避免这种情况发生，你必须在卸载设备后从dm-crypt中显式的删除该设备。命令具体如下所示： 
-　　$ sudo cryptsetup remove myEncryptedFilesystem
-　　此后，它将彻底清除，要想再次装载的话，你必须再次输入口令。为了简化该过程，我们可以利用一个简单的脚本来完成卸载和清除工作： 
-　　#!/bin/sh
-　　umount /mnt/myEncryptedFilesystem 
-　　cryptsetup remove myEncryptedFilesystem
+只要该命令列出了逻辑卷，就说明已经成功建立了逻辑卷.不过根据机器的不同，设备号可能有所不同：myEncryptedFilesystem (221, 0)
+
+device-mapper会把它的虚拟设备装载到/dev/mapper下面，所以，你的虚拟块设备应该是/dev/mapper/myEncryptedFilesystem ，尽管
+用起来它和其它块设备没什么不同，实际上它却是经过透明加密的.
+
+如同物理设备一样，我们也可以在虚拟设备上创建文件系统：
+[root@dev ~]# sudo mkfs.ext3 /dev/mapper/myEncryptedFilesystem
+
+现在为新的虚拟块设备建立一个装载点，然后将其装载。命令如下所示： 
+[root@dev ~]# sudo mkdir /mnt/myEncryptedFilesystem 
+[root@dev ~]# sudo mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
+
+我们能够利用下面的命令查看其装载后的情况：
+[root@dev ~]# df -h /mnt/myEncryptedFilesystem 
+Filesystem Size Used Avail Use% Mounted on
+/dev/mapper/myEncryptedFilesystem 97M 2.1M 90M 2% /mnt/myEncryptedFilesystem
+
+    很好，我们看到装载的文件系统，尽管看起来与其它文件系统无异，但实际上写到/mnt/myEncryptedFilesystem /下的所有数据，在
+数据写入之前都是经过透明的加密处理后才写入磁盘的，因此，从该处读取的数据都是些密文.
+
+要卸载加密文件系统，和平常的方法没什么两样：
+[root@dev ~]# sudo umount /mnt/myEncryptedFilesystem
+
+即便已经卸载了块设备，在dm-crypt中仍然视为一个虚拟设备.如若不信，你可以再次运行命令sudo dmsetup ls来验证一下，你会看到该
+设备依然会被列出。因为dm-crypt缓存了口令，所以机器上的其它用户不需要知道口令就能重新装载该设备。为了避免这种情况发生，你必须
+在卸载设备后从dm-crypt中显式的删除该设备。命令具体如下所示：
+[root@dev ~]# sudo cryptsetup remove myEncryptedFilesystem
+
+此后，它将彻底清除，要想再次装载的话，你必须再次输入口令。为了简化该过程，我们可以利用一个简单的脚本来完成卸载和清除工作： 
+
+#!/bin/sh
+umount /mnt/myEncryptedFilesystem 
+cryptsetup remove myEncryptedFilesystem
 ```
 
-　　四、重新装载
-　　在卸载加密设备后，我们很可能还需作为普通用户来装载它们。为了简化该工作，我们需要在/etc/fstab文件中添加下列内容： 
+(3) 重新装载
+
+```
+    在卸载加密设备后，我们很可能还需作为普通用户来装载它们。为了简化该工作，我们需要在/etc/fstab文件中添加下列内容： 
 　　/dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem ext3 noauto,noatime 0 0
 　　此外，我们也可以通过建立脚本来替我们完成dm-crypt设备的创建和卷的装载工作，方法是用实际设备的名称或文件路径来替换/dev/DEVICENAME： 
 　　#!/bin/sh
@@ -126,7 +138,10 @@ error v1.0.1
 　　cryptsetup create myEncryptedFilesystem /dev/loop/0
 　　mount /dev/mapper/myEncryptedFilesystem /mnt/myEncryptedFilesystem
 　　如果你收到消息“ioctl: LOOP_SET_FD: Device or resource busy”，这说明回送设备很可能仍然装载在系统上。我们可以利用sudo losetup -d /dev/loop/0命令将其删除。
-　　五、加密主目录
+ ```
+ 
+ (4) 加密主目录
+ ```  
 　　如果配置了PAM（Pluggable Authentication Modules，即可插入式鉴别模块）子系统在您登录时装载主目录的话，你甚至还能加密整个主目录。因为libpam-mount模块允许PAM在用户登录时自动装载任意设备，所以我们要连同openssl一起来安装该模块。命令如下所示：
 　　$ sudo apt-get install libpam-mount openssl
 　　接下来，编辑文件/etc/pam.d/common-auth，在其末尾添加下列一行： 
@@ -147,7 +162,11 @@ error v1.0.1
 　　volume Ian crypt - /dev/sda1 /home/Ian cipher=aes - -
 　　最后，为了保证在退出系统时自动卸载加密主目录，请编辑/etc/login.defs文件使得CLOSE_SESSIONS项配置如下： 
 　　CLOSE_SESSIONS yes
+```
 
 #### 总结 ####
+
+```
     数据加密是一种强而有力的安全手段，它能在各种环境下很好的保护数据的机密性。而本文介绍的Ubuntu Linux 下的加密文
 件系统就是一种非常有用的数据加密保护方式，相信它能够在保护数据机密性相方面对您有所帮助.
+```
