@@ -77,5 +77,3 @@ All done!  If you've completed all of the above steps, your MariaDB
 installation should now be secure.
 Thanks for using MariaDB!
 ```
-
-# 至此设置完毕
