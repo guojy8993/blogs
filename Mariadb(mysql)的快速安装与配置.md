@@ -1,7 +1,12 @@
 1.安装mariadb
+
+```
 [root@master ~]# yum install mariadb mariadb-server MySQL-python
+```
 
 2.修改(添加)mariadb配置文件到  /etc/my.cnf.d/ 下,例如openstack的主控节点的数据库的配置,新加 mariadb_openstack.cnf文件并修改配置 
+
+```
 [root@master ~]# cat > /etc/my.cnf.d/mariadb_openstack.cnf << EOF
 [mysqld]
 bind-address=10.160.0.116
@@ -11,11 +16,16 @@ collation-server=utf8_general_ci
 init-connect='SET NAMES utf8'
 character-set-server=utf8
 EOF
+```
 
 3.启动服务并设置开机自启
+
+```
 [root@master ~]# systemctl enable mariadb.service && systemctl start mariadb.service
+```
 
 4.安全初始化数据库
+```
 [root@master ~]#  mysql_secure_installation
 NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MariaDB
       SERVERS IN PRODUCTION USE!  PLEASE READ EACH STEP CAREFULLY!
@@ -66,5 +76,6 @@ Cleaning up...
 All done!  If you've completed all of the above steps, your MariaDB
 installation should now be secure.
 Thanks for using MariaDB!
+```
 
 # 至此设置完毕
