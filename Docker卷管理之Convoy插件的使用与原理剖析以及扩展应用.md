@@ -19,7 +19,72 @@
 
 #### Convoy插件的安装与配置 ####
 
+1.下载 Convoy 卷插件
+
+```
+参考附录 链接 下载卷插件
+```
+
+2.安装卷插件
+
+```
+[root@docker-comp126 opt]# ll /opt/ | grep convoy
+-rw-r--r--. 1 root root 10127278 Feb  3 14:30 convoy.tar.gz
+
+[root@docker-comp126 opt]# mkdir -p /etc/docker/plugins
+[root@docker-comp126 opt]# echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec
+[root@docker-comp126 opt]# cat /etc/docker/plugins/convoy.spec
+unix:///var/run/convoy/convoy.sock
+```
+
+3.启动convoy服务
+
+```
+[root@docker-comp126 ~]# mkdir -p /data/docker
+[root@docker-comp126 ~]# ll /data/docker
+total 0
+[root@docker-comp126 ~]# rm -rf /var/run/convoy/convoy.sock
+[root@docker-comp126 ~]# nohup convoy daemon --drivers vfs --log --driver-opts vfs.path=/data/docker &
+[1] 9462
+[root@docker-comp126 ~]# nohup: ignoring input and appending output to ‘nohup.out’
+```
+
 #### Convoy插件的使用 ####
+
+查看可用镜像并使用convoy卷插件创建卷以及启动容器
+
+```
+[root@docker-comp126 ~]# docker images
+REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
+10.160.0.153:5000/mysql     latest              9c1bfc3c80a1        3 months ago        575.3 MB
+10.160.0.153:5000/centos7   latest              943f92dae99b        4 months ago        245 MB
+centos7                     latest              943f92dae99b        4 months ago        245 MB
+```
+
+```
+[root@docker-comp126 ~]# docker run -it -v volume-37a7af17df68:/test --volume-driver=convoy centos7 /bin/bash
+[root@ec332a7ebede /]#
+```
+
+写入数据提示"Permission",这是selinux安全机制在起作用.解决办法:临时关闭selinux
+
+```
+[root@ec332a7ebede /]# echo "Data volume created by convoy" > /test/readme
+bash: /test/readme: Permission denied
+```
+
+```
+[root@docker-comp126 ~]# setenforce 0
+[root@ec332a7ebede /]# echo "Data volume created by convoy" > /test/readme
+[root@ec332a7ebede /]#
+```
+
+在宿主上，查看 vfs.path 下卷数据
+
+```
+[root@docker-comp126 ~]# cat /data/docker/volume-37a7af17df68/readme 
+Data volume created by convoy
+```
 
 #### Convoy插件剖析 ####
 
@@ -30,7 +95,13 @@
 #### 如何自定义卷插件 ####
 
 #### 附录 ####
+
+[Convoy插件下载](https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz)
+
 [Convoy官方文档](https://github.com/rancher/convoy)
+
+[Docker自定义卷插件](https://github.com/docker/docker/blob/master/docs/extend/plugin_api.md)
+
 
 
 
