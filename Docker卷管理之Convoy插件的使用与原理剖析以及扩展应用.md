@@ -86,6 +86,8 @@ bash: /test/readme: Permission denied
 Data volume created by convoy
 ```
 
+另外, Convoy也可单独应用实现卷/快照/备份的管理，参考附录链接
+
 #### Convoy插件剖析 ####
 
 #### Docker卷插件的API接口 ####
@@ -97,6 +99,8 @@ Data volume created by convoy
 #### 附录 ####
 
 [Convoy插件下载](https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz)
+
+[Convoy单独应用实现卷/快照/备份的管理](https://github.com/rancher/convoy)
 
 [Convoy官方文档](https://github.com/rancher/convoy)
 
