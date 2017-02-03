@@ -89,6 +89,7 @@ Data volume created by convoy
 另外, Convoy也可单独应用实现卷/快照/备份的管理，参考附录链接
 
 #### Convoy插件剖析 ####
+![docker卷插件图示](https://github.com/guojy8993/ImageCache/blob/master/docker%E5%8D%B7%E6%8F%92%E4%BB%B6.jpg)
 
 #### Docker卷插件的API接口 ####
 
