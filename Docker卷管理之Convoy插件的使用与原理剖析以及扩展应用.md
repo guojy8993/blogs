@@ -25,7 +25,7 @@
 参考附录 链接 下载卷插件
 ```
 
-2.安装卷插件
+2.安装Convoy卷插件
 
 ```
 [root@docker-comp126 opt]# ll /opt/ | grep convoy
@@ -156,7 +156,19 @@ volume driver为convoy时,那么就搜索 convoy.sock).如果找不到,就会依
 ```
 
 #### 如何自定义卷插件 ####
-
+```
+    查看文档"Docker自定义卷插件"(附录链接)一文的 "Create a VolumeDriver",根据接口约定的request path info(诸如 /Volume
+Driver.Create) 以及 request body 和 response body,我们可以自己实现一个 plugin handler(服务端程序).
+```
+```
+    具体是这样的,plugin handler程序解析 request 获取 path info,以此将请求dispatch到某具体接口的实现(VolumeDriver.Cre
+ate).对于某接口的具体实现,则是解析request body,获取POST参数(目前卷插件约定的6个接口全部是POST请求),解析之，然后根据自定义
+卷插件的插件实现完成对应的API调用，并按约定返回指定的 response body.
+```
+```
+    一旦该server程序实现全部功能,即可按照前文"Docker卷插件的插件发现机制"以及"安装Convoy卷插件"一样配置插件,然后测试对应功
+能是否可用.
+```
 #### 附录 ####
 
 [Convoy插件下载](https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz)
