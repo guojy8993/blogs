@@ -125,7 +125,7 @@ Docker卷插件REST API. 插件在接到API请求后,会通过 volume manager �
 
 > 整个卷插件系统是通过卷名称(Volume Name)来管理的.比如创建卷API时,Docker会发送一个卷名称给插件,插件返回成功,同理Docker 也会发
 
-> 送Volume Path到插件(参数也是卷名称),插件则将该卷的挂载路径发送给Docker.而且插件的CLI也是通过卷名称来备份/管理/创建卷的.
+> 送VolumePath到插件(参数也是卷名称),插件则将该卷的挂载路径发送给Docker.而且插件的CLI也是通过卷名称来备份/管理/创建卷的.
 
 #### Docker卷插件的插件发现机制 ####
 
