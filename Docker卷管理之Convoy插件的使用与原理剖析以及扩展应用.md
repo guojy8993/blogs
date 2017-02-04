@@ -184,4 +184,6 @@ ate).对于某接口的具体实现,则是解析request body,获取POST参数(�
 
 [Docker自定义卷插件](https://docs.docker.com/engine/extend/plugins_volume/)
 
+[Docker Plugin API Design](https://docs.docker.com/engine/extend/plugin_api/)
+
 [Docker自定义卷插件之使用ceph rbd存储后端](https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz)
