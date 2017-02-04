@@ -66,7 +66,7 @@ centos7                     latest              943f92dae99b        4 months ago
 [root@ec332a7ebede /]#
 ```
 
-写入数据提示"Permission",这是selinux安全机制在起作用.解决办法:临时关闭selinux
+写入数据提示"Permission denied",这是selinux安全机制在起作用.解决办法:临时关闭selinux
 
 ```
 [root@ec332a7ebede /]# echo "Data volume created by convoy" > /test/readme
