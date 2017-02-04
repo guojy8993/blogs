@@ -133,22 +133,23 @@ Docker卷插件REST API. 插件在接到API请求后,会通过 volume manager �
 
 #### Docker卷插件的插件发现机制 ####
 ```
-    那么行文到此,有个疑问尚待解决: Docker作为客户端是如何知道插件的监听地址呢? 在该部分就"Docker的数据卷插件发现机制"进行分析.
+    那么行文到此,有个疑问尚待解决: Docker作为客户端是如何知道插件的监听地址呢? 在该部分就"Docker的数据卷插件发现机制"进行分
+析.
 ```
 ```
-    首先,Docker是通过JSON配置文件,Unix Domain Socket(域套接字或Spec后缀的配置文件来查询插件的地址). 在"Convoy插件的安装与配置"
-以及"Convoy插件的使用"部分,运行"docker run"命令,在该命令中启动容器时可以加 --volume-driver=convoy 参数,这个 volume-driver后面
-加的就是插件的名称. 当docker发现该参数的设置时,就会去几个文件夹下搜索Unix套接字(convoy.sock)或者相应的配置文件(convoy.spec或con
-voy.json)
+    首先,Docker是通过JSON配置文件,Unix Domain Socket(域套接字或Spec后缀的配置文件来查询插件的地址). 在"Convoy插件的安装与
+配置"以及"Convoy插件的使用"部分,运行"docker run"命令,在该命令中启动容器时可以加 --volume-driver=convoy 参数,这个 volume-
+driver后面加的就是插件的名称. 当docker发现该参数的设置时,就会去几个文件夹下搜索Unix套接字(convoy.sock)或者相应的配置文件(
+convoy.spec或convoy.json)
 ```
 ```
-    Docker首先(!!此处特别注意!!)会搜索 /run/docker/plugins 路径下的套接字文件,这个文件名必须与Volume Driver名称一致(例如,volume
-driver为convoy时,那么就搜索 convoy.sock).如果找不到,就会依次到 /etc/docker/plugins 和 /usr/lib/docker/plugins 里面继续搜索.如
-果搜索到就加载该插件. 如果搜索不到, 那么docker run命令将返回错误.
+    Docker首先(!!此处特别注意!!)会搜索 /run/docker/plugins 路径下的套接字文件,这个文件名必须与Volume Driver名称一致(例如,
+volume driver为convoy时,那么就搜索 convoy.sock).如果找不到,就会依次到 /etc/docker/plugins 和 /usr/lib/docker/plugins 里
+面继续搜索.如果搜索到就加载该插件. 如果搜索不到, 那么docker run命令将返回错误.
 ```
 ```
-    注意: 套接字只能存放在 /run/docker/plugins 目录下.另外,如果卷插件不实用域套接字,而是使用spec或json配置文件,那么文件里面就可以
-配置插件的URL,如果是https链接,还可以指定https的证书路径.
+    注意: 套接字只能存放在 /run/docker/plugins 目录下.另外,如果卷插件不实用域套接字,而是使用spec或json配置文件,那么文件里
+面就可以配置插件的URL,如果是https链接,还可以指定https的证书路径.
 ```
 ```
     注意: docker daemon与卷插件convoy daemon之间基于域套接字的通信是很典型的"本地主机跨进程通信".
