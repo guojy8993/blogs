@@ -103,6 +103,29 @@ Docker卷插件REST API. 插件在接到API请求后,会通过 volume manager �
 ```
 
 #### Docker卷插件的API接口 ####
+```
+    卷插件的接口一共有6个,这些接口都是REST API,是由Docker作为Client发送给卷插件的每个接口都有不同的含义.
+(1) Plugin.Activate  该接口用于激活一个插件,是由Docker和卷插件的握手报文.
+
+(2) VolumeDriver.Create  该接口用于创建一个卷,Docker会发送卷名称和参数给卷插件,卷插件会根据Docker发送过来的参数创建一个卷,
+并和这个卷名称关联
+
+(3) VolumeDriver.Mount  该接口用于挂载一个卷到本机,Docker会把卷名称或卷参数发送给插件插件返回一个本地路径给Docker,这个路径
+就是卷所在的位置.Docker在创建容器的时候,会将这个路径挂载到容器中.
+
+(4) VolumeDriver.Path  一个卷创建成功后,Docker会调用Path API来获取这个卷的路径,随后Docker通过调用Mount API,将这个卷挂载到
+本机.
+
+(5) VolumeDriver.Umount  当容器退出时,Docker daemon会发送Umount API给插件,通知插件这个卷不再被使用,插件可以对该卷做些清理
+工作(例如,引用计数减一,不痛的插件行为不同)
+
+(6) VolumeDriver.Remove  删除特定的卷时调用,例如当运行"docker rm -v"命令时,Docker会将该API发送给请求插件.
+```
+> ** NOTE: **
+
+> 整个卷插件系统是通过卷名称(Volume Name)来管理的.比如创建卷API时,Docker会发送一个卷名称给插件,插件返回成功,同理Docker 也会发
+
+> 送Volume Path到插件(参数也是卷名称),插件则将该卷的挂载路径发送给Docker.而且插件的CLI也是通过卷名称来备份/管理/创建卷的.
 
 #### Docker卷插件的插件发现机制 ####
 
