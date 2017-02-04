@@ -92,7 +92,7 @@ Data volume created by convoy
 另外, Convoy也可单独应用实现卷/快照/备份的管理，参考附录链接
 
 #### Convoy插件剖析 ####
-![docker卷插件图示](https://github.com/guojy8993/ImageCache/blob/master/docker%E5%8D%B7%E6%8F%92%E4%BB%B6.jpg)
+![docker卷插件图示](https://github.com/guojy8993/ImageCache/blob/master/docker-volumne-plugin.jpg)
 ```
     Docker社区定义了一套标准的卷插件REST API, Docker自身实现了这套API的客户端,它有步骤地发现激活插件. 当Docker创建/挂载/卸
 载/删除数据卷时,API客户端会向插件发送对应的REST API,由卷插件自身来真正完成创建数据卷的工作,这就是卷插件的基本原理.
