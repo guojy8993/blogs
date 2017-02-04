@@ -165,7 +165,7 @@ volume driver为convoy时,那么就搜索 convoy.sock).如果找不到,就会依
 
 [Convoy官方文档](https://github.com/rancher/convoy)
 
-[Docker自定义卷插件](https://github.com/docker/docker/blob/master/docs/extend/plugin_api.md)
+[Docker自定义卷插件](https://docs.docker.com/engine/extend/plugins_volume/)
 
 
 
