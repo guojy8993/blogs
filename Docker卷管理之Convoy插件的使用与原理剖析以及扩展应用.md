@@ -93,6 +93,17 @@ Data volume created by convoy
 
 #### Convoy插件剖析 ####
 ![docker卷插件图示](https://github.com/guojy8993/ImageCache/blob/master/docker%E5%8D%B7%E6%8F%92%E4%BB%B6.jpg)
+```
+    Docker社区定义了一套标准的卷插件REST API, Docker自身实现了这套API的客户端,它有步骤地发现激活插件. 当Docker
+创建/挂载/卸载/删除数据卷时,API客户端会向插件发送对应的REST API,由卷插件自身来真正完成创建数据卷的工作,这就是卷
+插件的基本原理.
+
+    Convoy卷插件实现了一个daemon(如上图),该daemon的plugin handler模块会监听一个端口或者本地sock,用来
+与Docker通信,并响应Docker卷插件REST API. 插件在接到API请求后,会通过 volume manager 模块将一个远程或本
+地的存储挂载到服务器端,然后将挂载到的路径发送给Docker,然后由Docker把卷插件返回的路径挂载到容器中.可以
+想象,当我们使用ceph等后端存储,那么创建一个卷时,只要把远端的数据卷挂载到本地容器中.当然,容器产生的数据
+也会存放在远端,这样容器的迁移共享就很容易实现了.
+```
 
 #### Docker卷插件的API接口 ####
 
