@@ -122,11 +122,10 @@ Docker卷插件REST API. 插件在接到API请求后,会通过 volume manager �
 (6) VolumeDriver.Remove  删除特定的卷时调用,例如当运行"docker rm -v"命令时,Docker会将该API发送给请求插件.
 ```
 > ** NOTE: **
-
-> 整个卷插件系统是通过卷名称(Volume Name)来管理的.比如创建卷API时,Docker会发送一个卷名称给插件,插件返回成功,同理Docker 也会发
-
-> 送VolumePath到插件(参数也是卷名称),插件则将该卷的挂载路径发送给Docker.而且插件的CLI也是通过卷名称来备份/管理/创建卷的.
-
+```
+整个卷插件系统是通过卷名称(Volume Name)来管理的.比如创建卷API时,Docker会发送一个卷名称给插件,插件返回成功,同理Docker 也会发
+送VolumePath到插件(参数也是卷名称),插件则将该卷的挂载路径发送给Docker.而且插件的CLI也是通过卷名称来备份/管理/创建卷的.
+```
 #### Docker卷插件的插件发现机制 ####
 
 #### 如何自定义卷插件 ####
