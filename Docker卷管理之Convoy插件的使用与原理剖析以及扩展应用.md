@@ -148,7 +148,7 @@ volume driver为convoy时,那么就搜索 convoy.sock).如果找不到,就会依
 面继续搜索.如果搜索到就加载该插件. 如果搜索不到, 那么docker run命令将返回错误.
 ```
 ```
-    注意: 套接字只能存放在 /run/docker/plugins 目录下.另外,如果卷插件不实用域套接字,而是使用spec或json配置文件,那么文件里
+    注意: 套接字只能存放在 /run/docker/plugins 目录下.另外,如果卷插件不使用域套接字,而是使用spec或json配置文件,那么文件里
 面就可以配置插件的URL,如果是https链接,还可以指定https的证书路径.
 ```
 ```
