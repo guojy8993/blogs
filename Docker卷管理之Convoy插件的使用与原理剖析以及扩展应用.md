@@ -169,6 +169,9 @@ ate).对于某接口的具体实现,则是解析request body,获取POST参数(�
     一旦该server程序实现全部功能,即可按照前文"Docker卷插件的插件发现机制"以及"安装Convoy卷插件"一样配置插件,然后测试对应功
 能是否可用.
 ```
+```
+    基于以上说明,我使用python实现服务程序以及使用ceph rbd作为存储后端,具体实现参考附录链接"docker使用ceph rbd存储后端".
+```
 #### 附录 ####
 
 [Convoy插件下载](https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz)
@@ -181,7 +184,4 @@ ate).对于某接口的具体实现,则是解析request body,获取POST参数(�
 
 [Docker自定义卷插件](https://docs.docker.com/engine/extend/plugins_volume/)
 
-
-
-
-
+[Docker自定义卷插件之使用ceph rbd存储后端](https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz)
