@@ -31,6 +31,9 @@
 [root@docker-comp126 opt]# ll /opt/ | grep convoy
 -rw-r--r--. 1 root root 10127278 Feb  3 14:30 convoy.tar.gz
 
+[root@docker-comp126 opt]# tar xf convoy.tar.gz
+[root@docker-comp126 opt]# cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/
+
 [root@docker-comp126 opt]# mkdir -p /etc/docker/plugins
 [root@docker-comp126 opt]# echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec
 [root@docker-comp126 opt]# cat /etc/docker/plugins/convoy.spec
