@@ -10,3 +10,8 @@ Create a router for a given tenant.
 positional arguments:
   NAME                  Name of router to create
   distributed           Create a distributed router ("""" VMware NSX plugin only """")
+
+
+
+
+# http://www.ibm.com/developerworks/cn/cloud/library/1509_xuwei_dvr/
