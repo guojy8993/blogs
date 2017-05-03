@@ -110,7 +110,7 @@ Nodes: 2
 # worker02 做同样设置
 
 再次查询集群状态:
-[root@manager02 ~]# docker -H tcp://192.168.232.144:4000 info
+[root@client ~]# docker -H tcp://192.168.232.144:4000 info
 ...
 Nodes: 2
  worker01: 192.168.232.145:2375
