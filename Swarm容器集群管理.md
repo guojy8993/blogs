@@ -43,7 +43,8 @@ client     -          192.168.232.146   docker          -
 ```
 ```
 (2) 启动consul"服务发现"服务:
-[root@consul0 ~]# docker run -d -p 8500:8500 --name=consul docker.io/progrium/consul -server -bootstrap -advertise=192.168.232.143
+[root@consul0 ~]# docker run -d -p 8500:8500 \
+                      --name=consul docker.io/progrium/consul -server -bootstrap -advertise=192.168.232.143
 ```
 
 master节点配置说明:
