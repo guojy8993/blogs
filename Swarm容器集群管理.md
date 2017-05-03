@@ -71,6 +71,66 @@ agent节点配置说明:
 #### 第二部分: Swarm集群的可用性验证 ####
 检测集群整体信息:
 ```
+自客户端访问swarm master服务的Remote API,获取集群状态,发现状态pending:
+[root@client ~]# docker -H tcp://192.168.232.144:4000 info
+...
+Nodes: 2
+ (unknown): 192.168.232.145:2375
+  └ ID: 
+  └ Status: Pending
+  └ Containers: 0
+  └ Reserved CPUs: 0 / 0
+  └ Reserved Memory: 0 B / 0 B
+  └ Labels: 
+  └ UpdatedAt: 2017-05-03T09:40:36Z
+  └ ServerVersion: 
+ (unknown): 192.168.232.141:2375
+  └ ID: 
+  └ Status: Pending
+  └ Containers: 0
+  └ Reserved CPUs: 0 / 0
+  └ Reserved Memory: 0 B / 0 B
+  └ Labels: 
+  └ UpdatedAt: 2017-05-03T09:40:47Z
+  └ ServerVersion:
+...
+
+分析原因:正常情况下, swarm master通过consul发现其他slave节点，并根据slave节点注册的服务地址进行节点信息收集。而此时hostname
+        无法取得，只显示了consule提供的salve服务ip。判断是slave节点对swarm master拒绝访问。
+验证猜测:在 worker01 上抓包并过滤 swarm master的ip
+[root@worker01 ~]# tcpdump -i ens33 | grep 192.168.232.144
+...
+05:48:24.435698 IP worker01 > 192.168.232.144: ICMP host worker01 unreachable - admin prohibited, length 68
+...
+所以解决办法就是: 删除slave节点上的禁ping规则
+[root@worker01 ~]# iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited
+# worker02 做同样设置
+
+再次查询集群状态:
+[root@manager02 ~]# docker -H tcp://192.168.232.144:4000 info
+...
+Nodes: 2
+ worker01: 192.168.232.145:2375
+  └ ID: KXSL:5SWY:3X7T:UPPL:SWYZ:5OYP:FXNG:GQZM:KBMS:MXJN:OTOU:OHJQ
+  └ Status: Healthy
+  └ Containers: 1 (1 Running, 0 Paused, 0 Stopped)
+  └ Reserved CPUs: 0 / 1
+  └ Reserved Memory: 0 B / 1.87 GiB
+  └ Labels: kernelversion=3.10.0-514.10.2.el7.x86_64, operatingsystem=CentOS Linux 7 (Core), \
+            storagedriver=devicemapper
+  └ UpdatedAt: 2017-05-03T10:00:15Z
+  └ ServerVersion: 1.12.6
+ worker02: 192.168.232.141:2375
+  └ ID: GH5H:3X6M:LXPH:C7HP:XLZT:QYXC:4CTE:6PAV:E6HU:JCU6:2HMC:IFQT
+  └ Status: Healthy
+  └ Containers: 1 (1 Running, 0 Paused, 0 Stopped)
+  └ Reserved CPUs: 0 / 1
+  └ Reserved Memory: 0 B / 1.87 GiB
+  └ Labels: kernelversion=3.10.0-514.10.2.el7.x86_64, operatingsystem=CentOS Linux 7 (Core), \
+            storagedriver=devicemapper
+  └ UpdatedAt: 2017-05-03T10:00:15Z
+  └ ServerVersion: 1.12.6
+...
 ```
 
 测试:使用RemoteAPI调用的方式创建容器:
