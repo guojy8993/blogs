@@ -22,10 +22,9 @@ client     -          192.168.232.146   docker          -
 (1) 更新系统: yum update -y
 (2) 安装docker并设置DOCKER_OPTIONS
     [root@worker01 ~]# cat /etc/sysconfig/docker | grep OPTIONS   # 以worker01为例
-    OPTIONS='-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --selinux-enabled --log-driver=journald --signature-verification=false'
+    OPTIONS='-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock \
+             --selinux-enabled --log-driver=journald --signature-verification=false'
     # 注意: 如果系统TLS Enabled，那么其相关配置亦附加于此处(生产环境下是必须的 TODO)
-```
-```
 (3) 关闭SELINUX: 
     [root@worker01 ~]# sed -i "s/.*SELINUX=.*/SELINUX=disabled/g" /etc/selinux/config # 以worker01为例
     [root@worker01 ~]# setenforce 0
@@ -53,7 +52,8 @@ master节点配置说明:
 ```
 ```
 (2) 启动swarm master服务:
-[root@manager01 ~]# docker run -d -p 4000:4000 docker.io/swarm manage -H :4000 --replication --advertise 192.168.232.144:4000 consul://192.168.232.143:8500
+[root@manager01 ~]# docker run -d -p 4000:4000 docker.io/swarm manage -H :4000 \
+                               --replication --advertise 192.168.232.144:4000 consul://192.168.232.143:8500
 ```
 agent节点配置说明:
 ```
@@ -61,8 +61,10 @@ agent节点配置说明:
 ```
 ```
 (2) 启动swarm agent服务:
-[root@worker01 ~]# docker run -d docker.io/swarm join --advertise=192.168.232.145:2375 consul://192.168.232.143:8500
-[root@worker02 ~]# docker run -d docker.io/swarm join --advertise=192.168.232.141:2375 consul://192.168.232.143:8500
+[root@worker01 ~]# docker run -d docker.io/swarm join \
+                          --advertise=192.168.232.145:2375 consul://192.168.232.143:8500
+[root@worker02 ~]# docker run -d docker.io/swarm join \
+                          --advertise=192.168.232.141:2375 consul://192.168.232.143:8500
 ```
 
 #### 第二部分: Swarm集群的可用性验证 ####
