@@ -138,10 +138,24 @@ Nodes: 2
 
 测试:使用RemoteAPI调用的方式创建容器:
 ```
+[root@manager02 ~]# docker -H tcp://192.168.232.144:4000 run \
+                           -idt --name=alpine01 docker.io/alpine ping 127.0.0.1
+931d9f4cde52b22caf265aa6e8dd7551a6fb5b2da0d2f446c5646461a506c656
+[root@manager02 ~]# docker -H tcp://192.168.232.144:4000 run \
+                           -idt --name=alpine02 docker.io/alpine ping 127.0.0.1
+4281efef0fbddb2cbd7368a07427396dc1a21bf4d8ccb745b7b965c2426b910b
 ```
 
 测试:使用RemoteAPI调用的方式查询各个节点容器分布:
 ```
+[root@manager02 ~]# docker -H tcp://192.168.232.144:4000 ps -a
+CONTAINER ID   IMAGE     COMMAND      CREATED       STATUS       PORTS       NAMES
+4281efef0fbd   docker.io/alpine "ping 127.0.0.1"  8 seconds ago  Up 7 seconds  worker02/alpine02
+931d9f4cde52   docker.io/alpine "ping 127.0.0.1"  14 seconds ago  Up 12 seconds worker01/alpine01
+3ceb29f40247   docker.io/swarm  "/swarm join --advert"  24 minutes ago Up 24 minutes 2375/tcp 
+worker02/boring_wescoff
+33c9e0a49c1b   docker.io/swarm  "/swarm join --advert"  25 minutes ago Up 25 minutes 2375/tcp 
+worker01/gloomy_mestorf
 ```
 
 #### 第三部分: 配置Swarm集群管理可视化WebUI ####
