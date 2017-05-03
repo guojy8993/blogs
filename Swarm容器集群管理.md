@@ -9,12 +9,12 @@ _ _ _
 #### 第一部分: Swarm集群的创建 ####
 测试环境说明:
 ```
-节点名称    集群角色    节点IP             节点软件环境      节点必需服务
-manager01  master     192.168.232.144   docker          swarm-master
-consul0    consul     192.168.232.143   docker          consul
-worker01   agent      192.168.232.145   docker          swarm-agent
-worker02   agent      192.168.232.141   docker          swarm-agent
-client     -          192.168.232.146   docker          -
+节点名称    集群角色        节点IP             节点软件环境      节点必需服务
+manager01  master/webui   192.168.232.144   docker          swarm-master&portainer
+consul0    consul         192.168.232.143   docker          consul
+worker01   agent          192.168.232.145   docker          swarm-agent
+worker02   agent          192.168.232.141   docker          swarm-agent
+client     -              192.168.232.146   docker          -
 ```
 
 各节点通用配置说明:
@@ -35,6 +35,7 @@ client     -          192.168.232.146   docker          -
     [root@worker01 ~]# docker pull docker.io/alpine          # 以worker01为例
     [root@consul0 ~]# docker pull docker.io/progrium/consul  # 以consul0为例
     [root@manager01 ~]# docker pull docker.io/swarm          # 以manager01为例
+    [root@manager01 ~]# docker pull docker.io/portainer/portainer # 以manager01为例
 ```
 
 服务发现节点配置说明:
@@ -159,3 +160,17 @@ worker01/gloomy_mestorf
 ```
 
 #### 第三部分: 配置Swarm集群管理可视化WebUI ####
+在swarm master节点启动portainer容器:
+```
+[root@manager01 ~]# docker run -idt --name=portainer -p 80:9000 docker.io/portainer/portainer
+[root@manager01 ~]# ss -antulp | grep 80
+tcp LISTEN 0 128 :::80 :::*  users:(("docker-proxy-cu",pid=5509,fd=4))
+```
+使用浏览器访问 http://swarm-master:80 
+
+设置admin用户密码
+
+设置swarm api的endpoint即 swarm-master:4000
+
+登录进入管理平台
+
