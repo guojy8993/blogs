@@ -72,9 +72,9 @@ agent节点配置说明:
 ```
 
 #### 第二部分: Swarm集群的可用性验证 ####
+
 检测集群整体信息:
 ```
-自客户端访问swarm master服务的Remote API,获取集群状态,发现状态pending:
 [root@client ~]# docker -H tcp://192.168.232.144:4000 info
 ...
 Nodes: 2
@@ -97,22 +97,33 @@ Nodes: 2
   └ UpdatedAt: 2017-05-03T09:40:47Z
   └ ServerVersion:
 ...
-
+```
+```
 分析原因:正常情况下, swarm master通过consul发现其他slave节点，并根据slave节点注册的服务地址进行
         节点信息收集。而此时hostname无法取得，只显示了consule提供的salve服务ip。判断是slave节点
         对swarm master拒绝访问。
-
+```
+```
 验证猜测:在 worker01 上抓包并过滤 swarm master的ip
+```
+```
 [root@worker01 ~]# tcpdump -i ens33 | grep 192.168.232.144
 ...
 05:48:24.435698 IP worker01 > 192.168.232.144: ICMP host worker01 unreachable \
 - admin prohibited, length 68
 ...
+```
+```
 所以解决办法就是: 删除slave节点上的禁ping规则
+```
+```
 [root@worker01 ~]# iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited
 # worker02 做同样设置
-
+```
+```
 再次查询集群状态:
+```
+```
 [root@client ~]# docker -H tcp://192.168.232.144:4000 info
 ...
 Nodes: 2
