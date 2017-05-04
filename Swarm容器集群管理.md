@@ -166,11 +166,17 @@ worker01/gloomy_mestorf
 [root@manager01 ~]# ss -antulp | grep 80
 tcp LISTEN 0 128 :::80 :::*  users:(("docker-proxy-cu",pid=5509,fd=4))
 ```
-使用浏览器访问 http://swarm-master:80 
+使用浏览器访问 http://swarm-master:80, 设置admin用户密码，并登录
+![设置admin密码](http://pan.baidu.com/s/1cpfI2q)
 
-设置admin用户密码
+![登录](http://pan.baidu.com/s/1pL0k9a7)
 
-设置swarm api的endpoint即 swarm-master:4000
-
-登录进入管理平台
+设置swarm api的endpoint即 swarm-master:4000(注意swarm api依据读者自己实际情况填写)
+![设置swarm api endpoint](http://pan.baidu.com/s/1jHW89CU)
+```
+#NOTE: 在实际情况中我们发现，填写endpoint之后，页面提示错误信息:无法访问指定的链接；
+       错误原因跟之前集群pending一样，是部署portainer的节点禁ping了。解决办法同前文。
+```
+跳转进入管理平台
+![使用管理平台管理swarm集群](http://pan.baidu.com/s/1jH4Om02)
 
