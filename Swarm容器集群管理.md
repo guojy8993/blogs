@@ -98,31 +98,29 @@ Nodes: 2
   └ ServerVersion:
 ...
 ```
+异常分析:
 ```
-分析原因:正常情况下, swarm master通过consul发现其他slave节点，并根据slave节点注册的服务地址进行
-        节点信息收集。而此时hostname无法取得，只显示了consule提供的salve服务ip。判断是slave节点
-        对swarm master拒绝访问。
+    正常情况下, swarm master通过consul发现其他slave节点，并根据slave节点注册的服务地址进行
+节点信息收集。而此时hostname无法取得，只显示了consule提供的salve服务ip。判断是slave节点对
+swarm master拒绝访问。
 ```
+验证猜测:
 ```
-验证猜测:在 worker01 上抓包并过滤 swarm master的ip
-```
-```
+# 在worker01上抓包并过滤 swarm master的ip
 [root@worker01 ~]# tcpdump -i ens33 | grep 192.168.232.144
 ...
 05:48:24.435698 IP worker01 > 192.168.232.144: ICMP host worker01 unreachable \
 - admin prohibited, length 68
 ...
 ```
+解决办法: 
 ```
-所以解决办法就是: 删除slave节点上的禁ping规则
-```
-```
+# 删除slave节点上的禁ping规则
 [root@worker01 ~]# iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited
 # worker02 做同样设置
 ```
-```
 再次查询集群状态:
-```
+
 ```
 [root@client ~]# docker -H tcp://192.168.232.144:4000 info
 ...
