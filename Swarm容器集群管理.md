@@ -5,6 +5,8 @@
 
 3. 配置Swarm集群管理可视化WebUI
 
+4. 附录
+
 _ _ _
 #### 第一部分: Swarm集群的创建 ####
 测试环境说明:
@@ -184,4 +186,12 @@ tcp LISTEN 0 128 :::80 :::*  users:(("docker-proxy-cu",pid=5509,fd=4))
 跳转进入管理平台
 
 [使用管理平台管理swarm集群](http://pan.baidu.com/s/1jH4Om02)
+
+
+#### 附录 ####
+
+[1. Docker Swarm官方安装手册](https://github.com/docker/docker.github.io/blob/master/swarm/install-manual.md)
+
+[2. Portainer官方安装手册](http://portainer.io/install.html)
+
 
