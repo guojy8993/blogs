@@ -213,6 +213,35 @@ worker02/boring_wescoff
 33c9e0a49c1b   docker.io/swarm  "/swarm join --advert"  25 minutes ago Up 25 minutes 2375/tcp 
 worker01/gloomy_mestorf
 ```
+特别注意1: 在TLS Enabled模式下,调用Docker Remote API需要指定客户端本地保存的ca/cert/key，且需要按域名访问
+```
+[root@client ~]# docker -H manager01:4000 ps -a
+Get http://manager01:4000/v1.24/containers/json?all=1: malformed HTTP response "\x15\x03\x01\x00\x02\x02".
+* Are you trying to connect to a TLS-enabled daemon without TLS?
+
+[root@client ~]# docker --tlsverify --tlscacert=/etc/docker/.certs/ca.pem --tlscert=/etc/docker/.certs/cert.pem --tlskey=/etc/docker/.certs/key.pem -H 192.168.232.144:4000 ps -a
+An error occurred trying to connect: Get https://192.168.232.144:4000/v1.24/containers/json?all=1: x509: cannot validate certificate for 192.168.232.144 because it doesn't contain any IP SANs
+
+[root@client ~]# docker --tlsverify --tlscacert=/etc/docker/.certs/ca.pem \
+                        --tlscert=/etc/docker/.certs/cert.pem --tlskey=/etc/docker/.certs/key.pem \
+                        -H manager01:4000 ps -a
+CONTAINER ID  IMAGE COMMAND CREATED  STATUS PORTS NAMES
+6da1cf875360  docker.io/alpine "ping 127.0.0.1"  About an hour ago   Up About an hour  worker03/alpine03
+...
+```
+特别注意2: 在TLS Enabled模式下,调用Docker Remote API可能碰到错误信息提示: ca expired或invalid, 原因是当前
+持有ca的服务器的本地时间在 ca.pem 包含的有效时间区间之外，所以ca-server与其他节点要使用时间服务器进行时间同步。
+现举例说明:
+```
+[root@client ~]# date
+Sat May  6 04:46:21 EDT 2017
+
+[root@client ~]# openssl x509 -in /etc/docker/.certs/ca.pem -noout -text | egrep "Validity|Not Before|Not After"
+Validity
+    Not Before: May  5 14:45:49 2017 GMT
+    Not After : May  4 14:45:49 2022 GMT
+```
+读者遇到上述错误可以使用 date 命令与 openssl x509 -in <key-name> -noout -text 定位该问题
 
 #### 第三部分: 配置Swarm集群管理可视化WebUI ####
 
