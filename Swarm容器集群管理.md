@@ -219,8 +219,13 @@ worker01/gloomy_mestorf
 Get http://manager01:4000/v1.24/containers/json?all=1: malformed HTTP response "\x15\x03\x01\x00\x02\x02".
 * Are you trying to connect to a TLS-enabled daemon without TLS?
 
-[root@client ~]# docker --tlsverify --tlscacert=/etc/docker/.certs/ca.pem --tlscert=/etc/docker/.certs/cert.pem --tlskey=/etc/docker/.certs/key.pem -H 192.168.232.144:4000 ps -a
-An error occurred trying to connect: Get https://192.168.232.144:4000/v1.24/containers/json?all=1: x509: cannot validate certificate for 192.168.232.144 because it doesn't contain any IP SANs
+[root@client ~]# docker --tlsverify --tlscacert=/etc/docker/.certs/ca.pem \
+                        --tlscert=/etc/docker/.certs/cert.pem --tlskey=/etc/docker/.certs/key.pem \
+                        -H 192.168.232.144:4000 ps -a
+An error occurred trying to connect: Get https://192.168.232.144:4000/v1.24/containers/json?all=1: 
+x509: cannot validate certificate for 192.168.232.144 because it doesn't contain any IP SANs
+# 百度该错误信息,大概确认是因为https要求使用域名访问,所以swarm agent需要按域名的形式注册自己的服务；而swarm
+# master从consul发现swarm agent服务后需要能够进行域名解析，故而swarm master需要挂载宿主的hosts文件 
 
 [root@client ~]# docker --tlsverify --tlscacert=/etc/docker/.certs/ca.pem \
                         --tlscert=/etc/docker/.certs/cert.pem --tlskey=/etc/docker/.certs/key.pem \
