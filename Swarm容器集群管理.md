@@ -51,6 +51,7 @@ ca-server  -              192.168.232.152   -               -
     scp ${node}-cert.pem root@${node}:/etc/docker/.certs/cert.pem; \
     scp ${node}-priv-key.pem root@${node}:/etc/docker/.certs/key.pem; \
     done
+    # 注意: ca-server在上述示范中是可以域名解析各个节点的
 ```
 ```
 (3) 关闭SELINUX: 
@@ -84,6 +85,19 @@ master节点配置说明:
 (2) 启动swarm master服务:
 [root@manager01 ~]# docker run -d -p 4000:4000 docker.io/swarm manage -H :4000 \
                                --replication --advertise 192.168.232.144:4000 consul://192.168.232.143:8500
+
+# 注意: 在TLS Enabled模式下,swarm manager需要能够按域名解析，且需要TLS ca/cert/key
+[root@manager01 ~]# cat /etc/hosts | grep -v localhost
+192.168.232.144 manager01
+192.168.232.146 client
+192.168.232.145 worker01
+192.168.232.141 worker02
+[root@manager01 ~]# docker run -d -p 4000:4000 -v /etc/hosts:/etc/hosts:ro \
+                               -v /etc/docker/.certs/:/certs:ro docker.io/swarm manage \
+                               --tlsverify --tlscacert=/certs/ca.pem --tlscert=/certs/cert.pem \
+                               --tlskey=/certs/key.pem -H :4000 --replication \
+                               --advertise 192.168.232.144:4000 consul://192.168.232.143:8500
+
 ```
 agent节点配置说明:
 ```
@@ -95,6 +109,10 @@ agent节点配置说明:
                           --advertise=192.168.232.145:2375 consul://192.168.232.143:8500
 [root@worker02 ~]# docker run -d docker.io/swarm join \
                           --advertise=192.168.232.141:2375 consul://192.168.232.143:8500
+
+# 注意: 在TLS Enabled模式下,swarm agent需要按域名注册服务
+[root@worker01 ~]# docker run -d docker.io/swarm join --advertise=worker01:2375 consul://192.168.232.143:8500
+[root@worker02 ~]# docker run -d docker.io/swarm join --advertise=worker02:2375 consul://192.168.232.143:8500
 ```
 
 #### 第二部分: Swarm集群的可用性验证 ####
