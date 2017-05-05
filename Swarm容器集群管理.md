@@ -17,6 +17,7 @@ consul0    consul         192.168.232.143   docker          consul
 worker01   agent          192.168.232.145   docker          swarm-agent
 worker02   agent          192.168.232.141   docker          swarm-agent
 client     -              192.168.232.146   docker          -
+ca-server  -              192.168.232.152   -               -
 ```
 
 各节点通用配置说明:
@@ -24,9 +25,34 @@ client     -              192.168.232.146   docker          -
 (1) 更新系统: yum update -y
 (2) 安装docker并设置DOCKER_OPTIONS
     [root@worker01 ~]# cat /etc/sysconfig/docker | grep OPTIONS   # 以worker01为例
+    OPTIONS='-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock'
+    
+    # 注意: 如果系统TLS Enabled，那么其相关配置如下(ca/cert/key具体路径视实际情况而定):
+    [root@manager01 ~]# cat /etc/sysconfig/docker | grep OPTIONS
     OPTIONS='-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock \
-             --selinux-enabled --log-driver=journald --signature-verification=false'
-    # 注意: 如果系统TLS Enabled，那么其相关配置亦附加于此处(生产环境下是必须的 TODO)
+             --tlsverify --tlscacert=/etc/docker/.certs/ca.pem --tlscert=/etc/docker/.certs/cert.pem \
+             --tlskey=/etc/docker/.certs/key.pem'
+    # 那么在TLS Enabled下哪些节点需要配置docker engine的TLS呢? 以及TLS ca/cert/key 如何获取呢?
+    问题1: 在swarm集群中swarm node(s)的docker engine需要配置TLS以及swarm manager以及客户端需要,其他诸如服务
+           发现，swarm agent是不需要的。
+    问题2: TLS ca/cert/key的生成参考下文
+    [root@ca-server cas]# openssl genrsa -out cas/ca-priv-key.pem 2048
+    [root@ca-server cas]# openssl req -config /etc/pki/tls/openssl.cnf -new -key ca-priv-key.pem \
+                                      -x509 -days 1825 -out ca.pem
+    [root@ca-server cas]# for node in {manager01,worker01,worker02,client};\
+    do \
+    openssl genrsa -out ${node}-priv-key.pem 2048; \
+    openssl req -subj "/CN=${node}" -new -key ${node}-priv-key.pem -out ${node}.csr; \
+    openssl x509 -req -days 1825 -in ${node}.csr -CA ca.pem -CAkey ca-priv-key.pem -CAcreateserial \
+                                 -out ${node}-cert.pem -extensions v3_req -extfile /etc/pki/tls/openssl.cnf ; \
+    openssl rsa -in ${node}-priv-key.pem -out ${node}-priv-key.pem; \
+    ssh ${node} 'mkdir -p /etc/docker/.certs/';
+    scp ca.pem root@${node}:/etc/docker/.certs/ca.pem; \
+    scp ${node}-cert.pem root@${node}:/etc/docker/.certs/cert.pem; \
+    scp ${node}-priv-key.pem root@${node}:/etc/docker/.certs/key.pem; \
+    done
+```
+```
 (3) 关闭SELINUX: 
     [root@worker01 ~]# sed -i "s/.*SELINUX=.*/SELINUX=disabled/g" /etc/selinux/config # 以worker01为例
     [root@worker01 ~]# setenforce 0
