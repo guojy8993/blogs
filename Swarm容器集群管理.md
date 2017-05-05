@@ -246,7 +246,7 @@ Validity
     Not Before: May  5 14:45:49 2017 GMT
     Not After : May  4 14:45:49 2022 GMT
 ```
-读者遇到上述错误可以使用 date 命令与 openssl x509 -in <key-name> -noout -text 定位该问题
+读者遇到上述错误可以使用 date 命令与 openssl x509 -in /path/to/ca.pem -noout -text 定位该问题
 
 #### 第三部分: 配置Swarm集群管理可视化WebUI ####
 
