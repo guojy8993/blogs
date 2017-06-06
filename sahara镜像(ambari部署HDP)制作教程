@@ -1,0 +1,101 @@
+1.准备工作
+(1)具备虚拟化环境的服务器一台
+   i.虚拟化套件: qemu*,libvirt*,qemu-kvm,virt-install,virt-manager,virt-viewer,virt-sysprep
+
+(2)官方特定版本的ambari镜像
+   i.可以官方镜像仓库下载对应openstack版本的镜像(一般附带有ambaria版本号以及linux版本号)
+   以mitaka+centos6.x+ambaria2.2为例: http://sahara-files.mirantis.com/images/upstream/mitaka/
+
+(3)针对特定版本linux以及特定版本ambari的镜像的官方hdp安装包,包括3部分:
+   i.访问 https://docs.hortonworks.com/HDPDocuments/Ambari-2.4.0.1/bk_ambari-installation/content/hdp_22_repositories.html 获取 hdp,hdp-util各自的tar.gz下载地址,并下载,拷贝到服务器上
+   以 centos6+hdp2.2.x为例:
+   hdp: http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.2.9.0/HDP-2.2.9.0-centos6-rpm.tar.gz
+   hdp-utils: http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.20/repos/centos6/HDP-UTILS-1.1.0.20-centos6.tar.gz
+
+   ii.访问 https://docs.hortonworks.com/HDPDocuments/Ambari-2.4.0.1/bk_ambari-installation/content/ambari_repositories.html 获取ambaria的tar.gz下载地址,并下载,拷贝到服务器上
+   ambaria: http://public-repo-1.hortonworks.com/ambari/centos6/2.x/updates/2.4.0.1/AMBARI-2.4.0.1-centos6.tar.gz
+
+2.镜像制作
+(1)调整官方ambari镜像的大小
+   i.使用"qemu-img info /path/to/image-file"命令查看原始的官方ambari镜像的大小,确认: 
+   virtual_size > disk_size + ambari_tars_size + hdp_tars_size + hdp-utils_tars_size + <其他用途
+   必须额外空间>
+
+   e.g :
+   [root@node-3 ~]# qemu-img info /var/lib/ironic/master_images/f40f2767-64c9-4cef-bdca-b9ae03c538d6
+   image: /var/lib/ironic/master_images/f40f2767-64c9-4cef-bdca-b9ae03c538d6
+   file format: raw
+   virtual size: 15G (16106127360 bytes)
+   disk size: 7.9G
+
+   如果virtual_size不满足,使用 "qemu-img resize /path/to/image-file +<N>G"扩展可用空间
+   e.g:
+   [root@node-3 ~]# qemu-img resize /data/sahara-mitaka-ambari-2.2-centos-6.7.qcow2 +10G
+
+(2)启动虚拟机
+   i.建立网桥: brctl addbr br0 && ip link set br0 up
+   ii.将AMBARI-2.4.0.1-centos6.tar.gz 打包成iso,e.g: ambari.iso
+     [root@node-3 ~]# mkisofs -l -J -L -r -V ambari -o /path/to/ambari.iso AMBARI-2.4.0.1-centos6.tar.gz
+
+     将HDP-UTILS-1.1.0.20-centos6.tar.gz+HDP-2.2.9.0-centos6-rpm.tar.gz 打包成iso,e.g: hdp.iso
+     [root@node-3 ~]# mkisofs -l -J -L -r -V hdp -o /path/to/hdp.iso HDP-UTILS-1.1.0.20-centos6.tar.gz \ HDP-2.2.9.0-centos6-rpm.tar.gz
+
+     问题: 
+     (1) 为啥不一块打包? 3文件总大小超出ISO格式支持的文件尺寸上限
+
+   iii.使用virt-install根据ambaria镜像启动虚拟机:
+     [root@node-3 ~]# virt-install --name ambari --ram 4096 --vcpus 4 \
+     --network bridge=br0 \
+     --disk /path/to/sahara-mitaka-ambari-2.2-centos-6.7.qcow2,bus=virtio,cache=none,driver_type=qcow2 \
+     --boot hd,cdrom --graphics vnc,listen=0.0.0.0 \
+     --input tablet,bus=usb \
+     --noautoconsole \
+     --cdrom /path/to/ambari.iso
+
+(3)添加ambaria/hdp/hdp-utils源
+   i.使用virt-viewer查看新建虚拟机视图
+   ii.百度对应版本系统的root密码破解方法,破解后进入系统
+   iii.根据对应的制作ISO时的label(-V选项)在虚拟机内部挂载ambari的iso
+     [root@localhost ~]# mkdir -p /share # 本地源目录
+     [root@localhost ~]# mkdir -p /data/ambari && mount -t iso9660 /dev/disk/by-label/ambari /data/ambari
+     解压 /data/ambari/AMBARI-2.4.0.1-centos6.tar.gz 到 /share
+
+   iv.使用virsh change-media将hdp.iso更换ambari.iso
+     [root@localhost ~]# umount /data/ambari && rm -rf /data/ambari
+     # 虚拟机内部取消ISO占用
+
+     [root@node-3 ~]# virsh change-media --domain ambari --path hda --source /path/to/hdp.iso --update --live
+     # 在服务器上为ambaria虚拟机更换ISO
+     # --path 选项指定的是cdrom的位置,使用"virsh domblklist <domain>"查看
+     # --live 选项表示热操作
+
+   v.根据对应的制作ISO时的label(-V选项)在虚拟机内部挂载hdp的iso
+     [root@localhost ~]# mkdir -p /data/hdp && mount -t iso9660 /dev/disk/by-label/hdp /data/hdp
+     解压/data/hdp/下的HDP-UTILS-1.1.0.20-centos6.tar.gz以及HDP-2.2.9.0-centos6-rpm.tar.gz到/share
+     [root@localhost ~]# umount /data/hdp && rm -rf /data/hdp
+
+   vi.根据官方制作ambari/hdp/hdtp-util源的要求调整/share下的目录组织结构
+     ----------------------------------------------------------------------------------
+     | Repository         |  Base URL                                                 |
+     +--------------------------------------------------------------------------------+
+     | Ambari Base URL    |  file:///share/Ambari-2.4.0.1/<OS>                        +
+     +--------------------------------------------------------------------------------+
+     | HDP Base URL       |  file:///share//hdp/HDP/<OS>/2.x/updates/<latest.version> |
+     +--------------------------------------------------------------------------------+
+     | HDP-UTILS Base URL |  file:///share//hdp/HDP-UTILS-<version>/repos/<OS>        |
+     +--------------------------------------------------------------------------------+
+
+   vii.按官方制作ambari/hdp/hdtp-util源的要求,在虚拟机内部/etc/yum.repos.d/路径编辑repo文件
+     以hdp为例:
+     [hdp-repo]
+     name=CentOS6 - HDP - v2.2.9.0
+     baseurl=file:///share/hdp/HDP/centos6/2.x/updates/2.2.9.0
+     gpgcheck=0
+     enabled=1
+   viii.测试本地源是否可用(略)
+
+(4)保存镜像
+   i.关闭虚拟机: virsh destroy <domain>
+   ii.清理:       virt-sysprep -d <domain>
+   iii.反注册虚拟机: virsh undefine <domain>
+   将最终的/path/to/sahara-mitaka-ambari-2.2-centos-6.7.qcow2保存为镜像上传到glance
