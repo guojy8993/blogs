@@ -1,0 +1,324 @@
+ 章节目录
+1.准备工作
+2.DHCP/TFTP/NFS服务的部署与使用说明
+3.Kickstart脚本的制作与语法说明
+4.Pre-Install/Post-Install脚本的定制
+5.PXE启动服务器效果测试
+
+============================= 1. 准备工作 ==========================================================               
+准备软件包与系统镜像：
+(1) nfs/dhcp/tftp软件包以及依赖包,CentOS7 Minimal镜像
+(2) 使用CentOS7镜像启动一台服务器,后续作为PXE服务器使用(过程略)
+注意: 此处以服务器pxe(172.16.0.253)为例
+
+============================= 2. DHCP/TFTP/NFS服务的部署与使用说明 ==================================
+一个经典的PXE服务中应该包括dhcp,tftp,nfs服务,各服务作用如下:
+(1) dhcp服务为pxe客户机提供dhcp ip以及tftp服务器地址以及需要下载的文件(pxelinux.0)名字
+注意: dhcp给客户端提供ip,域名解析服务器,路由等信息保证客户端正常的网络互联以及可以访问tftp服务
+(2) tftp服务,作为轻量级的ftp服务端,提供pxelinux.0文件的下载
+注意: pxelinux.0负责系统的引导;引导系统按 pxelinux.cfg/default 的定义启动
+注意: pxelinux.cfg/default 的语法示范与说明
+"""
+default linux
+timeout 600
+display boot.msg
+menu title CentOS Linux 7
+
+label linux
+  menu label ^Install CentOS Linux 7
+  menu default
+  kernel vmlinuz
+  append initrd=initrd.img ks=nfs:172.16.0.253:/opt/pxe/ks/ks.cfg
+
+label rescue
+  menu label ^Rescue a CentOS Linux system
+  kernel vmlinuz
+  append initrd=initrd.img rescue
+
+"""
+说明:
+a.默认执行label linux区域的代码
+b.linux区域的代码: 使用"Install CentOS Linux 7"作为label,内核使用vmlinuz,内存盘initrd.img,编排系
+统自动化安装的kickstart脚本位置在nfs:172.16.0.253:/opt/pxe/ks/ks.cfg; 而ks.cfg中定义了网络安装系
+统的nfs服务地址,系统加载远程ISO,安装kickstart应答文件实现无人工干预的自动化部署; ks.cfg的制作参考后续说明;
+c.pxelinux.0以及vmlinuz以及initrd.img处于tftp的服务的同级目录,tftpboot目录树如下:
+"""
+[root@pxe tftpboot]# pwd
+/opt/pxe/tftpboot
+[root@pxe tftpboot]# tree
+.
+├── initrd.img
+├── pxelinux.0
+├── pxelinux.cfg
+│   └── default
+└── vmlinuz
+
+1 directory, 4 files
+[root@pxe tftpboot]#
+"""
+d.ks.cfg文件通过nfs服务进行提供
+
+(3) nfs服务提供kickstart文件以及PXE系统安装的镜像(CentOS7 Minimal ISO)
+
+那么在接下来的部分将会呈现各个服务部署的详细细节以及常见的坑:
+(1) 部署dhcp服务
+a. 安装dhcp的软件包,并依据错误提示安装依赖包,此处略
+b. 编辑配置文件
+"""
+[root@pxe ~]# cat /etc/dhcp/dhcpd.conf | grep -v "^#|^$"
+log-facility local7;
+subnet 172.16.0.0 netmask 255.255.0.0 {
+    range  172.16.0.100 172.16.0.200;
+    option domain-name-servers 8.8.8.8;
+    option routers 172.16.0.1;
+    default-lease-time 600;
+    max-lease-time     7200;
+    next-server        172.16.0.253;
+    filename           "pxelinux.0";
+}
+"""
+说明:
+i. "subnet <Subnet Pool Cidr> netmask <NetMask>",定义局域网范围
+ii. "range <Pool Start> <Pool End>",定义DHCP IP资源池的可用ip
+iii. "option <dhcp option key> <dhcp option value>",定义dhcp选项的属性: 这个可以通过tcpdump具体抓
+包dhcp request/reply并使用wireshark解析查看(也可以了解dhcp协议手册详细了解);
+iv. "*-release-time" 定义ip租赁有效期
+v."next-server"/"filename" 定义pxe启动后下载tftpboot资源的服务器的ip以及需要下载的文件的名字(这个应该是固定值)
+
+又说明:
+i. 经典情况应该是dhcp/tftp/nfs各自使用独立的服务器部署. 但是考虑到实际情况为了方便集成与部署,笔者此处将该3个服务全
+部部署于pxe服务器(172.16.0.253)上(保存为镜像文件,方便后续在虚拟化环境中快速部署)
+ii. next-server 对应tftp-server的服务器地址
+iii. option domain-name-servers 是dhcp server告诉客户端机器可用的dns nameserver(s)
+iv. range 是dhcp server为客户机选取的ip的范围
+v. option routers是dhcp server告诉客户端如何配置路由
+
+为了说明上述情况,我们以pxe成功启动的客户端机器为例,如下
+"""
+[root@localhost ~]# ip addr | grep 172.16
+    inet 172.16.0.103/16 brd 172.16.255.255 scope global dynamic eth0
+[root@localhost ~]# cat /etc/resolv.conf | egrep -v "^#|^$"
+nameserver 8.8.8.8
+[root@localhost ~]# ip route | grep default
+default via 172.16.0.1 dev eth0  proto static  metric 100
+"""
+c. 启动dhcp服务,配置开机启动并添加防火墙例外
+客户端udp/68请求服务端udp/67,服务端udp/67响应客户端udp/68;服务端放行67端口
+"""
+[root@pxe ~]# systemctl start dhcpd
+[root@pxe ~]# systemctl enable dhcpd
+[root@pxe ~]# firewall-cmd --permanent --add-port 67/udp
+"""
+d. 测试dhcp服务
+可以在同局域网的某主机上配置其网卡dhcp模式,重启网卡观察获取ip情况,此处以某机器为例:
+"""
+[root@localhost ~]# dhclient eth0
+[root@localhost ~]# ip a
+...
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 52:54:00:f9:ec:ed brd ff:ff:ff:ff:ff:ff
+    inet 172.16.0.103/16 brd 172.16.255.255 scope global dynamic eth0
+       valid_lft 432sec preferred_lft 432sec
+    inet 172.16.0.106/16 brd 172.16.255.255 scope global secondary dynamic eth0
+       valid_lft 565sec preferred_lft 565sec
+    inet6 fe80::5054:ff:fef9:eced/64 scope link 
+       valid_lft forever preferred_lft forever
+"""
+
+(2) 部署tftp服务
+a. 安装tftp-server的软件包,并依据错误提示安装依赖包,此处略
+b. 编辑配置文件(/etc/xinetd.d/tftp)
+[root@pxe ~]# cat /etc/xinetd.d/tftp | egrep -v "^#|^$"
+"""
+service tftp
+{
+    socket_type     = dgram
+    protocol        = udp
+    wait            = yes
+    user            = root
+    server          = /usr/sbin/in.tftpd
+    server_args     = -s /opt/pxe/tftpboot
+    disable         = no
+    per_source      = 11
+    cps             = 100 2
+    flags           = IPv4
+}
+"""
+说明:(千万注意!!)
+disable 修改为no即为启用服务
+server_args 可以根据具体情况修改,但一定是"/<path to>/tftpboot"格式,且保证该共享目录存在,且tftpboot是755权限
+其他的选项使用默认即可
+
+c. 向共享目录添加共享文件(参考前文tftpboot目录树)
+
+准备syslinux文件:
+"""
+[root@pxe ~]# mkdir -p /opt/pxe/tftpboot/
+[root@pxe ~]# rpm -ivh /opt/pxe/syslinux-4.05-13.el7.x86_64.rpm
+[root@pxe ~]# cp /usr/share/syslinux/pxelinux.0 /opt/pxe/tftpboot/
+"""
+
+准备vmlinuz initrd.img文件(这俩文件可以从CentOS7 Minimal ISO中提取): 
+首先把镜像文件拷贝到pxe服务器/opt/pxe/centos7.iso路径,然后执行挂载并将mount信息持久化到/etc/fstab中
+"""
+[root@pxe ~]# echo "/opt/pxe/centos7.iso  /media/ iso9660 defaults 0 0" >> /etc/fstab
+[root@pxe ~]# umount /media/
+[root@pxe ~]# mount -o loop -t iso9660 /opt/pxe/centos7.iso /media
+"""
+
+从镜像系统提取文件放入tftpboot:
+"""
+[root@pxe ~]# cp /media/isolinux/vmlinuz /opt/pxe/tftpboot/
+[root@pxe ~]# cp /media/isolinux/initrd.img /opt/pxe/tftpboot/
+[root@pxe ~]# mkdir -p /opt/pxe/tftpboot/pxelinux.cfg
+[root@pxe ~]# cp /media/isolinux/isolinux.cfg /opt/pxe/tftpboot/pxelinux.cfg/default
+[root@pxe ~]# chmod 644 /opt/pxe/tftpboot/pxelinux.cfg/default
+[root@pxe ~]# chmod 755 /opt/pxe/tftpboot
+"""
+
+按照前文所述编辑个性化的 pxelinux.cfg/default;
+
+
+d. 启动tftp-server服务,设置开机启动,添加防火墙例外
+"""
+[root@pxe ~]# systemctl start xinetd
+[root@pxe ~]# systemctl enable xinetd
+[root@pxe ~]# ss -antulp | grep xinetd
+udp UNCONN 0 0  *:69 *:* users:(("xinet",pid=3393,fd=5))
+[root@pxe ~]# firewall-cmd --permanent --add-port 69/udp
+success
+"""
+
+(3) 部署nfs服务
+a. 安装nfs的软件包(nfs-utils以及rpcbind),并依据错误提示安装依赖包,此处略
+b. 编辑配置文件(/etc/exports)
+"""
+[root@pxe ~]# cat /etc/exports
+/opt/pxe/ks 172.16.0.0/255.255.0.0(ro)
+/media      172.16.0.0/255.255.0.0(ro)
+"""
+定义共享的本地路径,并做对应的ACL策略
+
+c. 在nfs服务器的共享目录中添加共享文件
+/media 在前文已知挂载CentOS7 Minimal ISO系统
+/opt/pxe/ks 该目录用来存放自动化部署的kickstart脚本:ks.cfg,具体该配置该如何定义参考第3部分
+
+d. 启动nfs服务并设置开机自启,添加防火墙例外
+"""
+[root@pxe ~]# systemctl start nfs
+[root@pxe ~]# systemctl enable nfs
+"""
+由于nfs涉及到mountd/rpc.stat/rpcbind三个服务,所以对应的端口需要打开
+"""
+[root@pxe ~]# ss -antulp | grep mountd
+udp    UNCONN     0      0         *:20048  *:*     users:(("rpc.mountd",pid=3034,fd=7))
+udp    UNCONN     0      0        :::20048  :::*    users:(("rpc.mountd",pid=3034,fd=9))
+tcp    LISTEN     0      128       *:20048   *:*    users:(("rpc.mountd",pid=3034,fd=8))
+tcp    LISTEN     0      128      :::20048  :::*    users:(("rpc.mountd",pid=3034,fd=10))
+
+[root@pxe ~]# ss -antulp | grep rpcbind
+udp    UNCONN     0      0         *:993    *:*     users:(("rpcbind",pid=2514,fd=9))
+udp    UNCONN     0      0         *:111    *:*     users:(("rpcbind",pid=2514,fd=8))
+udp    UNCONN     0      0        :::993    ::*     users:(("rpcbind",pid=2514,fd=11))
+udp    UNCONN     0      0        :::111    ::*     users:(("rpcbind",pid=2514,fd=10))
+tcp    LISTEN     0      128       *:*   users:(("rpcbind",pid=2514,fd=5),("systemd",pid=1,fd=44))
+tcp    LISTEN     0   128 :::111 :::*    users:(("rpcbind",pid=2514,fd=4),("systemd",pid=1,fd=43))
+
+[root@pxe ~]# ss -antulp | grep rpc.stat
+udp    UNCONN     0      0      127.0.0.1:794   *:*          users:(("rpc.statd",pid=2738,fd=5))
+udp    UNCONN     0      0         *:49202      *:*          users:(("rpc.statd",pid=2738,fd=8))
+udp    UNCONN     0      0        :::40077      ::*          users:(("rpc.statd",pid=2738,fd=10))
+tcp    LISTEN     0      128       *:34119      *:*          users:(("rpc.statd",pid=2738,fd=9))
+tcp    LISTEN     0      128      :::51459      :::*         users:(("rpc.statd",pid=2738,fd=11))
+"""
+结合查出端口以及协议,使用firewall-cmd添加防火墙例外(此处略)
+
+
+============================= 3. Kickstart脚本的制作与语法说明 ========================================
+总的来说,ks脚本包含信息与图形界面的几个选项是一致的:
+(1)时区
+(2)语言
+(3)键盘
+(4)安装源
+(5)安装软件的选择
+(6)存储的管理
+(7)网络的管理
+(8)用户的管理
+(9)主机名的管理
+(10)安全选项
+
+"""
+#platform=x86, AMD64, or Intel EM64T
+#version=DEVEL
+# Install OS instead of upgrade
+install
+# Keyboard layouts
+keyboard 'us'
+# Root password
+rootpw --iscrypted $1$4k4.Osv/$pQn3f/5gHlYSwlgLwAieU/
+# System language
+lang en_US
+# Firewall configuration
+firewall --enabled --http --ssh
+# System authorization information
+auth  --useshadow  --passalgo=sha512
+# Use graphical install
+# text
+firstboot --disable
+# SELinux configuration
+selinux --enforcing
+
+# Use NFS installation media
+nfs --server=172.16.0.253 --dir=/media/
+
+# Network information
+network  --bootproto=dhcp --device=eth0 
+network  --hostname=jingyu
+
+# Reboot after installation
+reboot
+# System timezone
+timezone Asia/Shanghai --isUtc
+
+# System bootloader configuration
+bootloader --append=" crashkernel=auto" --location=mbr --boot-drive=vda
+autopart --type=lvm
+# Partition clearing information
+clearpart --all --initlabel --drives=vda
+
+%packages
+@^minimal
+@core
+
+%end
+
+%post
+echo "Some job must be done post installation .." >> /tmp/welcome
+echo "Welcome, Mike .."                           >> /tmp/welcome
+
+%end
+"""
+上述11大类的选项支持子选项的详细配置信息参考附录RH文档链接,不赘述.此处仅仅就
+常见的问题做说明:
+(1) network 模块对网卡有详细的配置,具体选项与网卡配置项一致
+(2) 注意bootloader/clearpart中对drivers的处理与选择
+(3) 注意packages模块对软件包的安装: 
+    @开头的是按软件组id安装(查看ISO文件repo.xml中软件组id与软件集合的对应关系)
+    其他的(e.g:dhcp),表示按名称安装某软件包
+(4) 注意%packages/%pre/%post均需要显式书写"%end"以形成kickstart代码块
+(5) %pre/%post区域定义系统安装前/后的一些工作(可执行代码),默认interpreter是shell,其
+他的解释器需要在%pre/%post的选项中额外指定
+
+
+============================= 4. Pre-Install/Post-Install脚本的定制 ============================
+参考第3部分kickstart示例与说明的第(5)项执行脚本的填充代码(或参考附录官方示例),不赘述;
+
+============================= 5. PXE启动服务器效果测试 ==========================================
+略.
+
+附录:
+1. 软件包下载地址: http://pan.baidu.com/s/1miJykbQ
+2. dhcp交互详解: http://yuanbin.blog.51cto.com/363003/109574/
+3. kickstart语法: http://pykickstart.readthedocs.io/en/latest/
+4. pre/post脚本的定制: http://pykickstart.readthedocs.io/en/latest/kickstart-docs.html?
+   highlight=graphic#chapter-4-pre-installation-script
