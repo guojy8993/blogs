@@ -1,0 +1,249 @@
+## 前提条件 ##
+准备至少2个centos7节点,其一作master,其余节点作为cluster节点
+在本次测试中,节点信息如下:
+
+节点名     节点角色      节点IP          运行服务
+------------------------------------------------------------------------
+k8s        集群master    172.16.10.109   flannel docker kube-apiserver 
+                                         etcd kube-scheduler 
+                                         kube-controller-manager
+k8s-minion 集群slave     172.16.10.120   flannel docker kube-proxy kubelet
+
+## kubenetes 基础概念与组件 ##
+(1) 基本概念
+概念名称    概念释意
+---------------------
+packages    TODO
+services    TODO
+ports       TODO
+---------------------
+(2) 基础组件
+组件名称                作用与角色                  节点分布      其他说明
+kube-apiserver            在 /etc/kubernetes 中配置
+kube-scheduler            在 /etc/kubernetes 中配置
+kube-controller-manager   在 /etc/kubernetes 中配置
+kubelet                   在 /etc/kubernetes 中配置
+kube-proxy                在 /etc/kubernetes 中配置
+
+## 配置各节点yum源 ##
+本例中使用本地yum源
+[root@k8s ~]# cat /etc/yum.repos.d/local.repo
+[local]
+name=CentOS Local Repo
+baseurl=http://10.20.1.200:8080
+gpgcheck=0
+
+## 在集群各节点安装k8s基础软件 ##
+root@user # yum install -y docker-common kubernetes etcd flannel
+
+## 配置DNS或本地解析 ##
+tips: 如果在DNS服务器中已经配置过域名解析,那么就不需要在/etc/hosts 中额外配置;全体节点一致;
+以k8s节点为例:
+[root@k8s ~]# cat /etc/hosts | grep k8s
+172.16.10.109 k8s-master-109
+172.16.10.120 k8s-minion-120
+
+## 修改集群基本配置 ##
+tips: 全体节点一致修改 /etc/kubernetes/config 配置项如下,此处以k8s节点为例;
+[root@k8s ~]# sed -ri "s/.*KUBE_MASTER.*/KUBE_MASTER=\"--master=http:\/\/k8s-master-109:8080\"/g" /etc/kubernetes/config 
+[root@k8s ~]# cat /etc/kubernetes/config | egrep -v "^$|^#"
+KUBE_LOGTOSTDERR="--logtostderr=true"
+KUBE_LOG_LEVEL="--v=0"
+KUBE_ALLOW_PRIV="--allow-privileged=false"
+KUBE_MASTER="--master=http://k8s-master-109:8080"
+
+## 关闭防火墙规则管理服务 ##
+tips: firewalld与docker服务搭配的不默契,所以禁用前者,各节点全部如下配置
+以k8s为例:
+[root@k8s ~]# setenforce 0 
+[root@k8s ~]# for service in iptables-services firewalld;do systemctl stop $service;systemctl disable $service;done
+
+
+## 配置主控节点各服务 ##
+(1) 主控节点 etcd安装后默认配置信息如下:
+[root@k8s ~]# cat /etc/etcd/etcd.conf |egrep -v "^$|^#"
+ETCD_NAME=default
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_CLIENT_URLS="http://localhost:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://localhost:2379"
+
+使用如下命令行修改配置项: ETCD_LISTEN_CLIENT_URLS与ETCD_ADVERTISE_CLIENT_URLS
+[root@k8s ~]# sed -ri "s/.*ETCD_LISTEN_CLIENT_URLS.*/ETCD_LISTEN_CLIENT_URLS=\"http:\/\/0.0.0.0:2379\"/g" /etc/etcd/etcd.conf
+[root@k8s ~]# sed -ri "s/.*ETCD_ADVERTISE_CLIENT_URLS.*/ETCD_ADVERTISE_CLIENT_URLS=\"http:\/\/0.0.0.0:2379\"/g" /etc/etcd/etcd.conf
+
+配置修改后内容如下:
+[root@k8s ~]# cat /etc/etcd/etcd.conf |egrep -v "^$|^#"
+ETCD_NAME=default
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://0.0.0.0:2379"
+
+(2) 主控节点 apiserver配置
+[root@k8s ~]# cat /etc/kubernetes/apiserver | egrep -v "^$|^#"
+KUBE_API_ADDRESS="--insecure-bind-address=127.0.0.1"
+KUBE_ETCD_SERVERS="--etcd-servers=http://127.0.0.1:2379"
+KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=10.254.0.0/16"
+KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota"
+KUBE_API_ARGS=""
+
+修改/etc/kubernetes/apiserver的 KUBE_API_ADDRESS,KUBE_API_PORT,KUBELET_PORT,KUBE_ETCD_SERVERS,KUBE_SERVICE_ADDRESSES,KUBE_API_ARGS
+[root@k8s ~]# sed -ri "s/.*KUBE_API_ADDRESS.*/KUBE_API_ADDRESS=\"--address=0.0.0.0\"/g" /etc/kubernetes/apiserver
+[root@k8s ~]# sed -ri "s/.*KUBE_API_PORT.*/KUBE_API_PORT=\"--port=8080\"/g" /etc/kubernetes/apiserver 
+[root@k8s ~]# sed -ri "s/.*KUBELET_PORT.*/KUBELET_PORT=\"--kubelet-port=10250\"/g" /etc/kubernetes/apiserver
+
+[root@k8s ~]# sed -ri "s/.*KUBE_ETCD_SERVERS.*/KUBE_ETCD_SERVERS=\"--etcd-servers=http:\/\/k8s-master-109:2379\"/g" /etc/kubernetes/apiserver 
+[root@k8s ~]# sed -ri "s/.*KUBE_SERVICE_ADDRESSES.*/KUBE_SERVICE_ADDRESSES=\"--service-cluster-ip-range=172.16.10.0\/24\"/g" /etc/kubernetes/apiserver
+
+配置修改之后内容如下:
+[root@k8s ~]# cat /etc/kubernetes/apiserver | egrep -v "^$|^#"
+KUBE_API_ADDRESS="--address=0.0.0.0"
+KUBE_API_PORT="--port=8080"
+KUBELET_PORT="--kubelet-port=10250"
+KUBE_ETCD_SERVERS="--etcd-servers=http://k8s-master-109:2379"
+KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=172.16.10.0/24"
+KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota"
+KUBE_API_ARGS=""
+
+启动etcd服务
+[root@k8s ~]# systemctl start etcd
+
+使用etcd服务保存kube网络配置
+[root@k8s ~]# etcdctl mkdir /kube-centos/network
+[root@k8s ~]# etcdctl set /kube-centos/network/config "{ \"Network\": \"10.0.0.0/8\", \"SubnetLen\": 24, \"Backend\": { \"Type\": \"vxlan\" } }"
+# Network可以自定义,该IP池用于docker容器IP分配
+
+(3) 配置flannel overlay网络
+默认情况下的flanneld配置
+[root@k8s ~]# cat /etc/sysconfig/flanneld |egrep -v "^#|^$" 
+FLANNEL_ETCD_ENDPOINTS="http://127.0.0.1:2379"
+FLANNEL_ETCD_PREFIX="/atomic.io/network"
+
+修改FLANNEL_ETCD_ENDPOINTS,FLANNEL_ETCD_PREFIX:
+[root@k8s ~]# sed -ri "s/.*FLANNEL_ETCD_ENDPOINTS.*/FLANNEL_ETCD_ENDPOINTS=\"http:\/\/k8s-master-109:2379\"/g" /etc/sysconfig/flanneld 
+[root@k8s ~]# sed -ri "s/.*FLANNEL_ETCD_PREFIX.*/FLANNEL_ETCD_PREFIX=\"\/kube-centos\/network\"/g" /etc/sysconfig/flanneld
+
+配置修改后内容如下:
+[root@k8s ~]# cat /etc/sysconfig/flanneld |egrep -v "^#|^$" 
+FLANNEL_ETCD_ENDPOINTS="http://k8s-master-109:2379"
+FLANNEL_ETCD_PREFIX="/kube-centos/network"
+
+(4) 在主控节点启动全部服务
+按照服务依赖关系，在主控节点依次启动各服务
+a.etcd
+b.flanneld
+c.docker
+d.kube-apiserver
+e.kube-controller-manager
+f.kube-scheduler
+查看启动状态,设置开机自启
+[root@k8s ~]# for i in etcd flanneld docker kube-apiserver kube-controller-manager \
+ kube-scheduler ;do systemctl start $i ; systemctl enable $i ; systemctl status $i ; done
+
+tips: 
+a. flanneld服务启动过程中会依据默认路由查找默认网络接口，如果主机无默认路由，那么是无法启动服务的
+b. 在配置flannel之后,docker 依赖其提供网络基础设置;前者不启动，docker也会无法启动;
+
+
+## 配置minion节点各服务 ##
+(1) minion节点修改 kubelet 配置
+默认配置信息如下
+[root@k8s-minion ~]# cat /etc/kubernetes/kubelet | egrep -v "^$|^#"
+KUBELET_ADDRESS="--address=127.0.0.1"
+KUBELET_HOSTNAME="--hostname-override=127.0.0.1"
+KUBELET_API_SERVER="--api-servers=http://127.0.0.1:8080"
+KUBELET_POD_INFRA_CONTAINER="--pod-infra-container-image=registry.access.redhat.com/rhel7/pod-infrastructure:latest"
+KUBELET_ARGS=""
+
+修改KUBELET_ADDRESS,KUBELET_PORT,KUBELET_HOSTNAME,KUBELET_API_SERVER:
+[root@k8s-minion ~]# sed -ri "s/.*KUBELET_ADDRESS.*/KUBELET_ADDRESS=\"--address=0.0.0.0\"/g" /etc/kubernetes/kubelet 
+[root@k8s-minion ~]# sed -ri "s/.*KUBELET_PORT.*/KUBELET_PORT=\"--port=10250\"/g" /etc/kubernetes/kubelet 
+[root@k8s-minion ~]# sed -ri "s/.*KUBELET_HOSTNAME.*/KUBELET_HOSTNAME=\"--hostname-override=k8s-minion-120\"/g" /etc/kubernetes/kubelet
+[root@k8s-minion ~]# sed -ri "s/.*KUBELET_API_SERVER.*/KUBELET_API_SERVER=\"--api-servers=http:\/\/k8s-master-109:8080\"/g" /etc/kubernetes/kubelet
+
+配置修改后内容如下:
+[root@k8s-minion ~]# cat /etc/kubernetes/kubelet | egrep -v "^#|^$"
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_PORT="--port=10250"
+KUBELET_HOSTNAME="--hostname-override=k8s-minion-120"
+KUBELET_API_SERVER="--api-servers=http://k8s-master-109:8080"
+KUBELET_POD_INFRA_CONTAINER="--pod-infra-container-image=registry.access.redhat.com/rhel7/pod-infrastructure:latest"
+KUBELET_ARGS=""
+
+(2) minion节点配置flannel节点
+flannel默认配置参考前文,略
+flannel修改 /etc/sysconfig/flanneld 参数,参考前文,略
+
+(3) 启动minion节点的各项服务并设置开机自启
+[root@k8s-minion ~]# systemctl start flanneld docker kube-proxy kubelet
+[root@k8s-minion ~]# systemctl status flanneld docker kube-proxy kubelet
+[root@k8s-minion ~]# systemctl enable flanneld docker kube-proxy kubelet
+
+
+
+## master节点配置kubectl命令行客户端 ##
+[root@k8s ~]# kubectl config set-cluster default-cluster --server=http://k8s-master-109:8080
+Cluster "default-cluster" set.
+
+[root@k8s ~]# kubectl config set-context default-context --cluster=default-cluster --user=default-admin
+Context "default-context" set.
+
+[root@k8s ~]# kubectl config use-context default-context 
+Switched to context "default-context".
+
+
+## 验证集群管理 ##
+[root@k8s ~]# kubectl get nodes
+NAME             STATUS    AGE
+k8s-minion-120   Ready     13m
+
+
+## 配置完善与安全加固 ##
+(TODO)
+1.etcd服务: serving insecure client requests on [::]:2379, this is strongly discouraged!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
