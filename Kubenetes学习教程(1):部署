@@ -68,8 +68,10 @@ ETCD_LISTEN_CLIENT_URLS="http://localhost:2379"
 ETCD_ADVERTISE_CLIENT_URLS="http://localhost:2379"
 
 使用如下命令行修改配置项: ETCD_LISTEN_CLIENT_URLS与ETCD_ADVERTISE_CLIENT_URLS
-[root@k8s ~]# sed -ri "s/.*ETCD_LISTEN_CLIENT_URLS.*/ETCD_LISTEN_CLIENT_URLS=\"http:\/\/0.0.0.0:2379\"/g" /etc/etcd/etcd.conf
-[root@k8s ~]# sed -ri "s/.*ETCD_ADVERTISE_CLIENT_URLS.*/ETCD_ADVERTISE_CLIENT_URLS=\"http:\/\/0.0.0.0:2379\"/g" /etc/etcd/etcd.conf
+[root@k8s ~]# sed -ri "s/.*ETCD_LISTEN_CLIENT_URLS.*/ETCD_LISTEN_CLIENT_URLS=\"http:\/\/0.0.0.0:2379\"/g" \
+/etc/etcd/etcd.conf
+[root@k8s ~]# sed -ri "s/.*ETCD_ADVERTISE_CLIENT_URLS.*/ETCD_ADVERTISE_CLIENT_URLS=\"http:\/\/0.0.0.0:2379\"/g" \
+/etc/etcd/etcd.conf
 
 配置修改后内容如下:
 [root@k8s ~]# cat /etc/etcd/etcd.conf |egrep -v "^$|^#"
@@ -83,16 +85,20 @@ ETCD_ADVERTISE_CLIENT_URLS="http://0.0.0.0:2379"
 KUBE_API_ADDRESS="--insecure-bind-address=127.0.0.1"
 KUBE_ETCD_SERVERS="--etcd-servers=http://127.0.0.1:2379"
 KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=10.254.0.0/16"
-KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota"
+KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,\
+ServiceAccount,ResourceQuota"
 KUBE_API_ARGS=""
 
-修改/etc/kubernetes/apiserver的 KUBE_API_ADDRESS,KUBE_API_PORT,KUBELET_PORT,KUBE_ETCD_SERVERS,KUBE_SERVICE_ADDRESSES,KUBE_API_ARGS
+修改/etc/kubernetes/apiserver的 KUBE_API_ADDRESS,KUBE_API_PORT,KUBELET_PORT,KUBE_ETCD_SERVERS,
+KUBE_SERVICE_ADDRESSES,KUBE_API_ARGS
 [root@k8s ~]# sed -ri "s/.*KUBE_API_ADDRESS.*/KUBE_API_ADDRESS=\"--address=0.0.0.0\"/g" /etc/kubernetes/apiserver
 [root@k8s ~]# sed -ri "s/.*KUBE_API_PORT.*/KUBE_API_PORT=\"--port=8080\"/g" /etc/kubernetes/apiserver 
 [root@k8s ~]# sed -ri "s/.*KUBELET_PORT.*/KUBELET_PORT=\"--kubelet-port=10250\"/g" /etc/kubernetes/apiserver
 
-[root@k8s ~]# sed -ri "s/.*KUBE_ETCD_SERVERS.*/KUBE_ETCD_SERVERS=\"--etcd-servers=http:\/\/k8s-master-109:2379\"/g" /etc/kubernetes/apiserver 
-[root@k8s ~]# sed -ri "s/.*KUBE_SERVICE_ADDRESSES.*/KUBE_SERVICE_ADDRESSES=\"--service-cluster-ip-range=172.16.10.0\/24\"/g" /etc/kubernetes/apiserver
+[root@k8s ~]# sed -ri "s/.*KUBE_ETCD_SERVERS.*/KUBE_ETCD_SERVERS=\"--etcd-servers=http:\/\/k8s-master-109:2379\"/g" \
+/etc/kubernetes/apiserver 
+[root@k8s ~]# sed -ri "s/.*KUBE_SERVICE_ADDRESSES.*/KUBE_SERVICE_ADDRESSES=\"--service-cluster-ip-range=172.16.10.0\/24\"/g" \
+/etc/kubernetes/apiserver
 
 配置修改之后内容如下:
 [root@k8s ~]# cat /etc/kubernetes/apiserver | egrep -v "^$|^#"
@@ -101,7 +107,8 @@ KUBE_API_PORT="--port=8080"
 KUBELET_PORT="--kubelet-port=10250"
 KUBE_ETCD_SERVERS="--etcd-servers=http://k8s-master-109:2379"
 KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=172.16.10.0/24"
-KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota"
+KUBE_ADMISSION_CONTROL="--admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,\
+ServiceAccount,ResourceQuota"
 KUBE_API_ARGS=""
 
 启动etcd服务
@@ -109,7 +116,8 @@ KUBE_API_ARGS=""
 
 使用etcd服务保存kube网络配置
 [root@k8s ~]# etcdctl mkdir /kube-centos/network
-[root@k8s ~]# etcdctl set /kube-centos/network/config "{ \"Network\": \"10.0.0.0/8\", \"SubnetLen\": 24, \"Backend\": { \"Type\": \"vxlan\" } }"
+[root@k8s ~]# etcdctl set /kube-centos/network/config "{ \"Network\": \"10.0.0.0/8\", \"SubnetLen\": 24, 
+\"Backend\": { \"Type\": \"vxlan\" } }"
 # Network可以自定义,该IP池用于docker容器IP分配
 
 (3) 配置flannel overlay网络
@@ -119,8 +127,10 @@ FLANNEL_ETCD_ENDPOINTS="http://127.0.0.1:2379"
 FLANNEL_ETCD_PREFIX="/atomic.io/network"
 
 修改FLANNEL_ETCD_ENDPOINTS,FLANNEL_ETCD_PREFIX:
-[root@k8s ~]# sed -ri "s/.*FLANNEL_ETCD_ENDPOINTS.*/FLANNEL_ETCD_ENDPOINTS=\"http:\/\/k8s-master-109:2379\"/g" /etc/sysconfig/flanneld 
-[root@k8s ~]# sed -ri "s/.*FLANNEL_ETCD_PREFIX.*/FLANNEL_ETCD_PREFIX=\"\/kube-centos\/network\"/g" /etc/sysconfig/flanneld
+[root@k8s ~]# sed -ri "s/.*FLANNEL_ETCD_ENDPOINTS.*/FLANNEL_ETCD_ENDPOINTS=\"http:\/\/k8s-master-109:2379\"/g" \
+/etc/sysconfig/flanneld 
+[root@k8s ~]# sed -ri "s/.*FLANNEL_ETCD_PREFIX.*/FLANNEL_ETCD_PREFIX=\"\/kube-centos\/network\"/g" \
+/etc/sysconfig/flanneld
 
 配置修改后内容如下:
 [root@k8s ~]# cat /etc/sysconfig/flanneld |egrep -v "^#|^$" 
@@ -157,8 +167,10 @@ KUBELET_ARGS=""
 修改KUBELET_ADDRESS,KUBELET_PORT,KUBELET_HOSTNAME,KUBELET_API_SERVER:
 [root@k8s-minion ~]# sed -ri "s/.*KUBELET_ADDRESS.*/KUBELET_ADDRESS=\"--address=0.0.0.0\"/g" /etc/kubernetes/kubelet 
 [root@k8s-minion ~]# sed -ri "s/.*KUBELET_PORT.*/KUBELET_PORT=\"--port=10250\"/g" /etc/kubernetes/kubelet 
-[root@k8s-minion ~]# sed -ri "s/.*KUBELET_HOSTNAME.*/KUBELET_HOSTNAME=\"--hostname-override=k8s-minion-120\"/g" /etc/kubernetes/kubelet
-[root@k8s-minion ~]# sed -ri "s/.*KUBELET_API_SERVER.*/KUBELET_API_SERVER=\"--api-servers=http:\/\/k8s-master-109:8080\"/g" /etc/kubernetes/kubelet
+[root@k8s-minion ~]# sed -ri "s/.*KUBELET_HOSTNAME.*/KUBELET_HOSTNAME=\"--hostname-override=k8s-minion-120\"/g" \
+/etc/kubernetes/kubelet
+[root@k8s-minion ~]# sed -ri "s/.*KUBELET_API_SERVER.*/KUBELET_API_SERVER=\"--api-servers=http:\/\/k8s-master-109:8080\"/g" \
+/etc/kubernetes/kubelet
 
 配置修改后内容如下:
 [root@k8s-minion ~]# cat /etc/kubernetes/kubelet | egrep -v "^#|^$"
