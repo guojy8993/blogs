@@ -48,9 +48,7 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
 ```
 
 - 3. 关闭目标osd对应的服务
-说明: 
-- (1) 该操作需要切换到该osd所在的主机进行
-- (2) 关闭osd服务的方法版本不同略有变化
+说明: (1) 该操作需要切换到该osd所在的主机进行 (2) 关闭osd服务的方法版本不同略有变化
 
 ```
 [root@node-1 ~]# ssh node-2
@@ -67,21 +65,25 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
  2 0.04819         osd.2        up  1.00000          1.00000
 ```
 
-4. 将目标osd从crush map中移除
+- 4. 将目标osd从crush map中移除
+```
 [root@node-1 ~]# ceph osd crush remove osd.0
 removed item id 0 name 'osd.0' from crush map
+```
 
-5. 将目标osd的验证密钥移除
+- 5. 将目标osd的验证密钥移除
+```
 [root@node-1 ~]# ceph auth del osd.0
 updated
+```
 
-6. 最终删除目标osd
+- 6. 最终删除目标osd
+```
 [root@node-1 ~]# ceph osd rm osd.0
 removed osd.0
-
-
-
-7. 如果需要从集群踢出主机，那么将该主机的全部osd按照步骤1-6执行全部移除，然后在crush map中移除该host bucket
+```
+- 7. 如果需要从集群踢出主机，那么将该主机的全部osd按照步骤1-6执行全部移除，然后在crush map中移除该host bucket
+```
 [root@node-2 ~]# for i in {1..2};do \
 > ceph osd out osd.${i}; \
 > systemctl stop ceph-osd@${i}; \
@@ -104,5 +106,5 @@ ID WEIGHT TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
 -2      0     host node-2                                   
 [root@node-2 ~]# ceph osd crush remove node-2
 removed item id -2 name 'node-2' from crush map
-
+```
 
