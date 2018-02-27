@@ -14,7 +14,7 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
  1 0.04819         osd.1        up  1.00000          1.00000 
  2 0.04819         osd.2        up  1.00000          1.00000
 ```
-缩容集群一般遵循如下思路
+缩容集群一般遵循如下思路:
 
 - 1. 标记目标osd为out状态使之触发数据迁出
 说明: osd标记为out状态之后,ceph将会立即开始数据重新平衡,它会将osd上的pg迁移到集群内部其他的osd上。
