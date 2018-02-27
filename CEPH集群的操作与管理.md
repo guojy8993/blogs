@@ -14,12 +14,14 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
  1 0.04819         osd.1        up  1.00000          1.00000 
  2 0.04819         osd.2        up  1.00000          1.00000
 ```
-缩容集群一般遵循如下思路:
-1. 标记目标osd为out状态使之触发数据迁出
-说明: osd标记为out状态之后,ceph将会立即开始数据重新平衡,它会将osd上的pg迁移到集群内部其他的osd上。在一定
-时间内，集群处于不健康状态，但是它还是能够对客户端提供服务。根据被移除的osd的数目，系统的性能在数据恢复结
-束之前可能有一定程度的下降。一旦集群恢复健康状态，他就会像往常一样运行了。
+缩容集群一般遵循如下思路
 
+- 1. 标记目标osd为out状态使之触发数据迁出
+说明: osd标记为out状态之后,ceph将会立即开始数据重新平衡,它会将osd上的pg迁移到集群内部其他的osd上。
+在一定时间内，集群处于不健康状态，但是它还是能够对客户端提供服务。根据被移除的osd的数目，系统的性
+能在数据恢复结束之前可能有一定程度的下降。一旦集群恢复健康状态，他就会像往常一样运行了。
+
+```
 [root@node-1 ~]# ceph osd out osd.0
 marked out osd.0. 
 [root@node-1 ~]# ceph osd tree
@@ -29,9 +31,10 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
  0 0.04819         osd.0        up        0          1.00000 
  1 0.04819         osd.1        up  1.00000          1.00000 
  2 0.04819         osd.2        up  1.00000          1.00000
+```
 
-
-2. 查看集群状态等待其恢复完成
+- 2. 查看集群状态等待其恢复完成
+```
 [root@node-1 ~]# ceph -s
     cluster 614b1692-ba57-4e3d-bccc-80b97a1f4c10
      health HEALTH_OK
@@ -42,12 +45,14 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
       pgmap v2231: 576 pgs, 5 pools, 97509 kB data, 31 objects
             20651 MB used, 80442 MB / 101094 MB avail
                  576 active+clean
+```
 
-3. 关闭目标osd对应的服务
+- 3. 关闭目标osd对应的服务
 说明: 
-(1) 该操作需要切换到该osd所在的主机进行
-(2) 关闭osd服务的方法版本不同略有变化
+- (1) 该操作需要切换到该osd所在的主机进行
+- (2) 关闭osd服务的方法版本不同略有变化
 
+```
 [root@node-1 ~]# ssh node-2
 Warning: Permanently added 'node-2,10.120.1.3' (ECDSA) to the list of known hosts.
 Last login: Fri Jul 28 06:56:48 2017 from 10.120.1.2
@@ -60,6 +65,7 @@ ID WEIGHT  TYPE NAME       UP/DOWN REWEIGHT PRIMARY-AFFINITY
  0 0.04819         osd.0      down        0          1.00000 
  1 0.04819         osd.1        up  1.00000          1.00000 
  2 0.04819         osd.2        up  1.00000          1.00000
+```
 
 4. 将目标osd从crush map中移除
 [root@node-1 ~]# ceph osd crush remove osd.0
