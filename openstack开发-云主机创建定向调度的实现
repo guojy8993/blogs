@@ -1,0 +1,273 @@
+文档章节提要:
+第一部分 设计思路
+第二部分 代码实现
+第三部分 效果实测
+第三部分 功能完善
+
+########## 第一部分 设计思路 ###########
+基于 openstack/newton 进行开发/测试
+思路来源于两方面的信息:
+(1) 查看nova boot的帮助信息的时候留意到hint选项:
+[root@master ~]# nova help boot
+...
+--hint <key=value>  Send arbitrary key/value pairs to the
+                    scheduler for custom use.
+...
+注意到该选项的描述信息中说到,定义的任意K/V对会被发送到nova-scheduler组
+件用于客户用途,重点在于"会被发送到nova-scheduler";
+
+(2) 前台debug nova-scheduler服务(pdb调试),发现调度的逻辑大致走如下流程: 
+当nova boot云主机时,请求被转发到nova-scheduler时,由其进行do_schedule操作,
+逻辑如下:
+i. 获取当前全部可用的计算节点(排除down状态的nova-compute节点)
+ii.针对上述计算节点进行遍历,遍历逻辑如下: 将计算节点的信息(以封装实体形式)与
+   nova boot的云主机信息(以封装实体形式)传给nova.conf中定义的一系列过滤器
+   中进行逐次过滤,直到最后确定合适的节点;
+iv:如果发现合适调度的节点则把创建请求转发
+
+那么,
+问题1: 那么这些过滤器都具有什么作用呢?
+[root@master ~]# cat /etc/nova/nova.conf | grep scheduler_default_filters | egrep -v '^#|^$'
+scheduler_default_filters=RetryFilter,AvailabilityZoneFilter,RamFilter,DiskFilter,ComputeFilter,
+ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter
+
+答: 过滤掉之前尝试过的节点(RetryFilter),按AZ过滤宿主(AvailabilityZoneFilter), 按云主机的套餐过滤宿主(RamFilter,
+DiskFilter),过滤掉disabled状态的宿主(ComputeFilter),按宿主特性进行宿主筛选(ComputeCapabilitiesFilter),按云主机
+照镜像属性进行过滤(ImagePropertiesFilter),按照主机组反亲和性过滤宿主(ServerGroupAntiAffinityFilter),按照主机组亲
+和性过滤宿主(ServerGroupAffinityFilter)
+
+问题2: 实现逻辑是什么?
+对应的过滤器定义在 nova/scheduler/filters/ 路径下,观察各个过滤器的应用以及实现,基本可以归结出以下的套路:
+a. 定义云主机的时需要直接或间接打各种标签(不论是云主机的直接属性,或metadata,或hints,或其直接属性的关联属性,e.g: 云主
+机镜像信息中定义的镜像require的硬件架构与特性)
+b. 宿主的直接或间接标签(磁盘、CPU大小以及特性、内存、以及非硬件信息的逻辑属性,e.g:AZ/ServerGroup...)
+c. 所谓的调度逻辑就是,将云主机的实体(各种标签)与宿主的实体(各种标签)进行某种有目的性地匹配(e.g:对比双方是否就某标签达成
+默契),进行目标宿主的筛选
+
+此处以ComputeFilter为例来说明:
+
+class ComputeFilter(filters.BaseHostFilter):
+    def __init__(self):
+        self.servicegroup_api = servicegroup.API()
+
+    run_filter_once_per_request = True
+    def host_passes(self, host_state, spec_obj):
+        service = host_state.service
+        if service['disabled']:
+            LOG.debug("%(host_state)s is disabled, reason: %(reason)s",
+                      {'host_state': host_state,
+                       'reason': service.get('disabled_reason')})
+            return False
+        else:
+            if not self.servicegroup_api.service_is_up(service):
+                LOG.warning(_LW("%(host_state)s has not been heard from in a "
+                                "while"), {'host_state': host_state})
+                return False
+        return True
+a. 直接或间接继承filters.BaseHostFilter,并按契约实现 host_passes 方法
+b. 调度逻辑中的节点合格与否的判定逻辑是定义在 host_passes 中的,具体如何个"合格"法,需要根据具体业务逻辑确定
+c. 筛选合格则返回true,反之false
+c. 方法host_passes默认接收host_state与spec_obj两个实体(具体包含哪些属性以及属性的取用方法需要pdb debug确
+定),从各自实体中取"标签",进行"某种标准"的筛查: 此处判断当前宿主的nova-compute是否处于disabled状态,如果是,
+筛掉; 否则,留待后续过滤器继续过滤.直到经过最后的过滤.
+那么实现自定义调度过滤器需要注意: 继承filters.BaseHostFilter,并按契约实现其host_passes方法
+
+那么问题来了,在已经知晓该两方面的信息之后,如何实现自定义宿主的调度呢?
+a. nova boot时通过 --hint 选项将目标宿主的信息传给scheduler,e.g: nova boot ... --hint host=compute106 ...
+b. 自定义一个过滤器,配置到 scheduler_default_filters 中的 pipeline的末尾: 虽然我们目标是期望强制调度到指定宿主
+但是,指定宿主也必须有合适的条件以通过之前层层筛选，来到我们最后的自定义过滤器中
+c. 自定义过滤器的host_passes逻辑是啥? 取出云主机实体的hint.host信息与当前被过滤的计算节点名匹配,以筛除非意向节点
+
+
+########## 第二部分 代码实现 ###########
+在运行nova-scheduler服务的节点的 nova 项目中的nova/scheduler/filters/路径下添加自定义的"指定宿主调度过滤器": 
+force_host_filter.py,主要内容见下文:
+...
+class ForceHostFilter(filters.BaseHostFilter):
+    """Force Host Filter with over subscription flag."""
+
+    def host_passes(self, host_state, spec_obj):
+
+        # pdb.set_trace()
+
+        """Only return hosts within force hosts list."""
+        force_hosts = spec_obj.scheduler_hints.get('host', [])
+        if not force_hosts:
+            return True
+        host_hostname = host_state.host
+        host_nodebname = host_state.nodename
+        return host_hostname in force_hosts or host_nodebname in force_hosts
+
+# NOTE: nova boot 中 --hint 选项以 scheduler_hints 出现在云主机实体信息spec_obj中.
+#       如果不指定 --hint host=xxx,那么功能如常
+#       如果指定,那么取出host值以匹配计算节点
+# 
+# 测试效果见本篇下一部分
+
+########## 第三部分 效果实测 ###########
+1. 在经过"第二部分 代码实现"部分之后,我们需要重新配置主控节点nova.conf的scheduler_default_filters配置项,如下:
+[root@master ~]# cat /etc/nova/nova.conf | grep scheduler_default_filters | egrep -v '^#|^$'
+scheduler_default_filters=RetryFilter,AvailabilityZoneFilter,RamFilter,DiskFilter,ComputeFilter,
+ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter,
+ForceHostFilter
+
+2. 重新启动nova-scheduler服务(略)
+3. 启动云主机测试:
+(1) 先查看集群可用计算节点
+[root@master ~]# source openrc.admin && nova service-list | grep nova-compute
+| 6  | nova-compute     | compute106 | nova     | enabled | up    | 2018-05-20T23:40:14.000000 | -    |
+| 7  | nova-compute     | compute107 | nova     | enabled | up    | 2018-05-20T23:40:20.000000 | -    |
+
+(2) 尝试以不指定hint.host的方式启动一组云主机,测试
+[root@master ~]# cat /root/nova-test/boot-server-anyhost.sh 
+#!/bin/bash
+nova boot --flavor 512-1-1 \
+          --image cirros   \
+          --key-name master  \
+          --nic net-id=d9897882-607a-47ba-8b28-91043a5c2d58 $1
+
+[root@master ~]# source openrc.demo && for i in {1..7};do sh nova-test/boot-server-anyhost.sh anyhost$i;done
+...
+
+[root@master ~]# source openrc.admin &&  for i in $(nova list --all-tenants | grep anyhost | \
+awk '{print $2}');do nova show $i | grep  hypervisor_hostname ;done
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106    |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute107    |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106    |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute107    |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106    |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute107    |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106    |
+
+# NOTE: 根据输出结果看到,如果不指定宿主的情况下一组云主机会被均分到两个计算节点上去
+
+# 释放资源
+[root@master ~]# source openrc.admin &&  for i in $(nova list --all-tenants | grep anyhost | \
+awk '{print $2}');do nova delete $i;done
+
+(3) 尝试以指定hint.host的方式启动一组云主机,测试
+[root@master ~]# cat /root/nova-test/boot-server.sh 
+#!/bin/bash
+nova boot --flavor 512-1-1 \
+          --image cirros   \
+          --key-name master  \
+          --hint host=compute106 \
+          --nic net-id=d9897882-607a-47ba-8b28-91043a5c2d58 $1
+
+[root@master ~]# source openrc.demo && for i in {1..7};do sh nova-test/boot-server.sh demo1060$i;done
+....
+[root@master ~]# source openrc.admin &&  for i in $(nova list --all-tenants | grep demo106 | \
+awk '{print $2}');do nova show $i | grep  hypervisor_hostname ;done
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106      |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106      |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106      |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106      |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106      |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute106      |
+...
+
+# NOTE: 通过对比发现,功能修改是生效的
+
+# 释放资源
+[root@master ~]# source openrc.admin &&  for i in $(nova list --all-tenants | grep demo106 | \
+awk '{print $2}');do nova delete $i;done
+
+########## 第四部分 功能完善 ###########
+经过前文的需求以及技术实现的分析,终于实现了功能,但是呢,美中不足的是: 并实现类似 nova boot --host <compute 
+host>这样的独立形式的参数, 而不是依赖于 --hint 这样的参数,所以呢,又产生两个需求:
+(1) 执行 nova help boot的时候,能够给出 --host 选项以及选项说明信息
+(2) 使用 nova boot进行指定宿主调度的时候通过 --host 选项指定宿主
+
+那么分析需求(1):
+这个怎么修改呢?可以比猫画虎地为nova boot选项添加选项,那么问题来了,怎么知道在哪里改? 怎么改?
+首先确定在哪里修改,这里有个小技巧:
+# 随便找个 nova boot的选项,查看其帮助信息
+[root@master ~]# nova help boot | grep admin-pass
+  --admin-pass <value>          Admin password for the instance.
+# 大致猜测是novaclient在负责该功能,故而在novaclient项目下全局搜索选项的帮助信息:"Admin password for the instance."
+[root@master ~]# grep -rn "Admin password for the instance." /usr/lib/python2.7/site-packages/novaclient/
+/usr/lib/python2.7/site-packages/novaclient/v2/shell.py:668:    help=_('Admin password for the instance.'))
+# 定位到文件 /usr/lib/python2.7/site-packages/novaclient/v2/shell.py
+# 查看其原文件发现,nova boot的各个参数是以装饰器的方式添加的,e.g:
+@utils.arg(
+    '--description',
+    metavar='<description>',
+    dest='description',
+    default=None,
+    help=_('Description for the server.'),
+    start_version="2.19")
+def do_boot(cs, args):
+    ....
+
+那么以 nova boot的 --description 选项为例说明:
+[root@master ~]# nova help boot
+...
+  --description <description>   Description for the server. (Supported by API
+                                versions '2.19' - '2.latest')
+...
+读者可以很容易将utils.arg的各个选项与命令行的--description中的信息对应起来,除了"dest",这个是什么意思呢? 通过猜测,以及后续
+验证知道,该参数建立了命令行参数与后端调用api真实传参之间的映射,也即:nova boot的 --description 对应nova boots api调用时的
+description参数,参考此例,添加 --host 选项:
+@utils.arg(
+    '--host',
+    dest='host',
+    metavar='<value>',
+    default=None,
+    help=_('Host on which to launch the instance.'))
+...
+def do_boot(cs, args):
+    ...
+测试:
+[root@master ~]# nova help boot | grep '\-\-host'
+...
+  --host <value>   Host on which to launch the instance.
+...
+
+那么分析需求(2),如何将host参数转交给hint呢? 那么此处是一个思路,即在 --hint XX=YY 被转化成 {schedule_hints:{"XX":"YY"}}
+的上下文,取出host的值(e.g: compute106),将该值并入schedule_hints中,即成为:
+{
+    schedule_hints:{
+        "XX":"YY",
+        "host":"compute106"
+    }
+}
+这样,启动云主机的话就可以走本篇文章前三章节介绍的套路了,完成指定宿主调度,那么余下的最后一个问题,合并host值入schedule_hints在
+哪里修改呢?这个可以pdb加断点调试找到.后经自己亲测发现位置在 /usr/lib/python2.7/site-packages/novaclient/v2/shell.py:380
+附近,如下:
+377     nics = _parse_nics(cs, args)
+378 
+379     hints = {}
+380     if args.scheduler_hints:
+381         for hint in args.scheduler_hints:
+382             key, _sep, value = hint.partition('=')
+383             # NOTE(vish): multiple copies of the same hint will
+384             #             result in a list of values
+385             if key in hints:
+386                 if isinstance(hints[key], six.string_types):
+387                     hints[key] = [hints[key]]
+388                 hints[key] += [value]
+389             else:
+390                 hints[key] = value
+391 
+392     if args.host:
+393         hints['host'] = args.host
+
+最终使用 nova boot --host <host> 进行定宿主调度测试:
+
+[root@master ~]# cat /root/nova-test/boot-server-to-host-with-opt.sh 
+#!/bin/bash
+nova boot --flavor 512-1-1 \
+          --image cirros   \
+          --key-name master  \
+          --host compute107 \
+          --nic net-id=d9897882-607a-47ba-8b28-91043a5c2d58 $1
+
+[root@master ~]# source openrc.demo && sh /root/nova-test/boot-server-to-host-with-opt.sh compute107xxx
+...
+
+[root@master ~]# source openrc.admin && nova list --all-tenants | grep compute107xxx | awk '{print $2}'
+50175892-fa1a-43d6-8a8c-e2039d1f42d7
+[root@master ~]# nova show 50175892-fa1a-43d6-8a8c-e2039d1f42d7 | grep hypervisor_hostname
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | compute107 |
+
+# 测试OK
