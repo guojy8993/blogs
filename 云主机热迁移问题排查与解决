@@ -1,0 +1,23 @@
+## 问题描述: admin用户使用 nova live-migrate 迁移某云主机到某节点，命令行提示成功，但是，后续 nova show查看并未进行真正的迁移; 查看对应原宿主
+的nova-compute日志发现有如下错误输出:
+2018-05-27 14:50:38.093 2333 ERROR nova.virt.libvirt.driver [req-ee326fd5-8e30-480c-8f0d-d3326af96f64 466dbe748f3e47deac064488b2e06af1 
+f0f9652efde54aad81083bfc1a223aa7 - - -] [instance: 238a5906-1443-4af8-b84a-a96aa1442d4e] Live Migration failure: operation failed: Failed
+to connect to remote libvirt URI qemu+tcp://compute107/system: unable to connect to server at 'compute107:16509': Connection refused
+
+## 原因排查: 排查目标节点compute107的端口监听以及防火墙发现,防火墙例外并无问题,端口监听则无
+## 解决方法:
+参考错误日志输出,google错误信息发现是计算节点的libvirtd服务需要额外配置。解决办法见下文:
+
+修改文件vim /etc/sysconfig/libvirtd，用来启用tcp的端口:
+LIBVIRTD_CONFIG=/etc/libvirt/libvirtd.conf
+LIBVIRTD_ARGS="--listen"
+
+修改文件vim /etc/libvirt/libvirtd.conf
+listen_tls = 0
+listen_tcp = 1
+tcp_port = "16509"
+listen_addr = "0.0.0.0"
+auth_tcp = "none"
+
+重启 libvirtd
+service libvirtd restart
