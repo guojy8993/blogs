@@ -308,3 +308,5 @@ nova boot --flavor 512-1-1 \
 
 附录:
 (1) 云主机创建流程详解: https://blog.csdn.net/u010653908/article/details/72121559
+(2) 云主机迁移功能涉及到的额外配置: https://github.com/guojy8993/blogs/blob/master/%E4%BA%91%E4%B8%BB%E6%9C%BA%E7%8
+3%AD%E8%BF%81%E7%A7%BB%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5%E4%B8%8E%E8%A7%A3%E5%86%B3
