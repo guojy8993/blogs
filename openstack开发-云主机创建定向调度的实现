@@ -270,4 +270,41 @@ nova boot --flavor 512-1-1 \
 [root@master ~]# nova show 50175892-fa1a-43d6-8a8c-e2039d1f42d7 | grep hypervisor_hostname
 | OS-EXT-SRV-ATTR:hypervisor_hostname  | compute107 |
 
-# 测试OK
+# 2018.05.20 测试OK
+
+# 2018.06.02 追加更新
+实际环境运行中发现之前功能并不完善: 在进行云主机迁移的时候发现问题,云主机迁移失败状态变error.
+原因分析: 后续经过pdb调试发现,迁移的过程中发现云主机进行reschedule, 然而在调度的过程中,filters过滤hosts时仍然带有
+云主机boot之初指定的schedule_hint.host参数; 
+    那么其实指定宿主创建云主机功能设计之初我们考虑的 scheduler_hits 应该仅仅是创建时调度一次性使用,而不会持久化的,
+当时确查看nova数据库各表中是否有schedule_hints的持久化信息,然而并没有,于是出现了很奇怪的一幕.然而事实告诉我自己,肯
+定是持久化的,只是没找到具体位置.然后就搜索 openstack nova boot云主机的流程相关的文档,了解详细步骤(参考附录文档: "
+云主机创建流程详解"),终于了解到 nova api 在将创建请求通过消息队列传递给 nova scheduler 之前确实是与数据库进行一系列
+的交互,完成部分记录的初始化的,其中就包括对request spec(亦即过滤器函数host_passes接收的spec_obj参数实体)的持久化.于
+是定位到nova_api数据库的request_specs表,发现确实将我们boot云主机传入的schedule_hints['host']参数持久化了.
+    接下来我们的问题变成了: 
+    (1) 如何找到request_specs持久化的工作由哪个组件完成以及时机 
+    (2) 处理request_specs持久化逻辑
+    所以,针对问题(1)以及参考的流程文档,知道是 nova-api 在做这个工作,并根据其启动时加载的apis(osapi/metadata) 定位到
+ nova/api/openstack/compute/servers.py 的boot函数,加pdb调试,后续发现/usr/lib/python2.7/site-packages/nova/compute
+ /api.py 对 request_spec的操作与持久化
+    针对问题(2),在发现request spec持久化相关代码的基础上, 调整其逻辑:创建request spec的深拷副本,剔除schedule_hints
+.host属性,并保存数据库; 而将request spec的原实体传给调度程序.
+此处附上 /usr/lib/python2.7/site-packages/nova/compute/api.py 持久化request spec的逻辑变更(大致位置在935行):
+...
+935  	                # RequestSpec attribute `shedule_hints.birth_host` is used for 
+936  	                # forcing booting instance on specified host and should not be 
+937  	                # saved for further sheduling
+938  	                if 'host' in req_spec.scheduler_hints:
+939  	                    req_spec_clone = copy.deepcopy(req_spec)
+940  	                    del req_spec_clone.scheduler_hints['host']
+941  	                    req_spec_clone.create()
+942  	                else:
+943  	                    req_spec.create()
+...
+    该问题修复之后,重新指定节点启动云主机以及进行热迁移测试发现问题已经解决, scheduler_hints['host']参数真正做到仅仅用于boot
+情况下的调度,而不持久化对后续的迁移造成干扰.
+
+
+附录:
+(1) 云主机创建流程详解: https://blog.csdn.net/u010653908/article/details/72121559
